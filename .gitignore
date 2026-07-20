@@ -1,0 +1,17 @@
+# Dependencies
+node_modules
+
+# Env / secrets (single shared .env lives at the repo root)
+.env
+.env.*
+!.env.example
+
+# Convex
+.convex
+
+# OS / editor
+.DS_Store
+*.local
+
+# TypeScript
+*.tsbuildinfo

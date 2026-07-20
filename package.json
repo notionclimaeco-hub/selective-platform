@@ -1,0 +1,17 @@
+{
+  "name": "selective-platform",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Shared Convex backend for the Selective platform (admin-frontend + client-frontend).",
+  "scripts": {
+    "dev": "convex dev",
+    "dev:backend": "convex dev",
+    "dev:admin": "pnpm --dir admin-frontend dev",
+    "dev:client": "pnpm --dir client-frontend dev",
+    "import:sample": "convex import --table tasks sampleData.jsonl"
+  },
+  "dependencies": {
+    "convex": "^1.42.3"
+  }
+}
