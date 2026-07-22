@@ -1,0 +1,52 @@
+{
+  "userAgent": "SelectiveImagePipeline/1.0 (+https://selectedistribui.pt; catalog images for official distribution)",
+  "minWidth": 300,
+  "minHeight": 300,
+  "delayMs": 1000,
+  "brands": {
+    "nipon": {
+      "seeds": [
+        "https://www.niponcomfort.com/pt/produtos/ar-condicionado",
+        "https://www.niponcomfort.com/pt/produtos/bombas-de-calor",
+        "https://www.niponcomfort.com/pt/produtos/ventilacao",
+        "https://www.niponcomfort.com/pt/produtos/ventiloconvetores"
+      ],
+      "productLinkPattern": "/pt/produtos/[^/#]+/[^/#]+",
+      "imageUrlIncludes": [
+        "/pic/"
+      ],
+      "imageUrlExcludes": [
+        "_logo",
+        "garantia",
+        "footer",
+        "vector-opacity",
+        "cookie",
+        "icon",
+        "banner"
+      ]
+    },
+    "mitsubishi": {
+      "seeds": [
+        "https://mitsubishielectric.pt/gama-domestica-mural"
+      ],
+      "productLinkPattern": "mitsubishielectric\\.pt/gama-domestica-mural$",
+      "imageUrlIncludes": [
+        "/documents/",
+        "MSZ-AP",
+        "mural-AP"
+      ],
+      "imageUrlExcludes": [
+        "logo",
+        "icon",
+        "cookie",
+        "banner",
+        "sprite",
+        "layout_icon",
+        "LN1",
+        "EF2",
+        "AY.png",
+        "HR4"
+      ]
+    }
+  }
+}

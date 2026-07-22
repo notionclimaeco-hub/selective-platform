@@ -8,9 +8,15 @@
  * @module
  */
 
+import type * as admin_health from "../admin/health.js";
+import type * as imagens from "../imagens.js";
+import type * as importData from "../importData.js";
+import type * as lib_auth from "../lib/auth.js";
+import type * as lib_paginas from "../lib/paginas.js";
 import type * as marcas from "../marcas.js";
+import type * as paginasCatalogo from "../paginasCatalogo.js";
 import type * as produtos from "../produtos.js";
-import type * as tasks from "../tasks.js";
+import type * as seed from "../seed.js";
 
 import type {
   ApiFromModules,
@@ -19,9 +25,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "admin/health": typeof admin_health;
+  imagens: typeof imagens;
+  importData: typeof importData;
+  "lib/auth": typeof lib_auth;
+  "lib/paginas": typeof lib_paginas;
   marcas: typeof marcas;
+  paginasCatalogo: typeof paginasCatalogo;
   produtos: typeof produtos;
-  tasks: typeof tasks;
+  seed: typeof seed;
 }>;
 
 /**

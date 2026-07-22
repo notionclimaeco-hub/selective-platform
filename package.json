@@ -9,9 +9,19 @@
     "dev:backend": "convex dev",
     "dev:admin": "pnpm --dir admin-frontend dev",
     "dev:client": "pnpm --dir client-frontend dev",
-    "import:sample": "convex import --table tasks sampleData.jsonl"
+    "test": "vitest run",
+    "imagens:crawl": "node scripts/imagens/crawl.mjs",
+    "imagens:targets": "node scripts/imagens/targets.mjs",
+    "imagens:match": "node scripts/imagens/match.mjs",
+    "imagens:process": "node scripts/imagens/process.mjs",
+    "imagens:upload": "node scripts/imagens/upload.mjs"
   },
   "dependencies": {
     "convex": "^1.42.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.3",
+    "vitest": "^4"
   }
 }

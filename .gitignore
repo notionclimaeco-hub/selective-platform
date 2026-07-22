@@ -15,3 +15,8 @@ node_modules
 
 # TypeScript
 *.tsbuildinfo
+.import-data/
+
+# Local product-image workspace (crawl, process, upload state). Never commit.
+# Brand logos stay in images/logos/; live catalog images live in Convex Storage.
+product-scaffold/

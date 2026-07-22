@@ -30,11 +30,6 @@ export const estadoValidator = v.union(
 );
 
 export default defineSchema({
-  tasks: defineTable({
-    text: v.string(),
-    isCompleted: v.boolean(),
-  }),
-
   produtos: defineTable({
     ref: v.string(),
     nome: v.string(),
@@ -52,11 +47,34 @@ export default defineSchema({
     imagens: v.array(v.id("_storage")),
     estado: estadoValidator,
     tabelaOrigem: v.string(),
+    // --- Optional variant grouping (presentation metadata only) ---
+    // Family slug, kebab-case, convention "marca-gama[-variante-de-cor]"
+    // (e.g. "mitsubishi-msz-ap"). A group must never mix brands. When set,
+    // `variante` must be set too. Ungrouped products leave both undefined and
+    // behave exactly as before.
+    grupoModelo: v.optional(v.string()),
+    // Human label for the capacity picker, e.g. "9.000 BTU · 2,5 kW".
+    variante: v.optional(v.string()),
+    // Price-table page(s) this product appears on, verbatim from the import CSV
+    // column `pdfPaginas`. Format: "15" (single) or "54-55" (inclusive range).
+    // The actual PDFs live in `paginasCatalogo`, keyed by (tabelaOrigem, pagina).
+    pdfPaginas: v.optional(v.string()),
   })
     // Import upserts + detail lookups by manufacturer reference.
     .index("by_ref", ["ref"])
     // Public catalog listing/filtering.
-    .index("by_catalogo", ["estado", "marca", "categoria"]),
+    .index("by_catalogo", ["estado", "marca", "categoria"])
+    // Variant grouping: fetch all variants of a family.
+    .index("by_grupo", ["grupoModelo"]),
+
+  // One-page catalog PDFs, stored once per (tabelaOrigem, pagina) and shared
+  // across every product that references that page. Uniqueness on
+  // (tabelaOrigem, pagina) is enforced in the mutation, not by the schema.
+  paginasCatalogo: defineTable({
+    tabelaOrigem: v.string(),
+    pagina: v.number(),
+    ficheiro: v.id("_storage"),
+  }).index("by_tabela_pagina", ["tabelaOrigem", "pagina"]),
 
   marcas: defineTable({
     slug: v.string(),

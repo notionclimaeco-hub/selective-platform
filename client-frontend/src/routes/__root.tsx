@@ -3,6 +3,9 @@ import type { QueryClient } from "@tanstack/react-query"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
+import { OrcamentoDrawer } from "@/components/orcamento/orcamento-drawer"
+import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
+
 import appCss from "../styles.css?url"
 
 export const Route = createRootRouteWithContext<{
@@ -18,13 +21,30 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "TanStack Start Starter",
+        title: "Clima Eco Selective — Distribuição de climatização",
+      },
+      {
+        name: "description",
+        content:
+          "Distribuidor de equipamentos de climatização com mais de 20 anos de experiência. Ar condicionado, bombas de calor, ventiloconvetores e VMC das principais marcas.",
+      },
+      {
+        property: "og:title",
+        content: "Clima Eco Selective — Distribuição de climatização",
+      },
+      {
+        property: "og:image",
+        content: "/logo-climaeco.png",
       },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        href: "/favicon.ico",
       },
     ],
   }),
@@ -39,12 +59,15 @@ export const Route = createRootRouteWithContext<{
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt">
       <head>
         <HeadContent />
       </head>
       <body>
-        {children}
+        <OrcamentoProvider>
+          {children}
+          <OrcamentoDrawer />
+        </OrcamentoProvider>
         <TanStackDevtools
           config={{
             position: "bottom-right",

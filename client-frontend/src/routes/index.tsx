@@ -1,31 +1,27 @@
-import { convexQuery } from "@convex-dev/react-query"
-import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { api } from "@convex/_generated/api"
 
-export const Route = createFileRoute("/")({ component: Home })
+import { BrandMarquee } from "@/components/landing/brand-marquee"
+import { Hero } from "@/components/landing/hero"
+import { ProductShowcase } from "@/components/landing/product-showcase"
+import { SiteFooter } from "@/components/landing/site-footer"
+import { SiteHeader } from "@/components/landing/site-header"
+import { StatsStrip } from "@/components/landing/stats-strip"
+import { WhyUs } from "@/components/landing/why-us"
 
-function Home() {
-  const { data } = useSuspenseQuery(convexQuery(api.tasks.get, {}))
+export const Route = createFileRoute("/")({ component: LandingPage })
 
+function LandingPage() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Selective — Client</h1>
-          <p>Tasks loaded live from the shared Convex backend:</p>
-        </div>
-        <ul className="flex flex-col gap-1">
-          {data.map(({ _id, text, isCompleted }) => (
-            <li
-              key={_id}
-              className={isCompleted ? "line-through opacity-60" : ""}
-            >
-              {text}
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div className="flex min-h-svh flex-col">
+      <SiteHeader />
+      <main className="flex-1">
+        <Hero />
+        <StatsStrip />
+        <BrandMarquee />
+        <ProductShowcase />
+        <WhyUs />
+      </main>
+      <SiteFooter />
     </div>
   )
 }
