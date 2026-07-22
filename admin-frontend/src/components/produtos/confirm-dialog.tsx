@@ -28,6 +28,7 @@ export function ConfirmDialog({
       await onConfirmar()
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Ocorreu um erro.")
+    } finally {
       setAProcessar(false)
     }
   }

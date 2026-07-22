@@ -108,6 +108,7 @@ export function ProductEditor({
       onClose()
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao guardar.")
+    } finally {
       setAGuardar(false)
     }
   }
