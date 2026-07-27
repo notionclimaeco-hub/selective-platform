@@ -48,11 +48,11 @@ export async function definirImagensProduto(
 
   // Which products get this list: the whole family or just the one.
   let alvos: Array<Doc<"produtos">>;
-  if (args.aplicarAoGrupo === true && produto.grupoModelo !== undefined) {
+  if (args.aplicarAoGrupo === true) {
     const grupoModelo = produto.grupoModelo;
     alvos = await ctx.db
       .query("produtos")
-      .withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo))
+      .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", grupoModelo))
       .collect();
   } else {
     alvos = [produto];

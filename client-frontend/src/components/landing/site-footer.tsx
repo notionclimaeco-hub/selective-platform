@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { Mail, MapPin, Phone } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -42,22 +43,43 @@ export function SiteFooter() {
               Distribuição seletiva de equipamentos de climatização. Mais de 20
               anos ao lado de instaladores e projetistas em Portugal.
             </p>
+            <div className="mt-2 flex items-center gap-5">
+              <img
+                src="/certificacoes/pme2024.png"
+                alt="Scoring TOP 5%, Melhores PME Portugal 2024"
+                className="h-14 w-auto opacity-80 transition-opacity hover:opacity-100"
+              />
+              <img
+                src="/certificacoes/certif.png"
+                alt="CERTIF, Serviço certificado SAC-601/2015"
+                className="h-10 w-auto opacity-80 transition-opacity hover:opacity-100"
+              />
+            </div>
           </div>
 
           <nav className="flex flex-col gap-2 text-sm">
             <p className="mb-1 font-semibold">Navegação</p>
-            <a href="#produtos" className="text-muted-foreground transition-colors hover:text-foreground">
+            <Link
+              to="/produtos"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
               Produtos
-            </a>
-            <a href="#marcas" className="text-muted-foreground transition-colors hover:text-foreground">
+            </Link>
+            <a
+              href="/#marcas"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
               Marcas
             </a>
-            <a href="#sobre" className="text-muted-foreground transition-colors hover:text-foreground">
+            <a
+              href="/#sobre"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
               Sobre nós
             </a>
           </nav>
 
-          {/* Placeholder contacts — swap for the real ones. */}
+          {/* Placeholder contacts: swap for the real ones. */}
           <div className="flex flex-col gap-2 text-sm">
             <p className="mb-1 font-semibold">Contactos</p>
             <span className="flex items-center gap-2 text-muted-foreground">

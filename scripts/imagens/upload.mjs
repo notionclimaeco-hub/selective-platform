@@ -77,6 +77,7 @@ async function main() {
   const client = new ConvexHttpClient(url)
   const state = await loadState()
   const only = arg("only")
+  const onlyBrand = arg("brand")
   const force = hasFlag("force")
 
   let uploadedFiles = 0
@@ -85,6 +86,7 @@ async function main() {
 
   for (const entry of mapping) {
     if (only && entry.slug !== only) continue
+    if (onlyBrand && entry.marca !== onlyBrand) continue
     const dir = path.join(PRODUTOS, entry.marca, entry.slug)
     const pngs = await listPngs(dir)
     if (pngs.length === 0) {

@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router"
 import { FileText, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { eurExato, iconeCategoria, rotuloMarca } from "@/lib/catalogo"
+import { eurExato, iconeFamilia, rotuloMarca } from "@/lib/catalogo"
 import { QuantityStepper } from "./quantity-stepper"
-import { useOrcamento } from "./orcamento-store"
+import { useOrcamento, type ItemOrcamento } from "./orcamento-store"
 
 // Right-side slide-over listing the products the client has gathered for a
 // quote request. Building the list needs no login; submitting will (once the
@@ -89,7 +89,7 @@ export function OrcamentoDrawer() {
                 Pedir orçamento
               </Button>
               <p className="mt-2 text-center text-xs text-muted-foreground">
-                Área de cliente em breve — inicie sessão para enviar o pedido e
+                Área de cliente em breve: inicie sessão para enviar o pedido e
                 receber o seu preço de revenda.
               </p>
             </footer>
@@ -105,13 +105,9 @@ function LinhaOrcamento({ ref_ }: { ref_: string }) {
   const item = obter(ref_)
   if (!item) return null
 
-  const Icone = iconeCategoria(item.categoria)
-
   return (
     <li className="flex gap-3 rounded-xl border bg-card p-3">
-      <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-primary">
-        <Icone className="size-6" />
-      </div>
+      <ThumbOrcamento item={item} />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -152,6 +148,41 @@ function LinhaOrcamento({ ref_ }: { ref_: string }) {
   )
 }
 
+function ThumbOrcamento({ item }: { item: ItemOrcamento }) {
+  const Icone = iconeFamilia(item.familia)
+
+  if (item.capaUrl) {
+    return (
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border bg-secondary/40">
+        <img
+          src={item.capaUrl}
+          alt=""
+          className="size-full object-contain p-1"
+        />
+      </div>
+    )
+  }
+
+  if (item.capaPdfUrl) {
+    return (
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border bg-white">
+        <iframe
+          src={`${item.capaPdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+          title=""
+          className="pointer-events-none absolute inset-0 size-full scale-[1.35] border-0"
+          tabIndex={-1}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-primary">
+      <Icone className="size-6" />
+    </div>
+  )
+}
+
 function EmptyState({ onFechar }: { onFechar: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
@@ -166,7 +197,7 @@ function EmptyState({ onFechar }: { onFechar: () => void }) {
         </p>
       </div>
       <Button
-        render={<a href="/#produtos" />}
+        render={<Link to="/produtos" />}
         nativeButton={false}
         variant="outline"
         onClick={onFechar}

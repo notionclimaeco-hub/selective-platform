@@ -1,16 +1,21 @@
 import { Minus, Plus } from "lucide-react"
 
 // Small +/- quantity control shared by the product CTA and the quote drawer.
+// When the container is wider than its content (e.g. `className="w-full"`),
+// the input grows so the − / + buttons hug the edges instead of leaving a
+// dead area on the right.
 export function QuantityStepper({
   value,
   onChange,
   size = "md",
   label = "Quantidade",
+  className = "",
 }: {
   value: number
   onChange: (value: number) => void
   size?: "sm" | "md"
   label?: string
+  className?: string
 }) {
   const btn =
     size === "sm"
@@ -20,7 +25,7 @@ export function QuantityStepper({
 
   return (
     <div
-      className="inline-flex items-center rounded-xl border bg-card"
+      className={`inline-flex items-center rounded-xl border bg-card ${className}`}
       role="group"
       aria-label={label}
     >
@@ -43,7 +48,7 @@ export function QuantityStepper({
           if (!Number.isNaN(n)) onChange(n)
         }}
         aria-label={label}
-        className={`${box} border-x bg-transparent text-center font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+        className={`${box} grow border-x bg-transparent text-center font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
       />
       <button
         type="button"

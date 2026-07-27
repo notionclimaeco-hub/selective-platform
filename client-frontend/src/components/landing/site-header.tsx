@@ -3,13 +3,11 @@ import { Link } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { QuoteTrigger } from "@/components/orcamento/quote-trigger"
 
-// Root-anchored so the nav also works from sub-pages (e.g. /produto/$ref),
-// jumping back to the landing sections.
 const NAV = [
-  { href: "/#produtos", label: "Produtos" },
-  { href: "/#marcas", label: "Marcas" },
-  { href: "/#sobre", label: "Sobre" },
-  { href: "/#contactos", label: "Contactos" },
+  { to: "/produtos" as const, label: "Produtos", kind: "route" as const },
+  { href: "/#marcas", label: "Marcas", kind: "hash" as const },
+  { href: "/#sobre", label: "Sobre", kind: "hash" as const },
+  { href: "/#contactos", label: "Contactos", kind: "hash" as const },
 ]
 
 export function SiteHeader() {
@@ -25,15 +23,26 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
-          {NAV.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="transition-colors hover:text-foreground"
-            >
-              {item.label}
-            </a>
-          ))}
+          {NAV.map((item) =>
+            item.kind === "route" ? (
+              <Link
+                key={item.label}
+                to={item.to}
+                className="transition-colors hover:text-foreground"
+                activeProps={{ className: "text-foreground" }}
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <a
+                key={item.label}
+                href={item.href}
+                className="transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </a>
+            ),
+          )}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">

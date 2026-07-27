@@ -1,71 +1,135 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-// Reusable literal validators (shared between the schema and function files).
-export const marcaValidator = v.union(
-  v.literal("daikin"),
-  v.literal("nipon"),
-  v.literal("hisense"),
-  v.literal("mitsubishi"),
-  v.literal("midea"),
-);
+// --- Reusable literal validators (shared between the schema and function files) ---
 
-export const tipoValidator = v.union(
-  v.literal("equipamento"),
+// A product's role within a system. Enforced by the schema.
+export const componenteValidator = v.union(
+  v.literal("conjunto"),
+  v.literal("unidade-interior"),
+  v.literal("unidade-exterior"),
+  v.literal("deposito"),
   v.literal("acessorio"),
+  v.literal("comando"),
 );
 
-export const categoriaValidator = v.union(
-  v.literal("ar-condicionado"),
-  v.literal("bombas-calor"),
-  v.literal("aqs"),
-  v.literal("vmc"),
-  v.literal("ventiloconvetores"),
+// Target market. Enforced by the schema.
+export const segmentoValidator = v.union(
+  v.literal("domestico"),
+  v.literal("comercial"),
+  v.literal("industrial"),
 );
 
+// App-managed publication state (never comes from the import CSV).
 export const estadoValidator = v.union(
   v.literal("rascunho"),
   v.literal("publicado"),
   v.literal("descontinuado"),
 );
 
+// One ordered product attribute, e.g. { chave: "capacidade", valor: "3.5" }.
+// A product's specs AND its variant axes both live here — the UI decides how
+// to render each key: within a grupoModelo, keys whose values differ across
+// variants become columns of the variant table; constant keys render as spec
+// chips. Order = display order (axes first, specs after).
+export const atributoValidator = v.object({
+  chave: v.string(),
+  valor: v.string(),
+});
+
+// Import-time vocabularies. `familia`/`sistema` are stored as free strings (per
+// spec) but validated against these lists on import so bad rows are rejected
+// with a clear error. Keep these in sync with the frontend label maps.
+export const FAMILIAS = [
+  "ar-condicionado",
+  "bombas-de-calor",
+  "aqs",
+  "ventilacao",
+  "chillers",
+  "ventiloconvectores",
+  "cortinas-de-ar",
+  "purificadores-de-ar",
+  "acessorios-e-controlo",
+  "outros",
+] as const;
+
+export const SISTEMAS = [
+  "mono-split",
+  "multi-split",
+  "vrf",
+  "rooftop",
+  "monobloco",
+  "bibloco",
+] as const;
+
 export default defineSchema({
+  // One row = one purchasable SKU. Product pages on the frontend are groups of
+  // SKUs sharing `grupoModelo`, rendered as a variant table (one row per SKU,
+  // one column per attribute key that varies within the group).
   produtos: defineTable({
-    ref: v.string(),
-    nome: v.string(),
-    marca: marcaValidator,
-    tipo: tipoValidator,
-    categoria: categoriaValidator,
-    gama: v.optional(v.string()),
-    capacidadeKw: v.optional(v.number()),
-    classeEnergetica: v.optional(v.string()),
-    refrigerante: v.optional(v.string()),
+    // --- identity ---
+    ref: v.string(), // manufacturer reference, unique
+    ean: v.optional(v.string()),
+    marca: v.string(), // slug: "hisense", "mitsubishi", ...
+
+    // --- naming ---
+    nome: v.string(), // variant name, e.g. "Mural Air Master 3.5 kW"
+    nomeGrupo: v.string(), // product-page name, no capacity/color
+
+    // --- taxonomy (orthogonal dimensions) ---
+    familia: v.string(), // validated against FAMILIAS on import
+    segmento: v.optional(segmentoValidator),
+    sistema: v.optional(v.string()), // validated against SISTEMAS on import
+    tipoUnidade: v.optional(v.string()), // "mural", "cassete-4-vias", ...
+    componente: componenteValidator,
+    gama: v.optional(v.string()), // series, e.g. "Air Master"
+
+    // --- variant model / specs (unified) ---
+    grupoModelo: v.string(), // group slug, e.g. "hisense-air-master"
+    // Ordered {chave, valor} pairs holding BOTH variant axes and specs.
+    // Within a group, keys whose values differ across variants become columns
+    // of the variant table on the product page; constant keys render as spec
+    // chips. Order = display order (axes first, specs after).
+    atributos: v.array(atributoValidator),
+
     descricao: v.optional(v.string()),
-    // Price s/IVA (PVP) from the brand table, in integer cents. Never a float.
-    pvpCents: v.number(),
-    // First item is the cover image.
+
+    // --- commerce ---
+    pvpCents: v.number(), // integer cents, VAT-exclusive
+    ivaIncluido: v.boolean(), // false for all brand price tables
+
+    // --- provenance / assets ---
+    tabelaOrigem: v.string(), // "hisense-2026", "mitsubishi-2026", ...
+    // Pages in the brand PDF; the actual files live in `paginasCatalogo`,
+    // keyed by (tabelaOrigem, pagina).
+    pdfPaginas: v.array(v.number()),
+
+    // --- app-managed (NOT from the CSV) ---
+    // Ordered image list; first item is the cover. Managed via the image
+    // pipeline / admin, preserved across re-imports.
     imagens: v.array(v.id("_storage")),
+    // Publication state; new imports insert as "rascunho".
     estado: estadoValidator,
-    tabelaOrigem: v.string(),
-    // --- Optional variant grouping (presentation metadata only) ---
-    // Family slug, kebab-case, convention "marca-gama[-variante-de-cor]"
-    // (e.g. "mitsubishi-msz-ap"). A group must never mix brands. When set,
-    // `variante` must be set too. Ungrouped products leave both undefined and
-    // behave exactly as before.
-    grupoModelo: v.optional(v.string()),
-    // Human label for the capacity picker, e.g. "9.000 BTU · 2,5 kW".
-    variante: v.optional(v.string()),
-    // Price-table page(s) this product appears on, verbatim from the import CSV
-    // column `pdfPaginas`. Format: "15" (single) or "54-55" (inclusive range).
-    // The actual PDFs live in `paginasCatalogo`, keyed by (tabelaOrigem, pagina).
-    pdfPaginas: v.optional(v.string()),
   })
     // Import upserts + detail lookups by manufacturer reference.
     .index("by_ref", ["ref"])
-    // Public catalog listing/filtering.
-    .index("by_catalogo", ["estado", "marca", "categoria"])
-    // Variant grouping: fetch all variants of a family.
-    .index("by_grupo", ["grupoModelo"]),
+    // Variant grouping: fetch all SKUs of a product page.
+    .index("by_grupoModelo", ["grupoModelo"])
+    // Brand (+ familia) browse.
+    .index("by_marca", ["marca", "familia"])
+    // Familia (+ segmento) browse.
+    .index("by_familia_segmento", ["familia", "segmento"])
+    // Re-import replaces a brand's rows: find + delete stale rows.
+    .index("by_tabela", ["tabelaOrigem"])
+    // Public catalog listing/filtering (published only).
+    .index("by_catalogo", ["estado", "marca", "familia"])
+    // Familia-only public catalog filter (avoids post-filtering by_catalogo).
+    .index("by_catalogo_familia", ["estado", "familia"])
+    // Free-text search over the variant name, scoped by marca/familia.
+    .searchIndex("search_nome", {
+      searchField: "nome",
+      filterFields: ["marca", "familia"],
+    }),
 
   // One-page catalog PDFs, stored once per (tabelaOrigem, pagina) and shared
   // across every product that references that page. Uniqueness on

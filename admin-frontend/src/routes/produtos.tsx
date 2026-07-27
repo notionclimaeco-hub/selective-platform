@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   Authenticated,
@@ -9,6 +9,7 @@ import {
 } from "convex/react"
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ImageOff,
   Images,
@@ -29,24 +30,48 @@ import type {ManagerAlvo} from "@/components/produtos/image-manager";
 import { ProductEditor } from "@/components/produtos/product-editor"
 import { ConfirmDialog } from "@/components/produtos/confirm-dialog"
 import {
-  CATEGORIAS,
+  FAMILIAS,
   ESTADO_CLASSES,
   ESTADO_LABELS,
   ESTADOS,
   MARCA_LABELS,
-  rotuloCategoria,
-  rotuloMarca
-  
-  
+  rotuloFamilia,
+  rotuloMarca,
 } from "@/lib/labels"
-import type {Estado, Marca} from "@/lib/labels";
+import type { Estado } from "@/lib/labels"
 
 export const Route = createFileRoute("/produtos")({ component: ProdutosPage })
 
-type AdminEntry = FunctionReturnType<typeof api.produtos.listarAdmin>[number]
+type AdminEntry =
+  FunctionReturnType<typeof api.produtos.listarAdmin>["entradas"][number]
 type AdminVariante = AdminEntry["variantes"][number]
 
-const MARCAS = Object.keys(MARCA_LABELS) as Array<Marca>
+const MARCAS = Object.keys(MARCA_LABELS)
+
+// Human label for a variant = the values of the attribute keys that actually
+// vary within its group (specs shared by every variant are omitted); falls
+// back to the manufacturer ref when nothing distinguishes it.
+function rotuloVariante(
+  v: AdminVariante,
+  grupo: Array<AdminVariante>,
+): string {
+  const valoresPorChave = new Map<string, Set<string>>()
+  for (const variante of grupo) {
+    for (const a of variante.atributos) {
+      const valores = valoresPorChave.get(a.chave) ?? new Set<string>()
+      valores.add(a.valor)
+      valoresPorChave.set(a.chave, valores)
+    }
+  }
+  const label = v.atributos
+    .filter((a) => (valoresPorChave.get(a.chave)?.size ?? 0) > 1)
+    .map((a) => a.valor)
+    .join(" · ")
+  return label || v.ref
+}
+
+// Families per page in the admin listing.
+const POR_PAGINA = 20
 
 type ConfirmState = {
   titulo: string
@@ -99,7 +124,7 @@ function ProdutosPage() {
 
   const [busca, setBusca] = useState("")
   const [marcaFiltro, setMarcaFiltro] = useState("")
-  const [categoriaFiltro, setCategoriaFiltro] = useState("")
+  const [familiaFiltro, setFamiliaFiltro] = useState("")
   const [estadoFiltro, setEstadoFiltro] = useState("")
 
   const definirEstado = useMutation(api.produtos.definirEstado)
@@ -171,8 +196,8 @@ function ProdutosPage() {
           setBusca={setBusca}
           marcaFiltro={marcaFiltro}
           setMarcaFiltro={setMarcaFiltro}
-          categoriaFiltro={categoriaFiltro}
-          setCategoriaFiltro={setCategoriaFiltro}
+          familiaFiltro={familiaFiltro}
+          setFamiliaFiltro={setFamiliaFiltro}
           estadoFiltro={estadoFiltro}
           setEstadoFiltro={setEstadoFiltro}
           onGerir={setAlvoImagens}
@@ -209,8 +234,8 @@ type ListaProps = {
   setBusca: (v: string) => void
   marcaFiltro: string
   setMarcaFiltro: (v: string) => void
-  categoriaFiltro: string
-  setCategoriaFiltro: (v: string) => void
+  familiaFiltro: string
+  setFamiliaFiltro: (v: string) => void
   estadoFiltro: string
   setEstadoFiltro: (v: string) => void
   onGerir: (alvo: ManagerAlvo) => void
@@ -227,13 +252,24 @@ type ListaProps = {
 const filtroCls =
   "h-9 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 
+// Debounce free-text search so each keystroke doesn't re-run the paginated
+// query (dropdown filters apply immediately).
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(id)
+  }, [value, delayMs])
+  return debounced
+}
+
 function Lista({
   busca,
   setBusca,
   marcaFiltro,
   setMarcaFiltro,
-  categoriaFiltro,
-  setCategoriaFiltro,
+  familiaFiltro,
+  setFamiliaFiltro,
   estadoFiltro,
   setEstadoFiltro,
   onGerir,
@@ -241,32 +277,40 @@ function Lista({
   onEstado,
   onRemover,
 }: ListaProps) {
-  const entradas = useQuery(api.produtos.listarAdmin, {})
+  const [pagina, setPagina] = useState(0)
+  const buscaDebounced = useDebounced(busca, 300)
 
-  const filtradas = useMemo(() => {
-    if (!entradas) return []
-    const q = busca.trim().toLowerCase()
-    return entradas.filter((e) => {
-      if (marcaFiltro && e.marca !== marcaFiltro) return false
-      if (categoriaFiltro && e.categoria !== categoriaFiltro) return false
-      if (estadoFiltro && !e.variantes.some((v) => v.estado === estadoFiltro)) {
-        return false
-      }
-      if (q) {
-        const alvo =
-          e.nome.toLowerCase() +
-          " " +
-          e.variantes.map((v) => v.ref).join(" ").toLowerCase()
-        if (!alvo.includes(q)) return false
-      }
-      return true
-    })
-  }, [entradas, busca, marcaFiltro, categoriaFiltro, estadoFiltro])
+  const marca = marcaFiltro || undefined
+  const familia = familiaFiltro || undefined
+  const estado = estadoFiltro ? (estadoFiltro as Estado) : undefined
+  const termo = buscaDebounced.trim()
+  const temFiltro =
+    termo !== "" ||
+    marca !== undefined ||
+    familia !== undefined ||
+    estado !== undefined
 
-  const totalProdutos = useMemo(
-    () => filtradas.reduce((n, e) => n + e.numVariantes, 0),
-    [filtradas],
-  )
+  // Any filter change resets to the first page so the user never lands on an
+  // empty/stale page (the backend also clamps, this keeps the URL/UI honest).
+  useEffect(() => {
+    setPagina(0)
+  }, [termo, marca, familia, estado])
+
+  const resultado = useQuery(api.produtos.listarAdmin, {
+    pagina,
+    porPagina: POR_PAGINA,
+    marca,
+    familia,
+    estado,
+    busca: termo || undefined,
+  })
+
+  // Keep local page in sync with the clamped value from the server.
+  useEffect(() => {
+    if (resultado && resultado.pagina !== pagina) {
+      setPagina(resultado.pagina)
+    }
+  }, [resultado, pagina])
 
   return (
     <div className="flex flex-col gap-4">
@@ -295,15 +339,15 @@ function Lista({
             ))}
           </select>
           <select
-            aria-label="Filtrar por categoria"
-            value={categoriaFiltro}
-            onChange={(e) => setCategoriaFiltro(e.target.value)}
+            aria-label="Filtrar por família"
+            value={familiaFiltro}
+            onChange={(e) => setFamiliaFiltro(e.target.value)}
             className={filtroCls}
           >
-            <option value="">Todas as categorias</option>
-            {CATEGORIAS.map((c) => (
-              <option key={c} value={c}>
-                {rotuloCategoria(c)}
+            <option value="">Todas as famílias</option>
+            {FAMILIAS.map((f) => (
+              <option key={f} value={f}>
+                {rotuloFamilia(f)}
               </option>
             ))}
           </select>
@@ -323,23 +367,24 @@ function Lista({
         </div>
       </div>
 
-      {entradas === undefined ? (
+      {resultado === undefined ? (
         <p className="text-sm text-muted-foreground">A carregar…</p>
-      ) : entradas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sem produtos importados.</p>
-      ) : filtradas.length === 0 ? (
+      ) : resultado.totalFamilias === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhum produto corresponde aos filtros.
+          {temFiltro
+            ? "Nenhum produto corresponde aos filtros."
+            : "Sem produtos importados."}
         </p>
       ) : (
         <>
           <p className="text-xs text-muted-foreground">
-            {filtradas.length}{" "}
-            {filtradas.length === 1 ? "família" : "famílias"} · {totalProdutos}{" "}
-            {totalProdutos === 1 ? "produto" : "produtos"}
+            {resultado.totalFamilias}{" "}
+            {resultado.totalFamilias === 1 ? "família" : "famílias"} ·{" "}
+            {resultado.totalProdutos}{" "}
+            {resultado.totalProdutos === 1 ? "produto" : "produtos"}
           </p>
           <ul className="flex flex-col gap-2">
-            {filtradas.map((entrada) => (
+            {resultado.entradas.map((entrada) => (
               <EntradaRow
                 key={entrada.grupoModelo ?? entrada.ref}
                 entrada={entrada}
@@ -350,8 +395,50 @@ function Lista({
               />
             ))}
           </ul>
+          <Paginacao
+            pagina={resultado.pagina}
+            numPaginas={resultado.numPaginas}
+            onPagina={setPagina}
+          />
         </>
       )}
+    </div>
+  )
+}
+
+function Paginacao({
+  pagina,
+  numPaginas,
+  onPagina,
+}: {
+  pagina: number
+  numPaginas: number
+  onPagina: (pagina: number) => void
+}) {
+  if (numPaginas <= 1) return null
+  return (
+    <div className="flex items-center justify-between gap-2 pt-2">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pagina <= 0}
+        onClick={() => onPagina(pagina - 1)}
+      >
+        <ChevronLeft data-icon="inline-start" />
+        Anterior
+      </Button>
+      <span className="text-xs text-muted-foreground">
+        Página {pagina + 1} de {numPaginas}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pagina >= numPaginas - 1}
+        onClick={() => onPagina(pagina + 1)}
+      >
+        Seguinte
+        <ChevronRight data-icon="inline-end" />
+      </Button>
     </div>
   )
 }
@@ -392,7 +479,9 @@ function EntradaRow({
   onRemover,
 }: { entrada: AdminEntry } & RowCallbacks) {
   const [aberto, setAberto] = useState(false)
-  const temGrupo = entrada.grupoModelo !== null
+  // Every product belongs to a group; treat a group of one like a standalone
+  // product (inline actions, no expand/collapse).
+  const temGrupo = entrada.numVariantes > 1
   const variante0 = entrada.variantes[0]
 
   // Standalone product: the family row *is* the product; show inline actions.
@@ -406,7 +495,7 @@ function EntradaRow({
             <p className="mt-0.5 text-xs text-muted-foreground">
               {rotuloMarca(entrada.marca)}
               {entrada.gama ? ` · ${entrada.gama}` : ""} ·{" "}
-              {rotuloCategoria(entrada.categoria)} · {entrada.ref}
+              {rotuloFamilia(entrada.familia)} · {entrada.ref}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium">
@@ -492,7 +581,7 @@ function EntradaRow({
             <span className="mt-0.5 block text-xs text-muted-foreground">
               {rotuloMarca(entrada.marca)}
               {entrada.gama ? ` · ${entrada.gama}` : ""} ·{" "}
-              {rotuloCategoria(entrada.categoria)}
+              {rotuloFamilia(entrada.familia)}
             </span>
             <span className="mt-1.5 flex flex-wrap items-center gap-2">
               <EstadoResumo variantes={entrada.variantes} />
@@ -564,6 +653,7 @@ function EntradaRow({
             <VarianteRow
               key={variante._id}
               variante={variante}
+              grupo={entrada.variantes}
               nomeFamilia={entrada.nome}
               onGerir={onGerir}
               onEditar={onEditar}
@@ -579,6 +669,7 @@ function EntradaRow({
 
 function VarianteRow({
   variante,
+  grupo,
   nomeFamilia,
   onGerir,
   onEditar,
@@ -586,9 +677,10 @@ function VarianteRow({
   onRemover,
 }: {
   variante: AdminVariante
+  grupo: Array<AdminVariante>
   nomeFamilia: string
 } & RowCallbacks) {
-  const nome = variante.variante ?? variante.ref
+  const nome = rotuloVariante(variante, grupo)
   return (
     <li className="flex flex-wrap items-center gap-3 py-2 pl-6 pr-3">
       <div className="min-w-0 flex-1">

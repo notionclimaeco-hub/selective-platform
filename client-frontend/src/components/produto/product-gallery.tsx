@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react"
 
 import { cn } from "@/lib/utils"
-import { iconeCategoria, rotuloCategoria } from "@/lib/catalogo"
+import { iconeFamilia, rotuloFamilia } from "@/lib/catalogo"
 
-// Product gallery. When the product has resolved image URLs (first = cover) it
-// renders a main image with an optional thumbnail strip; otherwise it falls back
-// to an elegant category placeholder consistent with the catalog cards.
+// Product gallery. Prefers resolved photo URLs; when none exist, embeds the
+// first catalog PDF page (same fallback as the catalog cards); otherwise shows
+// a family placeholder.
 export function ProductGallery({
-  categoria,
+  familia,
   imagens = [],
+  pdfCapaUrl = null,
 }: {
-  categoria: string
+  familia: string
   imagens?: Array<string>
+  pdfCapaUrl?: string | null
 }) {
   const [ativa, setAtiva] = useState(0)
 
@@ -21,7 +23,10 @@ export function ProductGallery({
   }, [imagens.join("|")])
 
   if (imagens.length === 0) {
-    return <GaleriaPlaceholder categoria={categoria} />
+    if (pdfCapaUrl) {
+      return <GaleriaPdf familia={familia} url={pdfCapaUrl} />
+    }
+    return <GaleriaPlaceholder familia={familia} />
   }
 
   const indice = Math.min(ativa, imagens.length - 1)
@@ -31,11 +36,11 @@ export function ProductGallery({
       <div className="relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-3xl border bg-gradient-to-br from-accent via-secondary to-brand/15">
         <img
           src={imagens[indice]}
-          alt={rotuloCategoria(categoria)}
+          alt={rotuloFamilia(familia)}
           className="size-full object-contain"
         />
         <span className="absolute left-4 top-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur">
-          {rotuloCategoria(categoria)}
+          {rotuloFamilia(familia)}
         </span>
       </div>
 
@@ -63,8 +68,23 @@ export function ProductGallery({
   )
 }
 
-function GaleriaPlaceholder({ categoria }: { categoria: string }) {
-  const Icon = iconeCategoria(categoria)
+function GaleriaPdf({ familia, url }: { familia: string; url: string }) {
+  return (
+    <div className="relative aspect-4/3 overflow-hidden rounded-3xl border bg-white">
+      <iframe
+        src={`${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+        title={`Ficha do catálogo: ${rotuloFamilia(familia)}`}
+        className="absolute inset-0 size-full border-0"
+      />
+      <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur">
+        {rotuloFamilia(familia)}
+      </span>
+    </div>
+  )
+}
+
+function GaleriaPlaceholder({ familia }: { familia: string }) {
+  const Icon = iconeFamilia(familia)
 
   return (
     <div className="relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-3xl border bg-gradient-to-br from-accent via-secondary to-brand/15">
@@ -77,7 +97,7 @@ function GaleriaPlaceholder({ categoria }: { categoria: string }) {
       </div>
 
       <span className="absolute left-4 top-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur">
-        {rotuloCategoria(categoria)}
+        {rotuloFamilia(familia)}
       </span>
     </div>
   )

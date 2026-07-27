@@ -14,6 +14,7 @@ import type * as importData from "../importData.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_paginas from "../lib/paginas.js";
 import type * as marcas from "../marcas.js";
+import type * as migrations from "../migrations.js";
 import type * as paginasCatalogo from "../paginasCatalogo.js";
 import type * as produtos from "../produtos.js";
 import type * as seed from "../seed.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/paginas": typeof lib_paginas;
   marcas: typeof marcas;
+  migrations: typeof migrations;
   paginasCatalogo: typeof paginasCatalogo;
   produtos: typeof produtos;
   seed: typeof seed;

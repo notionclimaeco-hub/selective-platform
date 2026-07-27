@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router"
+
 import { cn } from "@/lib/utils"
 
 // Official brand logos default to a single page-matching tone via a CSS mask
@@ -6,6 +8,8 @@ import { cn } from "@/lib/utils"
 // styled wordmark; add `logo` when the asset arrives.
 type Marca = {
   nome: string
+  // Catalog `marca` slug — the logo links to the brand's filtered catalog.
+  slug: string
   logo?: string
   className?: string
   wordmark?: React.ReactNode
@@ -14,20 +18,37 @@ type Marca = {
 const MARCAS: Array<Marca> = [
   {
     nome: "Mitsubishi Electric",
+    slug: "mitsubishi",
     logo: "/brands/mitsubishi.svg",
     className: "h-6 w-44",
   },
-  { nome: "Daikin", logo: "/brands/daikin.svg", className: "h-7 w-40" },
+  {
+    nome: "Daikin",
+    slug: "daikin",
+    logo: "/brands/daikin.svg",
+    className: "h-7 w-40",
+  },
   {
     nome: "Nipon",
+    slug: "nipon",
     wordmark: (
-      <span className="text-2xl font-semibold italic tracking-tight">
+      <span className="text-2xl font-semibold tracking-tight italic">
         nipon
       </span>
     ),
   },
-  { nome: "Hisense", logo: "/brands/hisense.svg", className: "h-6 w-44" },
-  { nome: "Midea", logo: "/brands/midea.svg", className: "h-9 w-36" },
+  {
+    nome: "Hisense",
+    slug: "hisense",
+    logo: "/brands/hisense.svg",
+    className: "h-6 w-44",
+  },
+  {
+    nome: "Midea",
+    slug: "midea",
+    logo: "/brands/midea.svg",
+    className: "h-9 w-36",
+  },
 ]
 
 function LogoMascara({ src, className }: { src: string; className?: string }) {
@@ -75,24 +96,40 @@ export function BrandMarquee() {
   const itens = [...MARCAS, ...MARCAS]
 
   return (
-    <section id="marcas" className="scroll-mt-20 py-16 md:py-20">
+    <section
+      id="marcas"
+      className="scroll-mt-20 border-y bg-secondary/60 py-16 md:py-20"
+    >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="text-center text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Parceiro oficial das marcas líderes
+        <p className="text-center text-sm font-medium tracking-[0.2em] text-muted-foreground uppercase">
+          Parceiro oficial
         </p>
       </div>
 
       <div className="marquee relative mt-10 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
         <div className="marquee-track flex w-max items-center">
-          {itens.map((marca, i) => (
-            <div
-              key={`${marca.nome}-${i}`}
-              className="flex w-56 shrink-0 items-center justify-center px-4 text-muted-foreground/70 sm:w-64"
-              aria-hidden={i >= MARCAS.length}
-            >
-              <BrandLogo marca={marca} />
-            </div>
-          ))}
+          {itens.map((marca, i) => {
+            const duplicado = i >= MARCAS.length
+            return (
+              <div
+                key={`${marca.nome}-${i}`}
+                className="flex w-56 shrink-0 items-center justify-center px-4 text-muted-foreground/70 sm:w-64"
+                aria-hidden={duplicado}
+              >
+                <Link
+                  to="/produtos"
+                  search={{ marca: marca.slug }}
+                  aria-label={`Ver produtos ${marca.nome}`}
+                  // The second copy exists only to make the marquee loop
+                  // seamlessly, so keep it out of the tab order.
+                  tabIndex={duplicado ? -1 : undefined}
+                  className="flex items-center justify-center rounded-lg px-3 py-2 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                >
+                  <BrandLogo marca={marca} />
+                </Link>
+              </div>
+            )
+          })}
         </div>
       </div>
     </section>

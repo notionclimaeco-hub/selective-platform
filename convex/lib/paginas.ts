@@ -39,3 +39,26 @@ export function parsePaginas(s: string): number[] {
   }
   return paginas;
 }
+
+/**
+ * Parse the admin edit form's page field (comma-separated positive integers)
+ * into a deduped, ascending `number[]`. Non-integer / non-positive tokens are
+ * dropped. Pure and total: "" -> [].
+ *
+ *   parsePaginasCsv("15")       -> [15]
+ *   parsePaginasCsv("26, 30,36") -> [26, 30, 36]
+ */
+export function parsePaginasCsv(s: string): number[] {
+  const vistos = new Set<number>();
+  for (const token of s.split(",")) {
+    const n = Number(token.trim());
+    if (!Number.isInteger(n) || n <= 0) continue;
+    vistos.add(n);
+  }
+  return [...vistos].sort((a, b) => a - b);
+}
+
+/** Render a `number[]` of pages back into the comma-separated edit string. */
+export function formatPaginas(paginas: number[]): string {
+  return paginas.join(", ");
+}

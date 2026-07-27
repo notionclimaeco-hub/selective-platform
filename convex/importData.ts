@@ -3,11 +3,7 @@ import { v } from "convex/values";
 import { produtoImportFields, upsertProdutoPorRef } from "./produtos";
 import { upsertPagina } from "./paginasCatalogo";
 import { definirImagensProduto } from "./imagens";
-import {
-  marcaValidator,
-  categoriaValidator,
-  estadoValidator,
-} from "./schema";
+import { estadoValidator } from "./schema";
 
 // Bulk data import, driven by a trusted local script (no browser / no Clerk).
 //
@@ -68,6 +64,57 @@ export const importarProdutos = mutation({
   },
 });
 
+/**
+ * Secret-guarded: enforce full-rebuild semantics for a brand price table.
+ * Deletes every product with the given `tabelaOrigem` whose `ref` is NOT in
+ * `refsMantidos` (i.e. rows dropped from the latest CSV). Orphaned image files
+ * are removed from storage. Call once per brand AFTER `importarProdutos` has
+ * upserted every current row.
+ */
+export const removerAusentes = mutation({
+  args: {
+    secret: v.string(),
+    tabelaOrigem: v.string(),
+    refsMantidos: v.array(v.string()),
+  },
+  returns: v.object({
+    removidos: v.number(),
+    ficheirosRemovidos: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+
+    const manter = new Set(args.refsMantidos);
+    const doTabela = await ctx.db
+      .query("produtos")
+      .withIndex("by_tabela", (q) => q.eq("tabelaOrigem", args.tabelaOrigem))
+      .collect();
+
+    const aRemover = doTabela.filter((p) => !manter.has(p.ref));
+    const candidatos = new Set(aRemover.flatMap((p) => p.imagens));
+
+    let removidos = 0;
+    for (const p of aRemover) {
+      await ctx.db.delete(p._id);
+      removidos++;
+    }
+
+    // Only delete storage files no longer referenced by any remaining product.
+    let ficheirosRemovidos = 0;
+    if (candidatos.size > 0) {
+      const restantes = await ctx.db.query("produtos").collect();
+      const referenciados = new Set(restantes.flatMap((p) => p.imagens));
+      for (const ficheiro of candidatos) {
+        if (referenciados.has(ficheiro)) continue;
+        await ctx.storage.delete(ficheiro);
+        ficheirosRemovidos++;
+      }
+    }
+
+    return { removidos, ficheirosRemovidos };
+  },
+});
+
 /** Secret-guarded upload URL for a single catalog-page PDF. */
 export const gerarUploadUrl = mutation({
   args: { secret: v.string() },
@@ -101,13 +148,16 @@ export const registarPagina = mutation({
 });
 
 const targetImagemValidator = v.object({
-  // grupoModelo for families, ref for standalone products.
+  // grupoModelo of the product page.
   slug: v.string(),
-  marca: marcaValidator,
-  nome: v.string(),
+  marca: v.string(),
+  nome: v.string(), // group name (nomeGrupo)
   gama: v.optional(v.string()),
-  categoria: categoriaValidator,
-  // Representative ref used when attaching images (canonical / only product).
+  familia: v.string(),
+  // Canonical variant's component — used by match.mjs to prefer indoor vs
+  // outdoor packshots (unidade-interior vs unidade-exterior).
+  componente: v.optional(v.string()),
+  // Representative ref used when attaching images (canonical variant).
   ref: v.string(),
   refs: v.array(v.string()),
   aplicarAoGrupo: v.boolean(),
@@ -116,8 +166,9 @@ const targetImagemValidator = v.object({
 });
 
 /**
- * Secret-guarded: one image target per family (or standalone product). Used by
- * the local image pipeline to know what to match/upload.
+ * Secret-guarded: one image target per product page (grupoModelo). Used by the
+ * local image pipeline to know what to match/upload. Every product belongs to a
+ * group, so a group of one behaves like a standalone product.
  */
 export const listarTargetsImagens = query({
   args: { secret: v.string() },
@@ -127,24 +178,19 @@ export const listarTargetsImagens = query({
 
     const todos = await ctx.db.query("produtos").collect();
     const grupos = new Map<string, typeof todos>();
-    const standalone: typeof todos = [];
-
     for (const p of todos) {
-      if (p.grupoModelo === undefined) {
-        standalone.push(p);
-      } else {
-        const atual = grupos.get(p.grupoModelo);
-        if (atual) atual.push(p);
-        else grupos.set(p.grupoModelo, [p]);
-      }
+      const atual = grupos.get(p.grupoModelo);
+      if (atual) atual.push(p);
+      else grupos.set(p.grupoModelo, [p]);
     }
 
     const targets: Array<{
       slug: string;
-      marca: (typeof todos)[number]["marca"];
+      marca: string;
       nome: string;
       gama?: string;
-      categoria: (typeof todos)[number]["categoria"];
+      familia: string;
+      componente?: string;
       ref: string;
       refs: Array<string>;
       aplicarAoGrupo: boolean;
@@ -152,28 +198,11 @@ export const listarTargetsImagens = query({
       numImagens: number;
     }> = [];
 
-    for (const p of standalone) {
-      targets.push({
-        slug: p.ref,
-        marca: p.marca,
-        nome: p.nome,
-        gama: p.gama,
-        categoria: p.categoria,
-        ref: p.ref,
-        refs: [p.ref],
-        aplicarAoGrupo: false,
-        estados: [p.estado],
-        numImagens: p.imagens.length,
-      });
-    }
-
     for (const [grupoModelo, variantes] of grupos) {
-      // Canonical = lowest capacidadeKw, then cheapest (same rule as catalog).
+      // Canonical = cheapest, tie-broken by ref (same rule as the catalog).
       const canonica = variantes.reduce((melhor, atual) => {
-        const kwMelhor = melhor.capacidadeKw ?? Number.POSITIVE_INFINITY;
-        const kwAtual = atual.capacidadeKw ?? Number.POSITIVE_INFINITY;
-        if (kwAtual < kwMelhor) return atual;
-        if (kwAtual === kwMelhor && atual.pvpCents < melhor.pvpCents) {
+        if (atual.pvpCents < melhor.pvpCents) return atual;
+        if (atual.pvpCents === melhor.pvpCents && atual.ref < melhor.ref) {
           return atual;
         }
         return melhor;
@@ -181,9 +210,10 @@ export const listarTargetsImagens = query({
       targets.push({
         slug: grupoModelo,
         marca: canonica.marca,
-        nome: canonica.nome,
+        nome: canonica.nomeGrupo,
         gama: canonica.gama,
-        categoria: canonica.categoria,
+        familia: canonica.familia,
+        componente: canonica.componente,
         ref: canonica.ref,
         refs: variantes.map((v) => v.ref),
         aplicarAoGrupo: true,
@@ -222,5 +252,91 @@ export const definirImagensPorRef = mutation({
       imagens: args.imagens,
       aplicarAoGrupo: args.aplicarAoGrupo,
     });
+  },
+});
+
+/**
+ * Secret-guarded full catalog wipe (products + their storage images, then
+ * catalog PDF pages + their files). Call repeatedly until `done` is true —
+ * each call processes a bounded batch to stay under mutation limits.
+ * Does NOT touch the `marcas` table.
+ */
+export const limparCatalogo = mutation({
+  args: {
+    secret: v.string(),
+    // When true (default), also wipe `paginasCatalogo` after products are gone.
+    incluirPaginas: v.optional(v.boolean()),
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({
+    produtosApagados: v.number(),
+    imagensApagadas: v.number(),
+    paginasApagadas: v.number(),
+    ficheirosPaginaApagados: v.number(),
+    produtosRestantes: v.number(),
+    paginasRestantes: v.number(),
+    done: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+    const batchSize = Math.min(Math.max(args.batchSize ?? 100, 1), 250);
+    const incluirPaginas = args.incluirPaginas !== false;
+
+    let produtosApagados = 0;
+    let imagensApagadas = 0;
+    let paginasApagadas = 0;
+    let ficheirosPaginaApagados = 0;
+
+    const produtos = await ctx.db.query("produtos").take(batchSize);
+    if (produtos.length > 0) {
+      const storageIds = new Set(produtos.flatMap((p) => p.imagens));
+      for (const p of produtos) {
+        await ctx.db.delete(p._id);
+        produtosApagados++;
+      }
+      // Only delete storage files no longer referenced by remaining products
+      // (families share the same image ids across variants).
+      const restantes = await ctx.db.query("produtos").collect();
+      const aindaUsados = new Set(restantes.flatMap((p) => p.imagens));
+      for (const id of storageIds) {
+        if (aindaUsados.has(id)) continue;
+        await ctx.storage.delete(id);
+        imagensApagadas++;
+      }
+
+      return {
+        produtosApagados,
+        imagensApagadas,
+        paginasApagadas: 0,
+        ficheirosPaginaApagados: 0,
+        produtosRestantes: restantes.length,
+        paginasRestantes: -1,
+        done: false,
+      };
+    }
+
+    if (incluirPaginas) {
+      const paginas = await ctx.db.query("paginasCatalogo").take(batchSize);
+      for (const pagina of paginas) {
+        await ctx.storage.delete(pagina.ficheiro);
+        ficheirosPaginaApagados++;
+        await ctx.db.delete(pagina._id);
+        paginasApagadas++;
+      }
+    }
+
+    const paginasLeft = incluirPaginas
+      ? (await ctx.db.query("paginasCatalogo").collect()).length
+      : 0;
+
+    return {
+      produtosApagados: 0,
+      imagensApagadas: 0,
+      paginasApagadas,
+      ficheirosPaginaApagados,
+      produtosRestantes: 0,
+      paginasRestantes: paginasLeft,
+      done: !incluirPaginas || paginasLeft === 0,
+    };
   },
 });

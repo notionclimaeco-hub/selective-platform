@@ -1,23 +1,33 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
-import { ExternalLink, FileText, Loader2, X } from "lucide-react"
+import { ExternalLink, FileText, Loader2, Plus, Trash2, X } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
-import { CATEGORIAS, rotuloCategoria, rotuloMarca } from "@/lib/labels"
-import type { Categoria } from "@/lib/labels"
+import { FAMILIAS, rotuloFamilia, rotuloMarca } from "@/lib/labels"
+import type { Familia } from "@/lib/labels"
+
+type Atributo = { chave: string; valor: string }
 
 type FormState = {
   nome: string
-  categoria: Categoria
+  familia: Familia
   precoEuros: string
   gama: string
-  variante: string
-  capacidadeKw: string
-  classeEnergetica: string
-  refrigerante: string
   pdfPaginas: string
   descricao: string
+  atributos: Array<Atributo>
+}
+
+// Parse the comma-separated page field into a deduped, ascending number[].
+// Non-integer / non-positive tokens are dropped.
+function parsePaginasCsv(s: string): Array<number> {
+  const vistos = new Set<number>()
+  for (const token of s.split(",")) {
+    const n = Number(token.trim())
+    if (Number.isInteger(n) && n > 0) vistos.add(n)
+  }
+  return [...vistos].sort((a, b) => a - b)
 }
 
 // Modal editor for a single product's presentation/pricing fields. Loads the
@@ -45,27 +55,50 @@ export function ProductEditor({
     }
     setForm({
       nome: produto.nome,
-      categoria: produto.categoria,
+      familia: produto.familia as Familia,
       precoEuros: (produto.pvpCents / 100).toFixed(2),
       gama: produto.gama ?? "",
-      variante: produto.variante ?? "",
-      capacidadeKw:
-        produto.capacidadeKw !== undefined ? String(produto.capacidadeKw) : "",
-      classeEnergetica: produto.classeEnergetica ?? "",
-      refrigerante: produto.refrigerante ?? "",
-      pdfPaginas: produto.pdfPaginas ?? "",
+      pdfPaginas: produto.pdfPaginas.join(", "),
       descricao: produto.descricao ?? "",
+      atributos: produto.atributos.map((a) => ({ ...a })),
     })
     inicializado.current = true
   }, [produto])
-
-  const ehGrupo = produto?.grupoModelo !== undefined
 
   function set<TCampo extends keyof FormState>(
     campo: TCampo,
     valor: FormState[TCampo],
   ) {
     setForm((prev) => (prev ? { ...prev, [campo]: valor } : prev))
+  }
+
+  function setAtributo(idx: number, patch: Partial<Atributo>) {
+    setForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            atributos: prev.atributos.map((a, i) =>
+              i === idx ? { ...a, ...patch } : a,
+            ),
+          }
+        : prev,
+    )
+  }
+
+  function adicionarAtributo() {
+    setForm((prev) =>
+      prev
+        ? { ...prev, atributos: [...prev.atributos, { chave: "", valor: "" }] }
+        : prev,
+    )
+  }
+
+  function removerAtributo(idx: number) {
+    setForm((prev) =>
+      prev
+        ? { ...prev, atributos: prev.atributos.filter((_, i) => i !== idx) }
+        : prev,
+    )
   }
 
   async function guardar() {
@@ -77,33 +110,27 @@ export function ProductEditor({
       setErro("Preço inválido.")
       return
     }
-    const capacidade =
-      form.capacidadeKw.trim() === ""
-        ? undefined
-        : Number(form.capacidadeKw.replace(",", "."))
-    if (capacidade !== undefined && (!Number.isFinite(capacidade) || capacidade < 0)) {
-      setErro("Capacidade inválida.")
-      return
-    }
     if (form.nome.trim() === "") {
       setErro("O nome é obrigatório.")
       return
     }
+
+    // Drop attribute rows with an empty key or value.
+    const atributos = form.atributos
+      .map((a) => ({ chave: a.chave.trim(), valor: a.valor.trim() }))
+      .filter((a) => a.chave !== "" && a.valor !== "")
 
     setAGuardar(true)
     try {
       await atualizar({
         ref: refProduto,
         nome: form.nome,
-        categoria: form.categoria,
+        familia: form.familia,
         pvpCents: Math.round(preco * 100),
         gama: form.gama,
         descricao: form.descricao,
-        capacidadeKw: capacidade,
-        classeEnergetica: form.classeEnergetica,
-        refrigerante: form.refrigerante,
-        variante: form.variante,
-        pdfPaginas: form.pdfPaginas,
+        atributos,
+        pdfPaginas: parsePaginasCsv(form.pdfPaginas),
       })
       onClose()
     } catch (err) {
@@ -145,9 +172,7 @@ export function ProductEditor({
           {produto === undefined ? (
             <p className="text-sm text-muted-foreground">A carregar…</p>
           ) : produto === null || form === null ? (
-            <p className="text-sm text-destructive">
-              Produto não encontrado.
-            </p>
+            <p className="text-sm text-destructive">Produto não encontrado.</p>
           ) : (
             <div className="flex flex-col gap-4">
               <Campo label="Nome">
@@ -159,17 +184,17 @@ export function ProductEditor({
               </Campo>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <Campo label="Categoria">
+                <Campo label="Família">
                   <select
                     className={inputCls}
-                    value={form.categoria}
+                    value={form.familia}
                     onChange={(e) =>
-                      set("categoria", e.target.value as Categoria)
+                      set("familia", e.target.value as Familia)
                     }
                   >
-                    {CATEGORIAS.map((c) => (
-                      <option key={c} value={c}>
-                        {rotuloCategoria(c)}
+                    {FAMILIAS.map((f) => (
+                      <option key={f} value={f}>
+                        {rotuloFamilia(f)}
                       </option>
                     ))}
                   </select>
@@ -193,51 +218,12 @@ export function ProductEditor({
                   />
                 </Campo>
 
-                {ehGrupo && (
-                  <Campo label="Variante (rótulo)">
-                    <input
-                      className={inputCls}
-                      value={form.variante}
-                      onChange={(e) => set("variante", e.target.value)}
-                      placeholder="ex.: 9.000 BTU · 2,5 kW"
-                    />
-                  </Campo>
-                )}
-
-                <Campo label="Capacidade (kW)">
-                  <input
-                    className={inputCls}
-                    inputMode="decimal"
-                    value={form.capacidadeKw}
-                    onChange={(e) => set("capacidadeKw", e.target.value)}
-                    placeholder="opcional"
-                  />
-                </Campo>
-
-                <Campo label="Classe energética">
-                  <input
-                    className={inputCls}
-                    value={form.classeEnergetica}
-                    onChange={(e) => set("classeEnergetica", e.target.value)}
-                    placeholder="ex.: A++"
-                  />
-                </Campo>
-
-                <Campo label="Refrigerante">
-                  <input
-                    className={inputCls}
-                    value={form.refrigerante}
-                    onChange={(e) => set("refrigerante", e.target.value)}
-                    placeholder="ex.: R-32"
-                  />
-                </Campo>
-
                 <Campo label="Páginas do catálogo (PDF)">
                   <input
                     className={inputCls}
                     value={form.pdfPaginas}
                     onChange={(e) => set("pdfPaginas", e.target.value)}
-                    placeholder="ex.: 15 ou 54-55"
+                    placeholder="ex.: 15, 54, 55"
                   />
                   {produto.fichasCatalogo.length > 0 && (
                     <span className="flex flex-wrap gap-1.5">
@@ -258,6 +244,58 @@ export function ProductEditor({
                   )}
                 </Campo>
               </div>
+
+              <Campo label="Atributos">
+                <span className="text-xs text-muted-foreground">
+                  Um par chave/valor por linha (ex.: frio-kw = 3.5). Chaves que
+                  variam entre os modelos do grupo aparecem como colunas da
+                  tabela de modelos; chaves iguais em todos aparecem como
+                  especificações. A ordem define a ordem de apresentação.
+                </span>
+                <div className="flex flex-col gap-2">
+                  {form.atributos.map((atributo, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        className={inputCls}
+                        value={atributo.chave}
+                        onChange={(e) =>
+                          setAtributo(idx, { chave: e.target.value })
+                        }
+                        placeholder="chave"
+                        aria-label={`Chave do atributo ${idx + 1}`}
+                      />
+                      <span className="text-muted-foreground">=</span>
+                      <input
+                        className={inputCls}
+                        value={atributo.valor}
+                        onChange={(e) =>
+                          setAtributo(idx, { valor: e.target.value })
+                        }
+                        placeholder="valor"
+                        aria-label={`Valor do atributo ${idx + 1}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removerAtributo(idx)}
+                        aria-label={`Remover atributo ${idx + 1}`}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  ))}
+                  <div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={adicionarAtributo}
+                    >
+                      <Plus />
+                      Adicionar atributo
+                    </Button>
+                  </div>
+                </div>
+              </Campo>
 
               <Campo label="Descrição (Markdown)">
                 <textarea

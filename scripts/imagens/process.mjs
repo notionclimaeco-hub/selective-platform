@@ -1,36 +1,39 @@
 // Normalize mapped crawl images into standardized 1200×1200 transparent PNGs.
 //
 // Pipeline per image:
-//   1. Background removal via rembg (local AI model, cached by file hash)
-//   2. Trim transparent borders
-//   3. Center on a square transparent canvas with margin
+//   1. Background removal via rembg for ALL sources (cached by file hash)
+//      unless --skip-rembg
+//   2. Pick cutout vs original from image-choice.json (default: cutout)
+//   3. Trim + center on a square transparent canvas
 //
 // Usage:
-//   node scripts/imagens/process.mjs
-//   node scripts/imagens/process.mjs --force
-//   node scripts/imagens/process.mjs --only nipon-vita
-//   node scripts/imagens/process.mjs --skip-rembg   (keep original background)
+//   node scripts/imagens/process.mjs --brand hisense
+//   node scripts/imagens/process.mjs --brand hisense --choice-from product-scaffold/image-choice.json
+//   node scripts/imagens/process.mjs --brand hisense --skip-rembg
+//   node scripts/imagens/process.mjs --force --only nipon-vita
 //
 // Reads product-scaffold/mapping.json, writes product-scaffold/produtos/<marca>/<slug>/01.png …
 // Also writes product-scaffold/preview-processados.html for visual review.
 
 import sharp from "sharp"
-import { mkdir, readFile, writeFile, readdir, copyFile, rm } from "node:fs/promises"
+import { mkdir, readFile, writeFile, readdir, rm } from "node:fs/promises"
 import { existsSync } from "node:fs"
-import { createHash } from "node:crypto"
-import { spawnSync } from "node:child_process"
-import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import {
+  ensureCutouts,
+  resolveRepoPath,
+  toRepoRelative,
+} from "./lib/rembg.mjs"
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const MAPPING = path.join(ROOT, "product-scaffold/mapping.json")
 const OUT_ROOT = path.join(ROOT, "product-scaffold/produtos")
 const MANUAL_ROOT = path.join(ROOT, "product-scaffold/manual")
-const REMBG_CACHE = path.join(ROOT, "product-scaffold/.rembg-cache")
+const DEFAULT_CHOICE = path.join(ROOT, "product-scaffold/image-choice.json")
 const PREVIEW = path.join(ROOT, "product-scaffold/preview-processados.html")
 const SIZE = 1200
-const MARGIN = 0.08 // padding around the trimmed content
+const MARGIN = 0.08
 
 function hasFlag(name) {
   return process.argv.includes(`--${name}`)
@@ -51,62 +54,26 @@ async function listManualFiles(slug) {
     .map((f) => path.join(dir, f))
 }
 
-async function fileHash(abs) {
-  const buf = await readFile(abs)
-  return createHash("sha256").update(buf).digest("hex").slice(0, 16)
-}
-
-// Run rembg once over all uncached sources (batch = model loads a single time).
-async function ensureCutouts(sources) {
-  await mkdir(REMBG_CACHE, { recursive: true })
-  const bySrc = new Map()
-  const pending = []
-
-  for (const src of sources) {
-    const hash = await fileHash(src)
-    const cached = path.join(REMBG_CACHE, `${hash}.png`)
-    bySrc.set(src, cached)
-    if (!existsSync(cached)) pending.push({ src, hash })
+/** @returns {Promise<Record<string, "cutout" | "original" | "exclude">>} */
+async function loadChoices(choicePath) {
+  if (!choicePath || !existsSync(resolveRepoPath(choicePath))) return {}
+  const data = JSON.parse(await readFile(resolveRepoPath(choicePath), "utf8"))
+  if (data.choices && typeof data.choices === "object") return data.choices
+  const out = {}
+  for (const item of data.items ?? []) {
+    if (
+      item.file &&
+      (item.use === "cutout" || item.use === "original" || item.use === "exclude")
+    ) {
+      out[item.file] = item.use
+    }
   }
-
-  if (pending.length === 0) return bySrc
-
-  const workIn = path.join(tmpdir(), `rembg-in-${Date.now()}`)
-  const workOut = path.join(tmpdir(), `rembg-out-${Date.now()}`)
-  await mkdir(workIn, { recursive: true })
-  await mkdir(workOut, { recursive: true })
-
-  // rembg p preserves base filenames, so name inputs by hash.
-  for (const { src, hash } of pending) {
-    const png = await sharp(src).rotate().png().toBuffer()
-    await writeFile(path.join(workIn, `${hash}.png`), png)
-  }
-
-  console.log(`A remover fundo de ${pending.length} imagens (rembg)…`)
-  const res = spawnSync(
-    "uvx",
-    ["--python", "3.11", "--from", "rembg[cpu,cli]", "rembg", "p", workIn, workOut],
-    { stdio: "inherit" },
-  )
-  if (res.status !== 0) {
-    throw new Error("rembg falhou — verifica que o uv está instalado (https://docs.astral.sh/uv/)")
-  }
-
-  for (const { hash } of pending) {
-    const out = path.join(workOut, `${hash}.png`)
-    if (!existsSync(out)) throw new Error(`rembg não produziu output para ${hash}`)
-    await copyFile(out, path.join(REMBG_CACHE, `${hash}.png`))
-  }
-
-  await rm(workIn, { recursive: true, force: true })
-  await rm(workOut, { recursive: true, force: true })
-  return bySrc
+  return out
 }
 
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 }
 
 async function processOne(srcAbs, destAbs) {
-  // Trim borders (transparent after rembg); fall back if trim degenerates.
   let trimmed
   try {
     trimmed = await sharp(srcAbs)
@@ -158,11 +125,18 @@ async function writePreview(entries) {
   h2 { font-size: 0.95rem; font-weight: 600; margin: 0 0 .5rem; }
   .row { display: flex; gap: 1rem; flex-wrap: wrap; }
   img { width: 240px; height: 240px; border-radius: 16px;
-        background: linear-gradient(135deg, #eef5ef 0%, #dcebe0 100%);
+        background:
+          linear-gradient(45deg, #dce5df 25%, transparent 25%),
+          linear-gradient(-45deg, #dce5df 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #dce5df 75%),
+          linear-gradient(-45deg, transparent 75%, #dce5df 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        background-color: #eef5ef;
         border: 1px solid #d4e2d8; object-fit: contain; }
 </style></head><body>
-<h1>Imagens processadas (fundo removido, centradas, 1200×1200)</h1>
-<p>Fundo do cartão simula o gradiente do site. ${entries.length} produtos.</p>
+<h1>Imagens processadas (1200×1200)</h1>
+<p>Checkerboard = transparência. ${entries.length} produtos.</p>
 ${cards}
 </body></html>`
   await writeFile(PREVIEW, html)
@@ -174,13 +148,24 @@ async function main() {
   }
   const mapping = JSON.parse(await readFile(MAPPING, "utf8"))
   const only = arg("only")
+  const onlyBrand = arg("brand")
   const force = hasFlag("force")
   const skipRembg = hasFlag("skip-rembg")
+  // Prefer --choice-from; accept legacy --rembg-from as the same choice file.
+  const choiceFrom =
+    arg("choice-from") || arg("rembg-from") || (existsSync(DEFAULT_CHOICE) ? DEFAULT_CHOICE : null)
 
-  // Resolve sources per entry.
+  const choices = await loadChoices(choiceFrom)
+  if (choiceFrom) {
+    console.log(
+      `Escolhas: ${path.relative(ROOT, resolveRepoPath(choiceFrom))} (${Object.keys(choices).length} ficheiros)`,
+    )
+  }
+
   const jobs = []
   for (const entry of mapping) {
     if (only && entry.slug !== only) continue
+    if (onlyBrand && entry.marca !== onlyBrand) continue
     const manual = await listManualFiles(entry.slug)
     const sources =
       manual.length > 0
@@ -192,11 +177,14 @@ async function main() {
   }
 
   const allSources = jobs.flatMap((j) => j.sources)
-  const cutouts = skipRembg ? null : await ensureCutouts(allSources)
+  const cutouts = skipRembg ? new Map() : await ensureCutouts(allSources)
 
   let ok = 0
   let skipped = 0
   let missing = 0
+  let usedCutout = 0
+  let usedOriginal = 0
+  let excluded = 0
   const previewEntries = []
 
   for (const { entry, sources } of jobs) {
@@ -208,9 +196,24 @@ async function main() {
 
     const destDir = path.join(OUT_ROOT, entry.marca, entry.slug)
     const dests = []
+    let outIndex = 0
     for (let i = 0; i < sources.length; i++) {
-      const src = cutouts ? cutouts.get(sources[i]) : sources[i]
-      const dest = path.join(destDir, `${String(i + 1).padStart(2, "0")}.png`)
+      const srcAbs = sources[i]
+      const rel = toRepoRelative(srcAbs)
+      const prefer =
+        choices[rel] || choices[srcAbs] || (cutouts.has(srcAbs) ? "cutout" : "original")
+      if (prefer === "exclude") {
+        excluded++
+        console.log(`  ⊗ ${entry.slug} #${i + 1}: excluída`)
+        continue
+      }
+      const useCutout = prefer === "cutout" && cutouts.has(srcAbs)
+      const src = useCutout ? cutouts.get(srcAbs) : srcAbs
+      if (useCutout) usedCutout++
+      else usedOriginal++
+
+      outIndex++
+      const dest = path.join(destDir, `${String(outIndex).padStart(2, "0")}.png`)
       dests.push(dest)
       if (!force && existsSync(dest)) {
         skipped++
@@ -218,7 +221,9 @@ async function main() {
       }
       try {
         await processOne(src, dest)
-        console.log(`  ✓ ${path.relative(ROOT, dest)}`)
+        console.log(
+          `  ✓ ${path.relative(ROOT, dest)} (${useCutout ? "cutout" : "original"})`,
+        )
         ok++
       } catch (err) {
         console.warn(
@@ -226,13 +231,23 @@ async function main() {
         )
       }
     }
+    if (dests.length === 0) {
+      // Drop stale PNGs from earlier process runs so upload won't reattach them.
+      if (existsSync(destDir)) {
+        await rm(destDir, { recursive: true, force: true })
+      }
+      console.log(`  — ${entry.slug}: todas as imagens excluídas`)
+      missing++
+      continue
+    }
     previewEntries.push({ marca: entry.marca, slug: entry.slug, dests })
   }
 
   await writePreview(previewEntries)
   console.log(
-    `\nConcluído. processados=${ok} ignorados=${skipped} falhas/em falta=${missing}`,
+    `\nConcluído. processados=${ok} ignorados=${skipped} excluídas=${excluded} falhas/em falta=${missing}`,
   )
+  console.log(`Versões: cutout=${usedCutout} original=${usedOriginal}`)
   console.log(`Preview: ${path.relative(ROOT, PREVIEW)}`)
 }
 

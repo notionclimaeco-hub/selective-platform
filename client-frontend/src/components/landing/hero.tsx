@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { BadgeCheck, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -39,7 +40,7 @@ export function Hero() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            render={<a href="#produtos" />}
+            render={<Link to="/produtos" />}
             nativeButton={false}
             size="lg"
             className="px-6"

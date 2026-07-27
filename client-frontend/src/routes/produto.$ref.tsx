@@ -21,10 +21,23 @@ import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Markdown } from "@/components/produto/markdown"
 import { ProductGallery } from "@/components/produto/product-gallery"
-import { VariantSelector } from "@/components/produto/variant-selector"
+import {
+  VariantTable,
+  atributosComuns,
+  rotuloChave,
+  rotuloValor,
+  rotuloVariante,
+  type Atributo,
+  type Variante,
+} from "@/components/produto/variant-table"
 import { QuantityStepper } from "@/components/orcamento/quantity-stepper"
 import { useOrcamento } from "@/components/orcamento/orcamento-store"
-import { eurExato, rotuloCategoria, rotuloMarca } from "@/lib/catalogo"
+import {
+  eurExato,
+  rotuloFamilia,
+  rotuloMarca,
+  type Familia,
+} from "@/lib/catalogo"
 
 export const Route = createFileRoute("/produto/$ref")({
   component: ProdutoPage,
@@ -96,10 +109,6 @@ function ProdutoFamilia({
   const ativo = ativoRaw ?? base
 
   const variantes = grupo?.variantes ?? []
-  const precoDesdeCents =
-    variantes.length > 0
-      ? Math.min(...variantes.map((v) => v.pvpCents))
-      : undefined
 
   return (
     <ProdutoLayout
@@ -108,18 +117,8 @@ function ProdutoFamilia({
       variantes={variantes}
       selectedRef={selectedRef}
       onSelect={setSelectedRef}
-      precoDesdeCents={precoDesdeCents}
     />
   )
-}
-
-type Variante = {
-  ref: string
-  variante?: string
-  capacidadeKw?: number
-  classeEnergetica?: string
-  refrigerante?: string
-  pvpCents: number
 }
 
 function ProdutoLayout({
@@ -128,102 +127,118 @@ function ProdutoLayout({
   variantes,
   selectedRef,
   onSelect,
-  precoDesdeCents,
 }: {
   base: Detalhe
   ativo: Detalhe
   variantes?: Array<Variante>
   selectedRef?: string
   onSelect?: (ref: string) => void
-  precoDesdeCents?: number
 }) {
   const temVariantes = variantes !== undefined && variantes.length > 1
+
+  // Shared attributes render as spec chips in the buy box; the keys that vary
+  // across the group become columns of the variant table below.
+  const especificacoes = temVariantes
+    ? atributosComuns(variantes!)
+    : ativo.atributos
+  const varianteAtiva = variantes?.find((v) => v.ref === ativo.ref)
+  const varianteLabel =
+    temVariantes && varianteAtiva
+      ? rotuloVariante(varianteAtiva, variantes!)
+      : ""
 
   return (
     <>
       <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6">
-        <Breadcrumb categoria={base.categoria} nome={base.nome} />
+        <Breadcrumb familia={base.familia} nome={base.nomeGrupo} />
       </div>
 
       {/*
-        Grid places (desktop): gallery top-left, buy box spanning the right
-        column, description bottom-left (beside the variant table). DOM order is
-        gallery -> buy box -> description, so mobile stacks sensibly
-        (image, then title/price/models, then description).
+        Mobile: gallery → buy → description (`contents` lets order work).
+        Desktop: sticky left column (gallery + description), buy on the right.
       */}
-      <div className="mx-auto grid max-w-6xl gap-x-14 gap-y-10 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:py-10">
-        <div className="lg:col-start-1 lg:row-start-1">
-          <ProductGallery
-            categoria={base.categoria}
-            imagens={ativo.imagensUrls}
-          />
+      <div className="mx-auto grid max-w-6xl items-start gap-x-12 gap-y-8 px-4 py-8 pb-12 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:py-10">
+        <div className="contents lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-6 lg:self-start">
+          <div className="order-1 min-w-0">
+            <ProductGallery
+              familia={base.familia}
+              imagens={ativo.imagensUrls}
+              pdfCapaUrl={ativo.fichasCatalogo[0]?.url ?? null}
+            />
+          </div>
+          {ativo.descricao && (
+            <div className="order-3 min-w-0">
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">
+                Descrição
+              </p>
+              <div className="mt-2.5">
+                <Markdown>{ativo.descricao}</Markdown>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1 lg:row-span-2">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium uppercase tracking-[0.15em] text-primary">
-              {rotuloMarca(base.marca)}
-              {base.gama ? ` · ${base.gama}` : ""}
-            </p>
-            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-              {base.nome}
-            </h1>
-            <p className="text-sm text-muted-foreground">Ref.: {ativo.ref}</p>
+        <div className="order-2 flex min-w-0 flex-col gap-5 sm:gap-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium uppercase tracking-[0.15em] text-primary">
+                {rotuloMarca(base.marca)}
+                {base.gama ? ` · ${base.gama}` : ""}
+              </p>
+              {/* Page title is nomeGrupo (no capacity); capacity lives in the
+                  variant table / SKU `nome` used by the quote list. */}
+              <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
+                {base.nomeGrupo}
+              </h1>
+            </div>
+            {ativo.fichasCatalogo.length > 0 && (
+              <FichasCatalogo fichas={ativo.fichasCatalogo} />
+            )}
           </div>
 
-          <div className="flex flex-col gap-1 border-y py-5">
-            <span className="text-3xl font-semibold text-primary">
+          <div className="border-y py-3.5 sm:py-4">
+            <span className="text-2xl font-semibold text-primary sm:text-3xl">
               {eurExato.format(ativo.pvpCents / 100)}
               <span className="ml-2 text-sm font-normal text-muted-foreground">
                 s/IVA
               </span>
             </span>
-            {temVariantes && precoDesdeCents !== undefined && (
-              <span className="text-sm text-muted-foreground">
-                A partir de {eurExato.format(precoDesdeCents / 100)} ·{" "}
-                {variantes!.length} modelos disponíveis
-              </span>
-            )}
           </div>
 
-          {temVariantes && selectedRef && onSelect ? (
-            <VariantSelector
-              variantes={variantes!}
-              selectedRef={selectedRef}
-              onSelect={onSelect}
-            />
-          ) : (
-            // Standalone products have no variant table, so the specs live here.
-            <SpecChips ativo={ativo} categoria={base.categoria} />
+          {temVariantes && selectedRef && onSelect && (
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">
+                Escolha o modelo
+              </p>
+              <div className="mt-2.5">
+                <VariantTable
+                  variantes={variantes!}
+                  selectedRef={selectedRef}
+                  onSelect={onSelect}
+                />
+              </div>
+            </div>
           )}
 
-          <QuoteCta ativo={ativo} />
-        </div>
-
-        {(ativo.descricao || ativo.fichasCatalogo.length > 0) && (
-          <div className="lg:col-start-1 lg:row-start-2">
-            <p className="text-sm font-medium uppercase tracking-[0.15em] text-primary">
-              Descrição
-            </p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight">
-              Sobre este equipamento
-            </h2>
-            {ativo.descricao && (
-              <div className="mt-4">
-                <Markdown>{ativo.descricao}</Markdown>
+          {especificacoes.length > 0 && (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">
+                Especificações
+              </p>
+              <div className="mt-2.5">
+                <SpecChips atributos={especificacoes} />
               </div>
-            )}
-            {ativo.fichasCatalogo.length > 0 && (
-              <FichasCatalogo fichas={ativo.fichasCatalogo} />
-            )}
-          </div>
-        )}
+            </div>
+          )}
+
+          <QuoteCta ativo={ativo} varianteLabel={varianteLabel} />
+        </div>
       </div>
     </>
   )
 }
 
-function Breadcrumb({ categoria, nome }: { categoria: string; nome: string }) {
+function Breadcrumb({ familia, nome }: { familia: string; nome: string }) {
   return (
     <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
       <Link to="/" className="transition-colors hover:text-foreground">
@@ -231,11 +246,11 @@ function Breadcrumb({ categoria, nome }: { categoria: string; nome: string }) {
       </Link>
       <ChevronRight className="size-3.5" />
       <Link
-        to="/"
-        hash="produtos"
+        to="/produtos"
+        search={{ familia: familia as Familia }}
         className="transition-colors hover:text-foreground"
       >
-        {rotuloCategoria(categoria)}
+        {rotuloFamilia(familia)}
       </Link>
       <ChevronRight className="size-3.5" />
       <span className="line-clamp-1 text-foreground">{nome}</span>
@@ -243,47 +258,33 @@ function Breadcrumb({ categoria, nome }: { categoria: string; nome: string }) {
   )
 }
 
-function SpecChips({
-  ativo,
-  categoria,
-}: {
-  ativo: Detalhe
-  categoria: string
-}) {
-  const chips: Array<{ rotulo: string; valor: string }> = [
-    { rotulo: "Categoria", valor: rotuloCategoria(categoria) },
-  ]
-  if (ativo.capacidadeKw !== undefined) {
-    chips.push({
-      rotulo: "Capacidade",
-      valor: `${ativo.capacidadeKw.toLocaleString("pt-PT")} kW`,
-    })
-  }
-  if (ativo.classeEnergetica) {
-    chips.push({ rotulo: "Classe energética", valor: ativo.classeEnergetica })
-  }
-  if (ativo.refrigerante) {
-    chips.push({ rotulo: "Refrigerante", valor: ativo.refrigerante })
-  }
-
+// Spec chips are fully attribute-driven: whatever keys the product carries
+// (that don't vary within its group) render as compact label/value pills.
+function SpecChips({ atributos }: { atributos: Array<Atributo> }) {
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-      {chips.map((chip) => (
+    <dl className="flex flex-wrap gap-2">
+      {atributos.map((a) => (
         <div
-          key={chip.rotulo}
-          className="rounded-xl border bg-card px-4 py-3"
+          key={a.chave}
+          className="flex items-baseline gap-1.5 rounded-full border bg-card px-3.5 py-1.5 text-sm shadow-sm"
         >
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-            {chip.rotulo}
+          <dt className="text-xs text-muted-foreground">
+            {rotuloChave(a.chave)}
           </dt>
-          <dd className="mt-0.5 font-semibold">{chip.valor}</dd>
+          <dd className="font-semibold">{rotuloValor(a.valor)}</dd>
         </div>
       ))}
     </dl>
   )
 }
 
-function QuoteCta({ ativo }: { ativo: Detalhe }) {
+function QuoteCta({
+  ativo,
+  varianteLabel,
+}: {
+  ativo: Detalhe
+  varianteLabel: string
+}) {
   const { adicionar, abrir, obter } = useOrcamento()
   const [quantidade, setQuantidade] = useState(1)
   const jaNaLista = obter(ativo.ref)
@@ -294,9 +295,11 @@ function QuoteCta({ ativo }: { ativo: Detalhe }) {
         ref: ativo.ref,
         nome: ativo.nome,
         marca: ativo.marca,
-        categoria: ativo.categoria,
-        variante: ativo.variante,
+        familia: ativo.familia,
+        variante: varianteLabel || undefined,
         pvpCents: ativo.pvpCents,
+        capaUrl: ativo.imagensUrls[0] ?? null,
+        capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
       },
       quantidade,
     )
@@ -307,8 +310,21 @@ function QuoteCta({ ativo }: { ativo: Detalhe }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <QuantityStepper value={quantidade} onChange={setQuantidade} />
-        <Button size="lg" onClick={handleAdicionar} className="flex-1 px-6">
+        <QuantityStepper
+          value={quantidade}
+          onChange={setQuantidade}
+          className="w-full sm:w-auto"
+        />
+        {/*
+          Taller tap target on phones; regular lg height on sm+. `flex-1`
+          only applies on sm+ — in the mobile column layout it would collapse
+          the button's height instead of stretching its width.
+        */}
+        <Button
+          size="lg"
+          onClick={handleAdicionar}
+          className="h-12 px-6 sm:h-10 sm:flex-1"
+        >
           {jaNaLista ? (
             <>
               <Check data-icon="inline-start" />
@@ -351,7 +367,7 @@ function FichasCatalogo({
 }) {
   const varias = fichas.length > 1
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {fichas.map((ficha, i) => (
         <a
           key={ficha.pagina}
@@ -379,7 +395,7 @@ function ProdutoNaoEncontrado() {
         disponível.
       </p>
       <Button
-        render={<a href="/#produtos" />}
+        render={<Link to="/produtos" />}
         nativeButton={false}
         className="mt-2"
       >

@@ -55,9 +55,33 @@ function extFromContentType(ct, url) {
   return m ? m[1].toLowerCase().replace("jpeg", "jpg") : "bin"
 }
 
+// Liferay (Mitsubishi) appends /<uuid>?t=… after the real file extension.
+// Strip that so fetch hits the downloadable asset path.
+function normalizeImageUrl(src) {
+  if (!src) return src
+  try {
+    const u = new URL(src)
+    const m = u.pathname.match(
+      /^(.+\.(?:png|jpe?g|webp|gif))(?:\/[^/]+)?$/i,
+    )
+    if (m) {
+      u.pathname = m[1]
+      u.search = ""
+      u.hash = ""
+      return u.toString()
+    }
+  } catch {
+    /* keep original */
+  }
+  return src.split("?")[0]
+}
+
 function looksLikeProductImage(src, cfg) {
   if (!src || src.startsWith("data:")) return false
-  const lower = src.toLowerCase()
+  const normalized = normalizeImageUrl(src)
+  const lower = normalized.toLowerCase()
+  // Skip Liferay friendly URLs without a file extension (e.g. /documents/d/guest/…).
+  if (!/\.(png|jpe?g|webp|gif)$/i.test(lower)) return false
   for (const excl of cfg.imageUrlExcludes ?? []) {
     if (lower.includes(excl.toLowerCase())) return false
   }
@@ -65,7 +89,7 @@ function looksLikeProductImage(src, cfg) {
   if (includes.length > 0) {
     return includes.some((inc) => lower.includes(inc.toLowerCase()))
   }
-  return /\.(png|jpe?g|webp)(?:\?|$)/i.test(src)
+  return true
 }
 
 async function loadManifest() {
@@ -111,18 +135,34 @@ async function collectProductLinks(page, seedUrl, brandCfg) {
 }
 
 async function collectImagesOnPage(page, pageUrl, brandCfg, globalCfg) {
-  await page.goto(pageUrl, { waitUntil: "networkidle", timeout: 90000 })
+  // domcontentloaded: Hisense keeps long-polling analytics that never reach
+  // networkidle, which would hang the crawl.
+  await page.goto(pageUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
   await dismissCookies(page)
-  await sleep(400)
+  await sleep(800)
   const title = await page.title()
+  // Prefer high-res gallery sources (Hisense uses good-src on thumbnails)
+  // and fall back to the rendered src.
   const imgs = await page.$$eval("img", (nodes) =>
     nodes.map((img) => ({
-      src: img.currentSrc || img.src || "",
+      src:
+        img.getAttribute("good-src") ||
+        img.getAttribute("data-src") ||
+        img.currentSrc ||
+        img.src ||
+        "",
       alt: img.alt || "",
       width: img.naturalWidth || 0,
       height: img.naturalHeight || 0,
     })),
   )
+  // Also pick up Open Graph cover when the gallery is lazy/empty.
+  const ogImage = await page
+    .$eval('meta[property="og:image"]', (el) => el.content || "")
+    .catch(() => "")
+  if (ogImage) {
+    imgs.unshift({ src: ogImage, alt: title, width: 0, height: 0 })
+  }
   const candidates = []
   const seen = new Set()
   for (const img of imgs) {
@@ -135,11 +175,16 @@ async function collectImagesOnPage(page, pageUrl, brandCfg, globalCfg) {
     }
     // Prefer higher-res variants when the site serves /pic/WxH/ (download
     // falls back to the original if the upsized URL 404s).
-    let src = img.src
+    let src = normalizeImageUrl(img.src)
     let srcFallback = null
     if (/\/pic\/\d+x\d+\//.test(src)) {
       srcFallback = src
       src = src.replace(/\/pic\/\d+x\d+\//, "/pic/1500x1500/")
+    }
+    // Drop WordPress size suffixes so we fetch the original asset.
+    if (/-\d+x\d+\.(jpe?g|png|webp)$/i.test(src)) {
+      srcFallback = src
+      src = src.replace(/-\d+x\d+(\.(jpe?g|png|webp))$/i, "$1")
     }
     if (seen.has(src) || (srcFallback && seen.has(srcFallback))) continue
     seen.add(src)

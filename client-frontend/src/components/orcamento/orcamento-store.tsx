@@ -15,10 +15,14 @@ export type ItemOrcamento = {
   ref: string
   nome: string
   marca: string
-  categoria: string
+  familia: string
   variante?: string
   pvpCents: number
   quantidade: number
+  // Cover snapshot at add-time so the drawer can render without another query.
+  // Prefer capaUrl; capaPdfUrl is the catalog-page fallback used elsewhere.
+  capaUrl?: string | null
+  capaPdfUrl?: string | null
 }
 
 type NovoItem = Omit<ItemOrcamento, "quantidade">
