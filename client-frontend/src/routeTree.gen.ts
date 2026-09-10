@@ -10,7 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContaRouteImport } from './routes/conta'
+import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ProdutosRouteImport } from './routes/produtos'
+import { Route as RegistoRouteImport } from './routes/registo'
 import { Route as ProdutoRefRouteImport } from './routes/produto.$ref'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +21,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContaRoute = ContaRouteImport.update({
+  id: '/conta',
+  path: '/conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntrarRoute = EntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProdutosRoute = ProdutosRouteImport.update({
   id: '/produtos',
   path: '/produtos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistoRoute = RegistoRouteImport.update({
+  id: '/registo',
+  path: '/registo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProdutoRefRoute = ProdutoRefRouteImport.update({
@@ -31,31 +49,51 @@ const ProdutoRefRoute = ProdutoRefRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/conta': typeof ContaRoute
+  '/entrar': typeof EntrarRoute
   '/produtos': typeof ProdutosRoute
+  '/registo': typeof RegistoRoute
   '/produto/$ref': typeof ProdutoRefRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/conta': typeof ContaRoute
+  '/entrar': typeof EntrarRoute
   '/produtos': typeof ProdutosRoute
+  '/registo': typeof RegistoRoute
   '/produto/$ref': typeof ProdutoRefRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/conta': typeof ContaRoute
+  '/entrar': typeof EntrarRoute
   '/produtos': typeof ProdutosRoute
+  '/registo': typeof RegistoRoute
   '/produto/$ref': typeof ProdutoRefRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/produtos' | '/produto/$ref'
+  fullPaths:
+    '/' | '/conta' | '/entrar' | '/produtos' | '/registo' | '/produto/$ref'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/produtos' | '/produto/$ref'
-  id: '__root__' | '/' | '/produtos' | '/produto/$ref'
+  to: '/' | '/conta' | '/entrar' | '/produtos' | '/registo' | '/produto/$ref'
+  id:
+    | '__root__'
+    | '/'
+    | '/conta'
+    | '/entrar'
+    | '/produtos'
+    | '/registo'
+    | '/produto/$ref'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContaRoute: typeof ContaRoute
+  EntrarRoute: typeof EntrarRoute
   ProdutosRoute: typeof ProdutosRoute
+  RegistoRoute: typeof RegistoRoute
   ProdutoRefRoute: typeof ProdutoRefRoute
 }
 
@@ -68,11 +106,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conta': {
+      id: '/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof ContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entrar': {
+      id: '/entrar'
+      path: '/entrar'
+      fullPath: '/entrar'
+      preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/produtos': {
       id: '/produtos'
       path: '/produtos'
       fullPath: '/produtos'
       preLoaderRoute: typeof ProdutosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registo': {
+      id: '/registo'
+      path: '/registo'
+      fullPath: '/registo'
+      preLoaderRoute: typeof RegistoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/produto/$ref': {
@@ -87,7 +146,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContaRoute: ContaRoute,
+  EntrarRoute: EntrarRoute,
   ProdutosRoute: ProdutosRoute,
+  RegistoRoute: RegistoRoute,
   ProdutoRefRoute: ProdutoRefRoute,
 }
 export const routeTree = rootRouteImport
@@ -95,10 +157,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

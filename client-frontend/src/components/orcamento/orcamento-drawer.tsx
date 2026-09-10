@@ -1,24 +1,31 @@
 import { Link } from "@tanstack/react-router"
+import { useAuth } from "@clerk/tanstack-react-start"
+import { useQuery } from "convex/react"
 import { FileText, Trash2, X } from "lucide-react"
 
+import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { eurExato, iconeFamilia, rotuloMarca } from "@/lib/catalogo"
+import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 import { QuantityStepper } from "./quantity-stepper"
 import { useOrcamento, type ItemOrcamento } from "./orcamento-store"
 
-// Right-side slide-over listing the products the client has gathered for a
-// quote request. Building the list needs no login; submitting will (once the
-// client area exists), so the submit action is intentionally stubbed for now.
 export function OrcamentoDrawer() {
   const { aberto, fechar, itens, totalItens, totalCents, limpar } =
     useOrcamento()
+  const overlay = useMapaPrecosPorRef(itens.map((i) => i.ref))
+  const totalVista = overlay
+    ? itens.reduce(
+        (acc, i) => acc + (overlay.get(i.ref) ?? i.pvpCents) * i.quantidade,
+        0,
+      )
+    : totalCents
 
   return (
     <div
       className={`fixed inset-0 z-[60] ${aberto ? "" : "pointer-events-none"}`}
       aria-hidden={!aberto}
     >
-      {/* Overlay */}
       <div
         onClick={fechar}
         className={`absolute inset-0 bg-foreground/40 backdrop-blur-sm transition-opacity duration-300 ${
@@ -26,7 +33,6 @@ export function OrcamentoDrawer() {
         }`}
       />
 
-      {/* Panel */}
       <aside
         role="dialog"
         aria-label="Lista de orçamento"
@@ -63,7 +69,11 @@ export function OrcamentoDrawer() {
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <ul className="flex flex-col gap-3">
                 {itens.map((item) => (
-                  <LinhaOrcamento key={item.ref} ref_={item.ref} />
+                  <LinhaOrcamento
+                    key={item.ref}
+                    ref_={item.ref}
+                    unitCents={overlay?.get(item.ref) ?? item.pvpCents}
+                  />
                 ))}
               </ul>
               <button
@@ -76,23 +86,11 @@ export function OrcamentoDrawer() {
               </button>
             </div>
 
-            <footer className="border-t px-5 py-4">
-              <div className="mb-3 flex items-baseline justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Total indicativo (PVP s/IVA)
-                </span>
-                <span className="text-xl font-semibold text-primary">
-                  {eurExato.format(totalCents / 100)}
-                </span>
-              </div>
-              <Button size="lg" disabled className="w-full">
-                Pedir orçamento
-              </Button>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                Área de cliente em breve: inicie sessão para enviar o pedido e
-                receber o seu preço de revenda.
-              </p>
-            </footer>
+            <RodapeLista
+              totalCents={totalVista}
+              eRevenda={overlay !== null}
+              onFechar={fechar}
+            />
           </>
         )}
       </aside>
@@ -100,7 +98,148 @@ export function OrcamentoDrawer() {
   )
 }
 
-function LinhaOrcamento({ ref_ }: { ref_: string }) {
+function RodapeLista({
+  totalCents,
+  eRevenda,
+  onFechar,
+}: {
+  totalCents: number
+  eRevenda: boolean
+  onFechar: () => void
+}) {
+  const { isSignedIn } = useAuth()
+  const vista = useQuery(api.empresas.minha, isSignedIn ? {} : "skip")
+  const estado =
+    vista?.kind === "empresa" ? vista.empresa.estadoAprovacao : undefined
+
+  return (
+    <footer className="border-t px-5 py-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <span className="text-sm text-muted-foreground">
+          {eRevenda ? "Total revenda (s/IVA)" : "Total indicativo (PVP s/IVA)"}
+        </span>
+        <span className="text-xl font-semibold text-primary">
+          {eurExato.format(totalCents / 100)}
+        </span>
+      </div>
+      <CtaLista
+        isSignedIn={Boolean(isSignedIn)}
+        kind={vista === undefined && isSignedIn ? "a-carregar" : vista?.kind}
+        estado={estado}
+        onFechar={onFechar}
+      />
+    </footer>
+  )
+}
+
+function CtaLista({
+  isSignedIn,
+  kind,
+  estado,
+  onFechar,
+}: {
+  isSignedIn: boolean
+  kind: "sem-org" | "sem-empresa" | "empresa" | "a-carregar" | undefined
+  estado: string | undefined
+  onFechar: () => void
+}) {
+  if (!isSignedIn) {
+    return (
+      <>
+        <Button
+          render={<Link to="/entrar" />}
+          nativeButton={false}
+          size="lg"
+          className="w-full"
+          onClick={onFechar}
+        >
+          Entre ou registe a sua empresa
+        </Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          A lista mantém-se depois de entrar. As encomendas online chegam em
+          breve.
+        </p>
+      </>
+    )
+  }
+
+  if (kind === "sem-org" || kind === "sem-empresa") {
+    return (
+      <>
+        <Button
+          render={<Link to={kind === "sem-org" ? "/registo" : "/conta"} />}
+          nativeButton={false}
+          size="lg"
+          className="w-full"
+          onClick={onFechar}
+        >
+          Completar o registo da empresa
+        </Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Precisamos do perfil da empresa para avançar.
+        </p>
+      </>
+    )
+  }
+
+  if (estado === "pendente") {
+    return (
+      <>
+        <Button size="lg" disabled className="w-full">
+          Empresa em aprovação
+        </Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Quando a equipa comercial aprovar, passa a ver os preços de revenda.
+        </p>
+      </>
+    )
+  }
+
+  if (estado === "rejeitada" || estado === "suspensa") {
+    return (
+      <>
+        <Button
+          render={<a href="mailto:geral@climaeco.pt" />}
+          nativeButton={false}
+          size="lg"
+          className="w-full"
+        >
+          Contactar o escritório
+        </Button>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          {estado === "rejeitada"
+            ? "O pedido foi rejeitado. Fale connosco para esclarecer."
+            : "A conta está suspensa. Os preços de revenda estão bloqueados."}
+        </p>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Button
+        render={<a href="mailto:geral@climaeco.pt" />}
+        nativeButton={false}
+        size="lg"
+        className="w-full"
+      >
+        Enviar lista por email
+      </Button>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        As encomendas na plataforma chegam em breve. Até lá, envie a lista para{" "}
+        geral@climaeco.pt ou ligue +351 210 000 000.
+      </p>
+    </>
+  )
+}
+
+function LinhaOrcamento({
+  ref_,
+  unitCents,
+}: {
+  ref_: string
+  unitCents: number
+}) {
   const { obter, definirQuantidade, remover, fechar } = useOrcamento()
   const item = obter(ref_)
   if (!item) return null
@@ -140,7 +279,7 @@ function LinhaOrcamento({ ref_ }: { ref_: string }) {
             onChange={(q) => definirQuantidade(item.ref, q)}
           />
           <span className="text-sm font-semibold tabular-nums">
-            {eurExato.format((item.pvpCents * item.quantidade) / 100)}
+            {eurExato.format((unitCents * item.quantidade) / 100)}
           </span>
         </div>
       </div>

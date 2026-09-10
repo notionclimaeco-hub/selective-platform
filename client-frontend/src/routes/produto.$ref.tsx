@@ -38,6 +38,7 @@ import {
   rotuloMarca,
   type Familia,
 } from "@/lib/catalogo"
+import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 
 export const Route = createFileRoute("/produto/$ref")({
   component: ProdutoPage,
@@ -135,6 +136,11 @@ function ProdutoLayout({
   onSelect?: (ref: string) => void
 }) {
   const temVariantes = variantes !== undefined && variantes.length > 1
+  const overlay = useMapaPrecosPorRef([
+    ativo.ref,
+    ...(variantes ?? []).map((v) => v.ref),
+  ])
+  const revendaAtivo = overlay?.get(ativo.ref)
 
   // Shared attributes render as spec chips in the buy box; the keys that vary
   // across the group become columns of the variant table below.
@@ -197,12 +203,26 @@ function ProdutoLayout({
           </div>
 
           <div className="border-y py-3.5 sm:py-4">
-            <span className="text-2xl font-semibold text-primary sm:text-3xl">
-              {eurExato.format(ativo.pvpCents / 100)}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                s/IVA
+            {revendaAtivo !== undefined ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-2xl font-semibold text-primary sm:text-3xl">
+                  {eurExato.format(revendaAtivo / 100)}
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    revenda s/IVA
+                  </span>
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  PVP {eurExato.format(ativo.pvpCents / 100)} s/IVA
+                </span>
+              </div>
+            ) : (
+              <span className="text-2xl font-semibold text-primary sm:text-3xl">
+                {eurExato.format(ativo.pvpCents / 100)}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  s/IVA
+                </span>
               </span>
-            </span>
+            )}
           </div>
 
           {temVariantes && selectedRef && onSelect && (
@@ -215,6 +235,7 @@ function ProdutoLayout({
                   variantes={variantes!}
                   selectedRef={selectedRef}
                   onSelect={onSelect}
+                  precosRevenda={overlay}
                 />
               </div>
             </div>

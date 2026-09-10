@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { useAuth } from "@clerk/tanstack-react-start"
 
 import { Button } from "@/components/ui/button"
 import { QuoteTrigger } from "@/components/orcamento/quote-trigger"
@@ -11,6 +12,9 @@ const NAV = [
 ]
 
 export function SiteHeader() {
+  const { isSignedIn } = useAuth()
+  const areaClienteTo = isSignedIn ? "/conta" : "/entrar"
+
   return (
     <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
@@ -47,9 +51,8 @@ export function SiteHeader() {
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <QuoteTrigger />
-          {/* Placeholder until the authenticated client area exists. */}
           <Button
-            render={<a href="/#contactos" />}
+            render={<Link to={areaClienteTo} />}
             nativeButton={false}
             size="lg"
             className="hidden sm:inline-flex"

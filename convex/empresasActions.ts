@@ -2,13 +2,12 @@ import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { claimString, requireIdentity } from "./lib/auth";
+import { claimOrgId, requireIdentity } from "./lib/auth";
 import {
   apagarOrganizacaoClerk,
   criarOrganizacaoClerk,
 } from "./lib/clerkOrganizations";
 import { normalizarNif, validarNif } from "./lib/nif";
-import { slugifyNome } from "./lib/slug";
 
 function textoObrigatorio(valor: string, campo: string): string {
   const t = valor.trim();
@@ -38,7 +37,7 @@ export const registar = action({
   }),
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
-    if (claimString(identity, "org_id") !== null) {
+    if (claimOrgId(identity) !== null) {
       throw new Error("Already a member of an organization");
     }
 
@@ -70,11 +69,9 @@ export const registar = action({
       throw new Error("You have already registered a company");
     }
 
-    const slug = `${slugifyNome(nomeLegal).slice(0, 20)}-${nif}`;
     const org = await criarOrganizacaoClerk({
       name: nomeLegal.slice(0, 256),
       createdBy: identity.subject,
-      slug,
     });
 
     try {

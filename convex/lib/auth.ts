@@ -25,6 +25,36 @@ export function claimString(
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/**
+ * Active Clerk organization id. Prefer the top-level `org_id` claim (Convex
+ * JWT template); fall back to Clerk's nested session `o.id`.
+ */
+export function claimOrgId(identity: UserIdentity): string | null {
+  const top = claimString(identity, "org_id");
+  if (top !== null) {
+    return top;
+  }
+  const nested = (identity as Record<string, unknown>).o;
+  if (typeof nested !== "object" || nested === null || !("id" in nested)) {
+    return null;
+  }
+  const id = (nested as { id?: unknown }).id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+export function claimOrgRole(identity: UserIdentity): string | null {
+  const top = claimString(identity, "org_role");
+  if (top !== null) {
+    return top;
+  }
+  const nested = (identity as Record<string, unknown>).o;
+  if (typeof nested !== "object" || nested === null || !("rol" in nested)) {
+    return null;
+  }
+  const rol = (nested as { rol?: unknown }).rol;
+  return typeof rol === "string" && rol.length > 0 ? rol : null;
+}
+
 export async function requireIdentity(ctx: AuthCtx): Promise<UserIdentity> {
   const identity = await ctx.auth.getUserIdentity();
   if (identity === null) {
@@ -67,7 +97,7 @@ export async function getInstallerContext(
     return null;
   }
 
-  const orgId = claimString(identity, "org_id");
+  const orgId = claimOrgId(identity);
   if (orgId === null) {
     return null;
   }
@@ -84,7 +114,7 @@ export async function getInstallerContext(
   return {
     identity,
     orgId,
-    orgRole: claimString(identity, "org_role"),
+    orgRole: claimOrgRole(identity),
     company,
   };
 }

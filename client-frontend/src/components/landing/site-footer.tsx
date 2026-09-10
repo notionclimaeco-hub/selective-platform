@@ -18,15 +18,25 @@ export function SiteFooter() {
               equipa comercial.
             </p>
           </div>
-          <Button
-            render={<a href="mailto:geral@climaeco.pt" />}
-            nativeButton={false}
-            variant="secondary"
-            size="lg"
-            className="px-6"
-          >
-            Contacte-nos
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              render={<Link to="/entrar" />}
+              nativeButton={false}
+              variant="secondary"
+              size="lg"
+              className="px-6"
+            >
+              Área de Cliente
+            </Button>
+            <Button
+              render={<a href="mailto:geral@climaeco.pt" />}
+              nativeButton={false}
+              size="lg"
+              className="border border-primary-foreground/30 bg-transparent px-6 text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              Contacte-nos
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -77,6 +87,12 @@ export function SiteFooter() {
             >
               Sobre nós
             </a>
+            <Link
+              to="/entrar"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Área de Cliente
+            </Link>
           </nav>
 
           {/* Placeholder contacts: swap for the real ones. */}

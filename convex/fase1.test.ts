@@ -149,7 +149,42 @@ describe("empresas", () => {
     expect(vista?.kind).toBe("empresa");
     if (vista?.kind !== "empresa") return;
     expect(vista.empresa.nomeLegal).toBe("Clima Teste Lda");
+    expect(vista.empresa.clerkOrgId).toBe("org_abc");
     expect(vista.empresa).not.toHaveProperty("notas");
+  });
+
+  it("minha returns the registrant's company even without an active org", async () => {
+    const test = t();
+    await inserirEmpresa(test, {
+      clerkOrgId: "org_abc",
+      nif: "509442013",
+      registadoPor: "user_installer",
+    });
+
+    const vista = await test
+      .withIdentity({
+        subject: "user_installer",
+        issuer: "https://example.clerk.accounts.dev",
+        tokenIdentifier:
+          "https://example.clerk.accounts.dev|user_installer",
+      })
+      .query(api.empresas.minha, {});
+    expect(vista?.kind).toBe("empresa");
+    if (vista?.kind !== "empresa") return;
+    expect(vista.empresa.estadoAprovacao).toBe("pendente");
+    expect(vista.empresa.nif).toBe("509442013");
+  });
+
+  it("minha stays sem-org when the user has not registered a company", async () => {
+    const test = t();
+    const vista = await test
+      .withIdentity({
+        subject: "user_new",
+        issuer: "https://example.clerk.accounts.dev",
+        tokenIdentifier: "https://example.clerk.accounts.dev|user_new",
+      })
+      .query(api.empresas.minha, {});
+    expect(vista).toEqual({ kind: "sem-org" });
   });
 });
 

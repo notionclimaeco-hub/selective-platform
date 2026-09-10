@@ -52,14 +52,14 @@ export type ClerkOrganization = {
 export async function criarOrganizacaoClerk(args: {
   name: string;
   createdBy: string;
-  slug: string;
 }): Promise<ClerkOrganization> {
+  // Do not send `slug`: this Clerk instance has organization slugs disabled,
+  // and we key installer companies by `clerkOrgId`, not slug.
   const response = await clerkRequest("/organizations", {
     method: "POST",
     body: JSON.stringify({
       name: args.name,
       created_by: args.createdBy,
-      slug: args.slug,
     }),
   });
 

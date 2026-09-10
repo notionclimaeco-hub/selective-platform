@@ -21,6 +21,7 @@ import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
 import { rotuloMarca } from "@/lib/catalogo"
+import { useMapaDesdePorGrupo } from "@/lib/precos-revenda"
 import {
   argsCatalogo,
   contarFiltrosAtivos,
@@ -290,16 +291,44 @@ function Resultados({
   }
 
   return (
+    <ResultadosComPrecos
+      data={data}
+      vista={vista}
+      aAtualizar={aAtualizar}
+      onPagina={onPagina}
+    />
+  )
+}
+
+function ResultadosComPrecos({
+  data,
+  vista,
+  aAtualizar,
+  onPagina,
+}: {
+  data: Dados
+  vista: "grelha" | "lista"
+  aAtualizar: boolean
+  onPagina: (pagina: number) => void
+}) {
+  const overlay = useMapaDesdePorGrupo(
+    data.entradas.map((e) => e.grupoModelo),
+  )
+
+  return (
     <>
       <div className={cn(aAtualizar && "opacity-70 transition-opacity")}>
         <Grelha vista={vista}>
-          {data.entradas.map((entrada) =>
-            vista === "grelha" ? (
-              <ProductCard key={entrada.grupoModelo} entrada={entrada} />
+          {data.entradas.map((entrada) => {
+            const precoDesdeCents =
+              overlay?.get(entrada.grupoModelo) ?? entrada.precoDesdeCents
+            const entradaVista = { ...entrada, precoDesdeCents }
+            return vista === "grelha" ? (
+              <ProductCard key={entrada.grupoModelo} entrada={entradaVista} />
             ) : (
-              <ProductRow key={entrada.grupoModelo} entrada={entrada} />
+              <ProductRow key={entrada.grupoModelo} entrada={entradaVista} />
             )
-          )}
+          })}
         </Grelha>
       </div>
 
