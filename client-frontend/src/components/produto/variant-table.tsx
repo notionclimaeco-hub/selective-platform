@@ -141,12 +141,19 @@ export function VariantTable({
   variantes,
   selectedRef,
   onSelect,
+  precosRevenda,
 }: {
   variantes: Array<Variante>
   selectedRef: string
   onSelect: (ref: string) => void
+  precosRevenda?: Map<string, number> | null
 }) {
   const chaves = chavesVariaveis(variantes)
+  const rotuloPreco = precosRevenda ? "Revenda s/IVA" : "PVP s/IVA"
+
+  function centsDe(v: Variante): number {
+    return precosRevenda?.get(v.ref) ?? v.pvpCents
+  }
 
   return (
     <>
@@ -179,7 +186,7 @@ export function VariantTable({
                     {v.ref}
                   </p>
                   <p className="shrink-0 text-sm font-semibold text-primary">
-                    {eurExato.format(v.pvpCents / 100)}
+                    {eurExato.format(centsDe(v) / 100)}
                   </p>
                 </div>
                 {chaves.length > 0 && (
@@ -221,7 +228,7 @@ export function VariantTable({
                 </th>
               ))}
               <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                PVP s/IVA
+                {rotuloPreco}
               </th>
             </tr>
           </thead>
@@ -269,7 +276,7 @@ export function VariantTable({
                     )
                   })}
                   <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-primary">
-                    {eurExato.format(v.pvpCents / 100)}
+                    {eurExato.format(centsDe(v) / 100)}
                   </td>
                 </tr>
               )

@@ -1,28 +1,51 @@
-import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router"
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  redirect,
+} from "@tanstack/react-router"
 import type { QueryClient } from "@tanstack/react-query"
+import type { ConvexQueryClient } from "@convex-dev/react-query"
+import type { ConvexReactClient } from "convex/react"
+import { ConvexProviderWithClerk } from "convex/react-clerk"
+import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start"
+import { auth } from "@clerk/tanstack-react-start/server"
+import { createServerFn } from "@tanstack/react-start"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
+import type { ReactNode } from "react"
 
 import { OrcamentoDrawer } from "@/components/orcamento/orcamento-drawer"
 import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
+import { clientAuthRedirect } from "@/lib/auth-gate"
 
 import appCss from "../styles.css?url"
 
+const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
+  const { userId, getToken, sessionClaims } = await auth()
+  const token = await getToken()
+  const claims = sessionClaims as
+    | { org_id?: string; role?: string }
+    | null
+    | undefined
+  return {
+    userId,
+    token,
+    orgId: claims?.org_id ?? null,
+  }
+})
+
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
+  convexClient: ConvexReactClient
+  convexQueryClient: ConvexQueryClient
 }>()({
   head: () => ({
     meta: [
-      {
-        charSet: "utf-8",
-      },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1",
-      },
-      {
-        title: "Clima Eco Selective — Distribuição de climatização",
-      },
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "Clima Eco Selective — Distribuição de climatização" },
       {
         name: "description",
         content:
@@ -32,53 +55,75 @@ export const Route = createRootRouteWithContext<{
         property: "og:title",
         content: "Clima Eco Selective — Distribuição de climatização",
       },
-      {
-        property: "og:image",
-        content: "/logo-climaeco.png",
-      },
+      { property: "og:image", content: "/logo-climaeco.png" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      {
-        rel: "icon",
-        href: "/favicon.ico",
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.ico" },
     ],
   }),
+  beforeLoad: async ({ context, location }) => {
+    const { userId, token, orgId } = await fetchClerkAuth()
+    if (token) {
+      context.convexQueryClient.serverHttpClient?.setAuth(token)
+    }
+
+    const destino = clientAuthRedirect(userId, orgId, location.pathname)
+    if (destino) {
+      throw redirect(destino)
+    }
+
+    return { userId, token, orgId }
+  },
   notFoundComponent: () => (
     <main className="container mx-auto p-4 pt-16">
       <h1>404</h1>
       <p>The requested page could not be found.</p>
     </main>
   ),
-  shellComponent: RootDocument,
+  component: RootComponent,
 })
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootComponent() {
+  const { convexClient } = Route.useRouteContext()
+
+  return (
+    <ClerkProvider
+      signInUrl="/entrar"
+      signUpUrl="/registo"
+      signInFallbackRedirectUrl="/conta"
+    >
+      <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
+        <RootDocument>
+          <OrcamentoProvider>
+            <Outlet />
+            <OrcamentoDrawer />
+          </OrcamentoProvider>
+        </RootDocument>
+      </ConvexProviderWithClerk>
+    </ClerkProvider>
+  )
+}
+
+function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="pt">
       <head>
         <HeadContent />
       </head>
       <body>
-        <OrcamentoProvider>
-          {children}
-          <OrcamentoDrawer />
-        </OrcamentoProvider>
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {children}
+        {import.meta.env.DEV && (
+          <TanStackDevtools
+            config={{ position: "bottom-right" }}
+            plugins={[
+              {
+                name: "Tanstack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        )}
         <Scripts />
       </body>
     </html>

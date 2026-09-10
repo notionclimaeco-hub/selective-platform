@@ -1,18 +1,25 @@
-import { defineConfig } from "vite"
+import { defineConfig, loadEnv } from "vite"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
-const config = defineConfig({
-  // Load the single shared .env from the workspace root (one file for both apps).
-  envDir: "..",
-  resolve: { tsconfigPaths: true },
-  server: {
-    // Allow importing the shared Convex backend that lives one level up.
-    fs: { allow: [".."] },
-  },
-  plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
-})
+export default defineConfig(({ mode }) => {
+  // Single shared .env at the workspace root. Vite exposes VITE_* via envDir;
+  // also surface server-only secrets (CLERK_SECRET_KEY) to the SSR runtime.
+  const rootEnv = loadEnv(mode, "..", "")
+  for (const [key, value] of Object.entries(rootEnv)) {
+    if (process.env[key] === undefined) {
+      process.env[key] = value
+    }
+  }
 
-export default config
+  return {
+    envDir: "..",
+    resolve: { tsconfigPaths: true },
+    server: {
+      fs: { allow: [".."] },
+    },
+    plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
+  }
+})
