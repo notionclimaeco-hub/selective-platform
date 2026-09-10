@@ -102,6 +102,8 @@ function RootComponent() {
 
 const NAV = [
   { to: "/", label: "Painel", exact: true },
+  { to: "/empresas", label: "Empresas", exact: false },
+  { to: "/comercial", label: "Comercial", exact: false },
   { to: "/produtos", label: "Produtos", exact: false },
   { to: "/paginas-catalogo", label: "Páginas do catálogo", exact: false },
 ] as const

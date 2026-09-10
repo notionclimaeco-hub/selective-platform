@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { Authenticated, AuthLoading } from "convex/react"
 import { convexQuery } from "@convex-dev/react-query"
 import { useSuspenseQuery } from "@tanstack/react-query"
-import { CheckCircle2, FileText, Images, Package } from "lucide-react"
+import { CheckCircle2, Building2, FileText, Images, Package, Percent } from "lucide-react"
 import { api } from "@convex/_generated/api"
 
 export const Route = createFileRoute("/")({ component: App })
@@ -19,6 +19,20 @@ function HealthCheck() {
 }
 
 const CARDS = [
+  {
+    to: "/empresas",
+    icon: Building2,
+    title: "Empresas",
+    desc: "Aprovar, rejeitar ou suspender empresas instaladoras e fixar o tier.",
+    cta: "Gerir empresas",
+  },
+  {
+    to: "/comercial",
+    icon: Percent,
+    title: "Comercial",
+    desc: "Tiers e grelha de desconto marca × tier para os preços de revenda.",
+    cta: "Gerir comercial",
+  },
   {
     to: "/produtos",
     icon: Package,
@@ -56,8 +70,8 @@ function App() {
           </Authenticated>
         </div>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Gestão de conteúdos da loja Clima Eco Selective. Escolhe uma área para
-          começar.
+          Gestão de contas instaladoras e conteúdos da loja Clima Eco
+          Selective. Escolhe uma área para começar.
         </p>
       </div>
 

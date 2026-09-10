@@ -9,12 +9,14 @@ export function ConfirmDialog({
   titulo,
   descricao,
   confirmarLabel = "Confirmar",
+  variante = "destructive",
   onConfirmar,
   onCancelar,
 }: {
   titulo: string
   descricao: string
   confirmarLabel?: string
+  variante?: "destructive" | "default"
   onConfirmar: () => Promise<void> | void
   onCancelar: () => void
 }) {
@@ -48,7 +50,7 @@ export function ConfirmDialog({
             Cancelar
           </Button>
           <Button
-            variant="destructive"
+            variant={variante}
             onClick={() => void confirmar()}
             disabled={aProcessar}
           >
