@@ -216,5 +216,6 @@ export default defineSchema({
   })
     .index("by_clerkOrgId", ["clerkOrgId"])
     .index("by_nif", ["nif"])
-    .index("by_estadoAprovacao", ["estadoAprovacao"]),
+    .index("by_estadoAprovacao", ["estadoAprovacao"])
+    .index("by_registadoPor", ["registadoPor"]),
 });
