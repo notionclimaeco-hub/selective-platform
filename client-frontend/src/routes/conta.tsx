@@ -1,18 +1,31 @@
+import { useEffect, useRef } from "react"
 import {
   OrganizationSwitcher,
   Show,
   SignOutButton,
   UserButton,
+  useClerk,
+  useOrganization,
 } from "@clerk/tanstack-react-start"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
+import { CheckCircle2 } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
 
-export const Route = createFileRoute("/conta")({ component: ContaPage })
+type ContaSearch = {
+  pedido?: "enviado"
+}
+
+export const Route = createFileRoute("/conta")({
+  validateSearch: (search: Record<string, unknown>): ContaSearch => ({
+    pedido: search.pedido === "enviado" ? "enviado" : undefined,
+  }),
+  component: ContaPage,
+})
 
 const ESTADO_COPY: Record<
   string,
@@ -62,7 +75,22 @@ function ContaPage() {
 }
 
 function ContaAutenticada() {
+  const { pedido } = Route.useSearch()
+  const { setActive } = useClerk()
+  const { organization, isLoaded } = useOrganization()
   const vista = useQuery(api.empresas.minha)
+  const tentouActivar = useRef(false)
+
+  useEffect(() => {
+    if (tentouActivar.current || !isLoaded || vista?.kind !== "empresa") {
+      return
+    }
+    if (organization?.id === vista.empresa.clerkOrgId) {
+      return
+    }
+    tentouActivar.current = true
+    void setActive({ organization: vista.empresa.clerkOrgId })
+  }, [isLoaded, organization?.id, setActive, vista])
 
   return (
     <>
@@ -90,7 +118,12 @@ function ContaAutenticada() {
       )}
       {vista?.kind === "sem-org" && <SemEmpresa />}
       {vista?.kind === "sem-empresa" && <Orfao orgId={vista.orgId} />}
-      {vista?.kind === "empresa" && <PerfilEmpresa empresa={vista.empresa} />}
+      {vista?.kind === "empresa" && (
+        <PerfilEmpresa
+          empresa={vista.empresa}
+          pedidoRecemEnviado={pedido === "enviado"}
+        />
+      )}
     </>
   )
 }
@@ -132,8 +165,10 @@ function Orfao({ orgId }: { orgId: string }) {
 
 function PerfilEmpresa({
   empresa,
+  pedidoRecemEnviado,
 }: {
   empresa: {
+    clerkOrgId: string
     nomeLegal: string
     nif: string
     morada: string
@@ -143,22 +178,59 @@ function PerfilEmpresa({
     estadoAprovacao: string
     tierNome: string | null
   }
+  pedidoRecemEnviado: boolean
 }) {
   const estado = ESTADO_COPY[empresa.estadoAprovacao] ?? {
     titulo: empresa.estadoAprovacao,
     texto: "",
     classe: "bg-muted text-muted-foreground",
   }
+  const recemPendente =
+    pedidoRecemEnviado && empresa.estadoAprovacao === "pendente"
 
   return (
     <>
       <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${estado.classe}`}
-        >
-          {estado.titulo}
-        </span>
-        <p className="mt-3 text-sm text-muted-foreground">{estado.texto}</p>
+        {recemPendente ? (
+          <div className="flex gap-3">
+            <CheckCircle2
+              className="mt-0.5 size-6 shrink-0 text-primary"
+              aria-hidden
+            />
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Pedido enviado
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Recebemos o pedido de{" "}
+                <span className="font-medium text-foreground">
+                  {empresa.nomeLegal}
+                </span>{" "}
+                (NIF {empresa.nif}). A nossa equipa comercial vai analisar. Até
+                haver uma decisão, o catálogo continua a mostrar o PVP.
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Não precisa de voltar a submeter. O estado deste pedido fica
+                sempre nesta página.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${estado.classe}`}
+            >
+              {estado.titulo}
+            </span>
+            <p className="mt-3 text-sm text-muted-foreground">{estado.texto}</p>
+          </>
+        )}
+        {empresa.estadoAprovacao === "pendente" && !recemPendente && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Quando houver uma decisão, o estado nesta página actualiza-se. Até
+            lá não é preciso voltar a registar.
+          </p>
+        )}
       </section>
 
       <section className="grid gap-4 rounded-2xl border bg-card p-6 shadow-sm sm:grid-cols-2">

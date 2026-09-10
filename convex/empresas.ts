@@ -11,7 +11,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { estadoAprovacaoValidator } from "./schema";
 import type { EstadoAprovacao } from "./lib/aprovacao";
 import { assertTransicao } from "./lib/aprovacao";
-import { requireStaff, getInstallerContext, claimString } from "./lib/auth";
+import { requireStaff, getInstallerContext, claimOrgId } from "./lib/auth";
 import { normalizarNif } from "./lib/nif";
 import { tierPorVolume } from "./lib/precoRevenda";
 
@@ -38,6 +38,7 @@ const empresaStaffValidator = v.object({
 
 const empresaClienteValidator = v.object({
   _id: v.id("installerCompanies"),
+  clerkOrgId: v.string(),
   nomeLegal: v.string(),
   nif: v.string(),
   morada: v.string(),
@@ -159,10 +160,37 @@ export async function aplicarLimpezaPin(
   });
 }
 
+async function vistaCliente(
+  ctx: QueryCtx,
+  company: Doc<"installerCompanies">,
+) {
+  const tier =
+    company.tierId !== undefined ? await ctx.db.get(company.tierId) : null;
+  return {
+    kind: "empresa" as const,
+    empresa: {
+      _id: company._id,
+      clerkOrgId: company.clerkOrgId,
+      nomeLegal: company.nomeLegal,
+      nif: company.nif,
+      morada: company.morada,
+      email: company.email,
+      telefone: company.telefone,
+      certifNumero: company.certifNumero,
+      estadoAprovacao: company.estadoAprovacao,
+      tierNome: tier?.nome ?? null,
+    },
+  };
+}
+
 /**
  * Signed-in installer-company view for `/conta`. Null when unsigned.
  * `sem-org` / `sem-empresa` cover the registration vs. orphan-org cases
  * without leaking staff notes or the discount matrix.
+ *
+ * After self-serve registration the Clerk session may not yet carry `org_id`.
+ * In that case we still return the company this user registered, so `/conta`
+ * can show the pending state instead of an empty "register" CTA.
  */
 export const minha = query({
   args: {},
@@ -184,8 +212,18 @@ export const minha = query({
       return null;
     }
 
-    const orgId = claimString(identity, "org_id");
+    const orgId = claimOrgId(identity);
     if (orgId === null) {
+      const proprio = await ctx.db
+        .query("installerCompanies")
+        .withIndex("by_registadoPor", (q) =>
+          q.eq("registadoPor", identity.subject),
+        )
+        .take(1);
+      const empresa = proprio[0];
+      if (empresa) {
+        return await vistaCliente(ctx, empresa);
+      }
       return { kind: "sem-org" as const };
     }
 
@@ -194,24 +232,7 @@ export const minha = query({
       return { kind: "sem-empresa" as const, orgId };
     }
 
-    const company = context.company;
-    const tier =
-      company.tierId !== undefined ? await ctx.db.get(company.tierId) : null;
-
-    return {
-      kind: "empresa" as const,
-      empresa: {
-        _id: company._id,
-        nomeLegal: company.nomeLegal,
-        nif: company.nif,
-        morada: company.morada,
-        email: company.email,
-        telefone: company.telefone,
-        certifNumero: company.certifNumero,
-        estadoAprovacao: company.estadoAprovacao,
-        tierNome: tier?.nome ?? null,
-      },
-    };
+    return await vistaCliente(ctx, context.company);
   },
 });
 

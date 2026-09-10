@@ -19,16 +19,17 @@ import type { ReactNode } from "react"
 import { OrcamentoDrawer } from "@/components/orcamento/orcamento-drawer"
 import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
 import { clientAuthRedirect } from "@/lib/auth-gate"
+import { fetchConvexClerkToken } from "@/lib/convex-clerk-token"
 
 import appCss from "../styles.css?url"
 
 const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
   const { userId, getToken, sessionClaims } = await auth()
-  const token = await getToken()
   const claims = sessionClaims as
-    | { org_id?: string; role?: string }
+    | { org_id?: string; role?: string; aud?: unknown }
     | null
     | undefined
+  const token = await fetchConvexClerkToken(getToken, claims)
   return {
     userId,
     token,

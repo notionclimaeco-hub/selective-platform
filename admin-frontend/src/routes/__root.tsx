@@ -26,14 +26,18 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
 import { authGatePath } from "@/lib/auth-gate"
+import { fetchConvexClerkToken } from "@/lib/convex-clerk-token"
 import appCss from "../styles.css?url"
 
 // Runs on the server: read the Clerk identity + a Convex-compatible token.
 const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
   const { userId, getToken, sessionClaims } = await auth()
-  const token = await getToken()
-  const role =
-    (sessionClaims as { role?: string } | null | undefined)?.role ?? null
+  const claims = sessionClaims as
+    | { role?: string; aud?: unknown }
+    | null
+    | undefined
+  const token = await fetchConvexClerkToken(getToken, claims)
+  const role = claims?.role ?? null
   return { userId, token, role }
 })
 

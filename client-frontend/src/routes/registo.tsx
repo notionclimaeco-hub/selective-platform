@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react"
 import { Show, SignUp, useClerk } from "@clerk/tanstack-react-start"
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { useAction } from "convex/react"
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router"
+import { useAction, useQuery } from "convex/react"
 
 import { api } from "@convex/_generated/api"
 import { normalizarNif, validarNif } from "@convex/lib/nif"
@@ -59,9 +59,19 @@ function RegistoPage() {
 
 function FormularioEmpresa() {
   const { setActive } = useClerk()
+  const vista = useQuery(api.empresas.minha)
   const registar = useAction(api.empresasActions.registar)
   const [erro, setErro] = useState<string | null>(null)
   const [aEnviar, setAEnviar] = useState(false)
+
+  if (vista === undefined) {
+    return (
+      <p className="mt-8 text-sm text-muted-foreground">A carregar…</p>
+    )
+  }
+  if (vista?.kind === "empresa" || vista?.kind === "sem-empresa") {
+    return <Navigate to="/conta" />
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -83,8 +93,12 @@ function FormularioEmpresa() {
         telefone: String(data.get("telefone") ?? ""),
         certifNumero: certif === "" ? undefined : certif,
       })
-      await setActive({ organization: resultado.clerkOrgId })
-      window.location.assign("/conta")
+      try {
+        await setActive({ organization: resultado.clerkOrgId })
+      } catch {
+        // /conta still finds the company via registadoPor.
+      }
+      window.location.assign("/conta?pedido=enviado")
     } catch (err) {
       setErro(mensagemRegisto(err))
     } finally {
