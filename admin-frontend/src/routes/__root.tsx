@@ -25,6 +25,7 @@ import type { ReactNode } from "react"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
+import { authGatePath } from "@/lib/auth-gate"
 import appCss from "../styles.css?url"
 
 // Runs on the server: read the Clerk identity + a Convex-compatible token.
@@ -57,12 +58,13 @@ export const Route = createRootRouteWithContext<{
       context.convexQueryClient.serverHttpClient?.setAuth(token)
     }
 
-    // Auth gate (server-side): unauthenticated users are redirected to sign-in.
-    // The sign-in route itself is exempt to avoid a redirect loop. Non-staff
-    // users are NOT redirected here — they render the "Sem acesso" page below.
-    const isSignInRoute = location.pathname.startsWith("/sign-in")
-    if (!userId && !isSignInRoute) {
-      throw redirect({ to: "/sign-in" })
+    // Auth gate (server-side). Anonymous visitors go to /sign-in; signed-in
+    // visitors are sent away from it so <SignIn> never mounts in a session
+    // (Clerk would otherwise redirect and can loop). Non-staff users are NOT
+    // redirected here — they render the "Sem acesso" page below.
+    const destino = authGatePath(userId, location.pathname)
+    if (destino) {
+      throw redirect({ to: destino })
     }
 
     return { userId, token, role, isStaff: role === "staff" }
@@ -81,7 +83,7 @@ function RootComponent() {
   const showSemAcesso = Boolean(userId) && !isStaff
 
   return (
-    <ClerkProvider signInUrl="/sign-in">
+    <ClerkProvider signInUrl="/sign-in" signInFallbackRedirectUrl="/">
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         <RootDocument>
           {showSemAcesso ? (
@@ -102,6 +104,8 @@ function RootComponent() {
 
 const NAV = [
   { to: "/", label: "Painel", exact: true },
+  { to: "/empresas", label: "Empresas", exact: false },
+  { to: "/comercial", label: "Comercial", exact: false },
   { to: "/produtos", label: "Produtos", exact: false },
   { to: "/paginas-catalogo", label: "Páginas do catálogo", exact: false },
 ] as const
@@ -189,15 +193,17 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
-        <TanStackDevtools
-          config={{ position: "bottom-right" }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {import.meta.env.DEV && (
+          <TanStackDevtools
+            config={{ position: "bottom-right" }}
+            plugins={[
+              {
+                name: "Tanstack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        )}
         <Scripts />
       </body>
     </html>

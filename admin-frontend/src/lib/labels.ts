@@ -53,6 +53,52 @@ export const ESTADO_CLASSES: Record<Estado, string> = {
   descontinuado: "bg-muted text-muted-foreground",
 }
 
+export type EstadoAprovacao =
+  | "pendente"
+  | "aprovada"
+  | "rejeitada"
+  | "suspensa"
+
+export const ESTADO_APROVACAO_LABELS: Record<EstadoAprovacao, string> = {
+  pendente: "Pendente",
+  aprovada: "Aprovada",
+  rejeitada: "Rejeitada",
+  suspensa: "Suspensa",
+}
+
+export const ESTADOS_APROVACAO = Object.keys(
+  ESTADO_APROVACAO_LABELS,
+) as Array<EstadoAprovacao>
+
+export const ESTADO_APROVACAO_CLASSES: Record<EstadoAprovacao, string> = {
+  pendente: "bg-amber-100 text-amber-800",
+  aprovada: "bg-green-100 text-green-800",
+  rejeitada: "bg-destructive/10 text-destructive",
+  suspensa: "bg-muted text-muted-foreground",
+}
+
+export const TRANSICOES_APROVACAO: Record<
+  EstadoAprovacao,
+  Array<{ para: EstadoAprovacao; label: string; destructive?: boolean }>
+> = {
+  pendente: [
+    { para: "aprovada", label: "Aprovar" },
+    { para: "rejeitada", label: "Rejeitar", destructive: true },
+  ],
+  aprovada: [{ para: "suspensa", label: "Suspender", destructive: true }],
+  rejeitada: [{ para: "aprovada", label: "Aprovar" }],
+  suspensa: [{ para: "aprovada", label: "Repor aprovação" }],
+}
+
+const EUR = new Intl.NumberFormat("pt-PT", {
+  style: "currency",
+  currency: "EUR",
+})
+
+export function eurosDeCents(cents: number): string {
+  return EUR.format(cents / 100)
+}
+
 export function rotuloMarca(marca: string): string {
   return MARCA_LABELS[marca] ?? marca
 }
