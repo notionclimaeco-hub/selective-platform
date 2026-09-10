@@ -27,6 +27,17 @@ export const estadoValidator = v.union(
   v.literal("descontinuado"),
 );
 
+// Installer-company approval. Only `aprovada` grants reseller prices.
+export const estadoAprovacaoValidator = v.union(
+  v.literal("pendente"),
+  v.literal("aprovada"),
+  v.literal("rejeitada"),
+  v.literal("suspensa"),
+);
+
+// Company address as a single string (street, postal code, locality).
+export const moradaValidator = v.string();
+
 // One ordered product attribute, e.g. { chave: "capacidade", valor: "3.5" }.
 // A product's specs AND its variant axes both live here — the UI decides how
 // to render each key: within a grupoModelo, keys whose values differ across
@@ -144,7 +155,66 @@ export default defineSchema({
     slug: v.string(),
     nome: v.string(),
     // Flat discount % our company gets on this brand's whole price table.
+    // Never feeds reseller prices — those live in `tierDescontos`.
     descontoPercent: v.number(),
     ativa: v.boolean(),
   }).index("by_slug", ["slug"]),
+
+  // Ordered commercial levels. Count is data, not schema — seed three
+  // (base / prata / ouro); staff can add more. Base has limiarCents = 0.
+  tiers: defineTable({
+    slug: v.string(), // "base", "prata", "ouro", …
+    nome: v.string(),
+    // Lifetime paid volume (VAT-excl cents) at which this tier becomes
+    // volume-derived. Promotion never demotes; a pin overrides.
+    limiarCents: v.number(),
+    // Display / evaluation order, ascending (base first).
+    ordem: v.number(),
+    ativa: v.boolean(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_ordem", ["ordem"]),
+
+  // Reseller discount cell: one (marca slug × tier) pair. Missing cell → 0%.
+  // Separate from `marcas.descontoPercent` (supplier discount to Climaeco).
+  // Uniqueness of (marca, tierId) is enforced in the mutation, not by the schema.
+  tierDescontos: defineTable({
+    marca: v.string(), // marcas.slug
+    tierId: v.id("tiers"),
+    descontoPercent: v.number(),
+  })
+    .index("by_marca_and_tier", ["marca", "tierId"])
+    .index("by_tier", ["tierId"]),
+
+  // One installer company per Clerk Organization. Membership stays in Clerk;
+  // this record owns approval, tier, and the legal profile.
+  // Uniqueness of clerkOrgId and nif is enforced in the mutation, not by the schema.
+  installerCompanies: defineTable({
+    clerkOrgId: v.string(),
+    nomeLegal: v.string(),
+    nif: v.string(),
+    morada: moradaValidator,
+    email: v.string(),
+    telefone: v.string(),
+    certifNumero: v.optional(v.string()),
+    // Staff-only notes; never returned on installer-facing queries.
+    notas: v.optional(v.string()),
+    estadoAprovacao: estadoAprovacaoValidator,
+    // Set on first approval (base tier). Unset while pendente/rejeitada.
+    tierId: v.optional(v.id("tiers")),
+    // Staff override: when set, holds this tier until staff changes or
+    // clears it. Clearing returns the company to its volume-derived tier.
+    // Volume counting itself is Fase 2 — the field is modelled now.
+    tierPin: v.optional(v.id("tiers")),
+    volumeCents: v.number(),
+    // Clerk user id of the member who registered the company.
+    registadoPor: v.string(),
+    registadoEm: v.number(),
+    // Last staff decision (approve / reject / suspend / restore).
+    decididoEm: v.optional(v.number()),
+    decididoPor: v.optional(v.string()),
+  })
+    .index("by_clerkOrgId", ["clerkOrgId"])
+    .index("by_nif", ["nif"])
+    .index("by_estadoAprovacao", ["estadoAprovacao"]),
 });
