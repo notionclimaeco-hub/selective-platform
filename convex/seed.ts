@@ -154,3 +154,68 @@ export const seedCatalogoExemplo = internalMutation({
     return { inseridos, atualizados };
   },
 });
+
+const TIERS_SEED = [
+  {
+    slug: "base",
+    nome: "Base",
+    limiarCents: 0,
+    ordem: 0,
+    ativa: true,
+  },
+  {
+    slug: "prata",
+    nome: "Prata",
+    // Placeholder threshold — staff edits real values in Comercial.
+    limiarCents: 1_000_000, // €10 000
+    ordem: 1,
+    ativa: true,
+  },
+  {
+    slug: "ouro",
+    nome: "Ouro",
+    limiarCents: 5_000_000, // €50 000
+    ordem: 2,
+    ativa: true,
+  },
+] as const;
+
+/**
+ * Idempotent seed of the three commercial tiers. Upserts by `slug` so later
+ * staff edits to `nome` / `limiarCents` / `ativa` are preserved — only a
+ * missing slug is inserted. Internal only.
+ */
+export const seedTiers = internalMutation({
+  args: {},
+  returns: v.object({
+    inseridos: v.number(),
+    existentes: v.number(),
+  }),
+  handler: async (ctx) => {
+    let inseridos = 0;
+    let existentes = 0;
+
+    for (const tier of TIERS_SEED) {
+      const existente = await ctx.db
+        .query("tiers")
+        .withIndex("by_slug", (q) => q.eq("slug", tier.slug))
+        .unique();
+
+      if (existente) {
+        existentes += 1;
+        continue;
+      }
+
+      await ctx.db.insert("tiers", {
+        slug: tier.slug,
+        nome: tier.nome,
+        limiarCents: tier.limiarCents,
+        ordem: tier.ordem,
+        ativa: tier.ativa,
+      });
+      inseridos += 1;
+    }
+
+    return { inseridos, existentes };
+  },
+});
