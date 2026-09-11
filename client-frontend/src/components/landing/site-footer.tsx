@@ -17,19 +17,19 @@ export function SiteFooter({
           {/* Same soft glow as the hero, closing the loop. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[28rem] bg-[radial-gradient(ellipse_55%_60%_at_50%_100%,color-mix(in_oklch,var(--primary),transparent_90%),transparent)]"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[18rem] bg-[radial-gradient(ellipse_55%_60%_at_50%_100%,color-mix(in_oklch,var(--primary),transparent_90%),transparent)]"
           />
-          <Reveal className="relative mx-auto flex max-w-3xl flex-col items-center px-4 py-20 text-center sm:px-6 md:py-28">
-            <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl md:text-5xl">
+          <Reveal className="relative mx-auto flex max-w-2xl flex-col items-center px-4 py-14 text-center sm:px-6 md:py-16">
+            <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               O seu próximo projeto,{" "}
               <span className="text-muted-foreground">ao preço certo.</span>
             </h2>
-            <p className="mt-5 max-w-xl leading-relaxed text-pretty text-muted-foreground sm:text-lg">
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-pretty text-muted-foreground sm:text-base">
               Registe a sua empresa em poucos minutos. Aprovamos o acesso e
               passa a encomendar com preços de distribuidor, stock confirmado e
               levantamento no nosso armazém.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Button
                 render={<Link to="/registo" />}
                 nativeButton={false}
@@ -47,7 +47,7 @@ export function SiteFooter({
                 Falar com a equipa
               </Button>
             </div>
-            <p className="mt-6 text-xs text-muted-foreground">
+            <p className="mt-4 text-xs text-muted-foreground">
               Já tem conta?{" "}
               <Link
                 to="/entrar"
