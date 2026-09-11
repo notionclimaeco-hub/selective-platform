@@ -8,7 +8,10 @@ import { cn } from "@/lib/utils"
  * at mount resolve on the first observer tick, so above-the-fold content is
  * never left hidden.
  */
-export function useInView<T extends HTMLElement>(margem = "0px 0px -10% 0px") {
+export function useInView<T extends HTMLElement>(
+  margem = "0px 0px -10% 0px",
+  threshold = 0.15
+) {
   const ref = useRef<T>(null)
   const [visivel, setVisivel] = useState(false)
 
@@ -26,11 +29,11 @@ export function useInView<T extends HTMLElement>(margem = "0px 0px -10% 0px") {
           io.disconnect()
         }
       },
-      { rootMargin: margem, threshold: 0.15 }
+      { rootMargin: margem, threshold }
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [margem, visivel])
+  }, [margem, threshold, visivel])
 
   return { ref, visivel }
 }
@@ -63,6 +66,35 @@ export function Reveal({
       {children}
     </Tag>
   )
+}
+
+/**
+ * Steps a small state machine forward once `ativo` turns true: returns the
+ * current phase (0 before start), advancing after each delay in `passos`
+ * (milliseconds, cumulative from the previous phase). Reduced-motion users
+ * jump straight to the final phase.
+ */
+export function useSequencia(ativo: boolean, passos: Array<number>) {
+  const [fase, setFase] = useState(0)
+
+  useEffect(() => {
+    if (!ativo) return
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setFase(passos.length)
+      return
+    }
+    const timers: Array<ReturnType<typeof setTimeout>> = []
+    let acumulado = 0
+    passos.forEach((ms, i) => {
+      acumulado += ms
+      timers.push(setTimeout(() => setFase(i + 1), acumulado))
+    })
+    return () => timers.forEach(clearTimeout)
+    // `passos` is a literal per call site; only its length matters, so the
+    // dependency list keys on that instead of the array identity.
+  }, [ativo, passos.length])
+
+  return fase
 }
 
 /** Counts from 0 to `ate` once in view, with an ease-out curve. */
