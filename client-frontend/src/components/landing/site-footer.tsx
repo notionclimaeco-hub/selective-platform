@@ -1,47 +1,62 @@
 import { Link } from "@tanstack/react-router"
-import { Mail, MapPin, Phone } from "lucide-react"
+import { ArrowRight, Mail, MapPin, Phone } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Reveal } from "./reveal"
 
 export function SiteFooter({
   cta = true,
 }: {
-  /** The green "talk to us" band is for visitors; signed-in pages skip it. */
+  /** The closing call-to-action is for visitors; signed-in pages skip it. */
   cta?: boolean
 }) {
   return (
     <footer id="contactos" className="scroll-mt-20">
       {cta && (
-        <div className="bg-primary">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-center">
-            <div className="max-w-xl">
-              <h2 className="text-2xl font-semibold tracking-tight text-balance text-primary-foreground sm:text-3xl">
-                Vamos falar sobre o seu próximo projeto?
-              </h2>
-              <p className="mt-2 text-pretty text-primary-foreground/80">
-                Peça acesso à área de cliente ou fale diretamente com a nossa
-                equipa comercial.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
+        <div className="relative overflow-hidden border-t">
+          {/* Same soft glow as the hero, closing the loop. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[28rem] bg-[radial-gradient(ellipse_55%_60%_at_50%_100%,color-mix(in_oklch,var(--primary),transparent_90%),transparent)]"
+          />
+          <Reveal className="relative mx-auto flex max-w-3xl flex-col items-center px-4 py-20 text-center sm:px-6 md:py-28">
+            <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl md:text-5xl">
+              O seu próximo projeto,{" "}
+              <span className="text-muted-foreground">ao preço certo.</span>
+            </h2>
+            <p className="mt-5 max-w-xl leading-relaxed text-pretty text-muted-foreground sm:text-lg">
+              Registe a sua empresa em poucos minutos. Aprovamos o acesso e
+              passa a encomendar com preços de distribuidor, stock confirmado e
+              levantamento no nosso armazém.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Button
-                render={<Link to="/entrar" />}
+                render={<Link to="/registo" />}
                 nativeButton={false}
                 size="lg"
-                className="border-background bg-background px-5 text-foreground hover:border-background/90 hover:bg-background/90"
               >
-                Área de Cliente
+                Registar empresa
+                <ArrowRight data-icon="inline-end" />
               </Button>
               <Button
                 render={<a href="mailto:geral@climaeco.pt" />}
                 nativeButton={false}
+                variant="outline"
                 size="lg"
-                className="border-primary-foreground/30 bg-transparent px-5 text-primary-foreground shadow-none hover:border-primary-foreground/50 hover:bg-primary-foreground/10"
               >
-                Contacte-nos
+                Falar com a equipa
               </Button>
             </div>
-          </div>
+            <p className="mt-6 text-xs text-muted-foreground">
+              Já tem conta?{" "}
+              <Link
+                to="/entrar"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Entrar na área de cliente
+              </Link>
+            </p>
+          </Reveal>
         </div>
       )}
 

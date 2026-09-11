@@ -2,15 +2,7 @@ import { BadgeCheck, FileText, Wrench } from "lucide-react"
 
 import { CountUp, Etiqueta, Reveal } from "./reveal"
 
-type Cartao = {
-  titulo: string
-  texto: string
-  icon?: typeof BadgeCheck
-  logo?: string
-  logoAlt?: string
-}
-
-const CARTOES: Array<Cartao> = [
+const PONTOS = [
   {
     icon: BadgeCheck,
     titulo: "Distribuidor oficial",
@@ -18,8 +10,6 @@ const CARTOES: Array<Cartao> = [
       "Mitsubishi Electric, Daikin, Nipon, Hisense e Midea, com garantia de fabricante e acesso às gamas profissionais completas.",
   },
   {
-    logo: "/certificacoes/certif.png",
-    logoAlt: "CERTIF, Serviço certificado SAC-601/2015",
     icon: Wrench,
     titulo: "Assistência certificada",
     texto:
@@ -33,18 +23,16 @@ const CARTOES: Array<Cartao> = [
   },
 ]
 
+/**
+ * About block: the story and three proof points on the left, a 2×2 grid of
+ * credentials on the right (years, Top 5% PME badge, CERTIF badge, catalog
+ * size). Plain white, hairline borders — no backdrop, no card soup.
+ */
 export function WhyUs() {
   return (
-    <section
-      id="sobre"
-      className="relative scroll-mt-20 overflow-hidden border-t bg-muted/40 py-16 md:py-24"
-    >
-      <div
-        aria-hidden
-        className="grid-guides pointer-events-none absolute inset-0"
-      />
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal className="max-w-2xl">
+    <section id="sobre" className="scroll-mt-20 border-t py-16 md:py-24">
+      <div className="mx-auto grid max-w-6xl items-start gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-20">
+        <Reveal>
           <Etiqueta>Sobre nós</Etiqueta>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
             Um parceiro de confiança.{" "}
@@ -56,98 +44,97 @@ export function WhyUs() {
             entidades independentes são o reflexo da confiança dos nossos
             parceiros e da seriedade com que tratamos cada projeto.
           </p>
+
+          <ul className="mt-8 divide-y border-y">
+            {PONTOS.map((p) => (
+              <li key={p.titulo} className="flex gap-4 py-4">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border bg-background text-primary">
+                  <p.icon className="size-4" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold">{p.titulo}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    {p.texto}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </Reveal>
 
-        <dl className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-          <Metrica
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border">
+          <Credencial
             atraso={0}
-            valor={<CountUp ate={20} sufixo="+" />}
-            rotulo="anos no mercado português de climatização"
+            figura={
+              <span className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                <CountUp ate={20} sufixo="+" />
+              </span>
+            }
+            titulo="Anos de atividade"
+            texto="No mercado português de climatização, ao lado de instaladores e projetistas."
           />
-          <Metrica
+          <Credencial
             atraso={80}
-            valor="Top 5%"
-            rotulo="Melhores PME de Portugal · Scoring 2024"
-            selo="/certificacoes/pme2024.png"
-            seloAlt="Scoring TOP 5%, Melhores PME Portugal 2024"
+            figura={
+              <img
+                src="/certificacoes/pme2024.png"
+                alt="Scoring TOP 5%, Melhores PME Portugal 2024"
+                className="h-16 w-auto"
+              />
+            }
+            titulo="Top 5% PME Portugal"
+            texto="Distinguidos entre as melhores PME do país no ranking Scoring 2024."
           />
-          <Metrica
+          <Credencial
             atraso={160}
-            valor="CERTIF"
-            rotulo="Assistência certificada SAC-601/2015"
-            selo="/certificacoes/certif.png"
-            seloAlt="CERTIF, Serviço certificado SAC-601/2015"
+            figura={
+              <img
+                src="/certificacoes/certif.png"
+                alt="CERTIF, Serviço certificado SAC-601/2015"
+                className="h-14 w-auto"
+              />
+            }
+            titulo="Certificação CERTIF"
+            texto="Serviço de assistência certificado, SAC-601/2015."
           />
-          <Metrica
+          <Credencial
             atraso={240}
-            valor={<CountUp ate={1000} sufixo="+" />}
-            rotulo="equipamentos em catálogo, de 5 marcas líderes"
+            figura={
+              <span className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                <CountUp ate={1000} sufixo="+" />
+              </span>
+            }
+            titulo="Equipamentos em catálogo"
+            texto="De cinco marcas líderes, com fichas técnicas e preços atualizados."
           />
         </dl>
-
-        <div className="mt-14 grid gap-6 sm:grid-cols-3">
-          {CARTOES.map((cartao, i) => (
-            <Reveal
-              key={cartao.titulo}
-              atraso={i * 100}
-              className="flex flex-col gap-5 rounded-xl border bg-card p-6 sm:p-8"
-            >
-              <span className="flex size-14 items-center justify-center overflow-hidden rounded-lg border bg-background text-primary">
-                {cartao.logo ? (
-                  <img
-                    src={cartao.logo}
-                    alt={cartao.logoAlt ?? cartao.titulo}
-                    className="size-12 object-contain"
-                  />
-                ) : cartao.icon ? (
-                  <cartao.icon className="size-7" />
-                ) : null}
-              </span>
-              <h3 className="text-lg leading-snug font-semibold">
-                {cartao.titulo}
-              </h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {cartao.texto}
-              </p>
-            </Reveal>
-          ))}
-        </div>
       </div>
     </section>
   )
 }
 
-function Metrica({
-  valor,
-  rotulo,
-  selo,
-  seloAlt,
+function Credencial({
+  figura,
+  titulo,
+  texto,
   atraso,
 }: {
-  valor: React.ReactNode
-  rotulo: string
-  /** Optional certification badge shown beside the figure. */
-  selo?: string
-  seloAlt?: string
+  figura: React.ReactNode
+  titulo: string
+  texto: string
   atraso: number
 }) {
   return (
     <Reveal
       as="div"
       atraso={atraso}
-      className="flex items-start justify-between gap-4 border-l-2 border-primary/40 pl-5"
+      className="flex flex-col bg-background p-5 sm:p-7"
     >
-      <div>
-        <dd className="text-4xl font-semibold tracking-tight whitespace-nowrap">
-          {valor}
-        </dd>
-        <dt className="mt-1.5 text-sm text-pretty text-muted-foreground">
-          {rotulo}
-        </dt>
-      </div>
-      {selo && (
-        <img src={selo} alt={seloAlt ?? ""} className="h-14 w-auto shrink-0" />
-      )}
+      <dd className="flex h-16 items-center">{figura}</dd>
+      <dt className="mt-4 text-sm font-semibold">{titulo}</dt>
+      <dd className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+        {texto}
+      </dd>
     </Reveal>
   )
 }

@@ -39,6 +39,39 @@ export function useInView<T extends HTMLElement>(
 }
 
 /**
+ * Replayable trigger. Turns on when the element is in view and turns off
+ * again only when the visitor scrolls back *up* past it (element below the
+ * viewport). Scrolling on down past it keeps the finished state, so nothing
+ * replays while the visitor is coming back up through the page.
+ */
+export function useEmCena<T extends HTMLElement>(margem = "0px 0px -8% 0px") {
+  const ref = useRef<T>(null)
+  const [ativo, setAtivo] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (typeof IntersectionObserver === "undefined") {
+      setAtivo(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setAtivo(true)
+          else if (e.boundingClientRect.top > 0) setAtivo(false)
+        }
+      },
+      { rootMargin: margem, threshold: 0 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [margem])
+
+  return { ref, ativo }
+}
+
+/**
  * Scroll-reveal wrapper: content starts slightly lower and transparent and
  * settles into place when it enters the viewport. `atraso` staggers siblings.
  * Motion is skipped entirely under `prefers-reduced-motion`.
@@ -71,14 +104,18 @@ export function Reveal({
 /**
  * Steps a small state machine forward once `ativo` turns true: returns the
  * current phase (0 before start), advancing after each delay in `passos`
- * (milliseconds, cumulative from the previous phase). Reduced-motion users
+ * (milliseconds, cumulative from the previous phase). Drops back to 0 when
+ * `ativo` turns false again, so a sequence can replay. Reduced-motion users
  * jump straight to the final phase.
  */
 export function useSequencia(ativo: boolean, passos: Array<number>) {
   const [fase, setFase] = useState(0)
 
   useEffect(() => {
-    if (!ativo) return
+    if (!ativo) {
+      setFase(0)
+      return
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setFase(passos.length)
       return

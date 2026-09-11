@@ -7,7 +7,7 @@ import { api } from "@convex/_generated/api"
 import type { CatalogProduct } from "@/components/catalogo/product-card"
 import { eur, iconeFamilia, rotuloMarca } from "@/lib/catalogo"
 import { cn } from "@/lib/utils"
-import { useInView, useSequencia } from "./reveal"
+import { useEmCena, useSequencia } from "./reveal"
 
 // Reseller discounts are per brand and per tier and only visible to approved
 // companies, so the landing page uses illustrative percentages.
@@ -40,10 +40,11 @@ function PalcoComDados() {
 
 function Palco({ produtos }: { produtos: Array<CatalogProduct> | null }) {
   // The trigger is a sentinel under the stage: the sequence only starts once
-  // the visitor has scrolled far enough to see the whole picture.
-  const { ref, visivel } = useInView<HTMLParagraphElement>("0px 0px -8% 0px", 0)
+  // the visitor has scrolled far enough to see the whole picture, and rearms
+  // when they scroll back up above it, so it plays again on the way down.
+  const { ref, ativo } = useEmCena<HTMLParagraphElement>()
   // 0: list prices only · 1: signing in · 2: signed in · 3: reseller cards out
-  const fase = useSequencia(visivel && produtos !== null, [500, 1100, 500])
+  const fase = useSequencia(ativo && produtos !== null, [500, 1100, 500])
   const lista = produtos ?? [null, null, null]
 
   return (
