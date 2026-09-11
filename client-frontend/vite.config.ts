@@ -24,7 +24,12 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       muteClerkDevKeyWarn(),
-      devtools(),
+      // Console piping is off: it echoes server logs back into the browser as
+      // "[Server] …", Vite's own forwardConsole ships them to the terminal
+      // again, and the two feed each other until the dev server pegs a CPU
+      // core and streams gigabytes over loopback. Vite already forwards
+      // browser console output to the terminal on its own.
+      devtools({ consolePiping: { enabled: false } }),
       tailwindcss(),
       tanstackStart(),
       viteReact(),
