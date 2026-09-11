@@ -6,8 +6,8 @@ import { PriceReveal } from "./price-reveal"
 
 /**
  * Centered hero on plain white. Copy fades up in a stagger on load; below it,
- * three real catalog cards show list prices and flip to reseller prices as
- * they scroll into view — the whole proposition in one motion.
+ * a fanned stack of real catalog cards at list price, a sign-in node and the
+ * same cards at reseller price play out as the stage scrolls into view.
  */
 export function Hero() {
   return (
@@ -64,7 +64,7 @@ export function Hero() {
 
       <div
         style={{ "--delay": "420ms" } as React.CSSProperties}
-        className="animate-rise relative mx-auto mt-10 max-w-4xl px-4 pb-16 sm:px-6 md:mt-20 md:pb-24"
+        className="animate-rise relative mx-auto mt-12 max-w-6xl px-4 pb-16 sm:px-6 md:mt-20 md:pb-24"
       >
         {/* Soft tinted glow that grounds the cards against the white page. */}
         <div

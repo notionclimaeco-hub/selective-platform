@@ -194,30 +194,6 @@
   transform: translateY(0);
 }
 
-/* 3D card flip (hero price reveal). The front face sits in normal flow and
-   sets the height; the back face is stacked on top, pre-rotated 180°. */
-.flip {
-  perspective: 1400px;
-}
-.flip-inner {
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
-  transition-delay: var(--delay, 0ms);
-}
-.flip[data-flipped="true"] .flip-inner {
-  transform: rotateY(180deg);
-}
-.flip-face {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-.flip-back {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
-}
-
 /* Fade + drift used by the vignette state changes (badges, checks). */
 .surge {
   opacity: 0;
@@ -256,9 +232,6 @@
   .surge {
     opacity: 1;
     transform: none;
-    transition: none;
-  }
-  .flip-inner {
     transition: none;
   }
 }
