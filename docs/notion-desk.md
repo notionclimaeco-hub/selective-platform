@@ -49,6 +49,21 @@ reconciliation cron (`convex/crons.ts`, every 15 min) re-renders open
 tickets and picks up any Ação or new row whose webhook did not arrive, so a
 missed automation delays the desk, never loses it.
 
+## Ticket page template (by hand)
+
+The API cannot create linked views, so the ticket body comes from a
+**database template** in `db-encomendas-selectivedistribui` marked as
+*default* (template menu → "Set as default"). The current template holds a
+linked view of `db-linhas-selectivedistribui` filtered to the ticket
+("Linhas da encomenda"). When a default template exists Convex creates the
+ticket with `template: { type: "default" }`, waits for Notion to copy it
+(the page is blank for a few seconds; the render re-runs 15 s later) and
+then appends its own sections — **Emails aos fornecedores** and
+**Registo**. Without a default template Convex falls back to writing a
+static lines table itself. Tickets created before the template existed keep
+their old body; new ones get the template. Edit the template freely — only
+the two Convex headings above are looked up by name.
+
 ## How the office uses it (this phase: stock)
 
 - **Estado** is written by Convex only: `Nova — pedir stock` → `A confirmar

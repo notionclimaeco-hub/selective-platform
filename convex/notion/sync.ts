@@ -17,7 +17,11 @@ import {
   LIN,
   linhaRegisto,
   MOD,
+  SECCAO_EMAILS,
   SECCAO_LINHAS,
+  SECCAO_REGISTO,
+  seccaoEmails,
+  seccaoRegisto,
   tabelaLinhas,
   type Modelo,
 } from "./esquema";
@@ -65,38 +69,93 @@ async function upsertPagina(
   return { pageId: criada.id as string, criada: true };
 }
 
+/** The office may mark one of the data source's templates as default. */
+async function temTemplatePadrao(
+  notion: NotionRequest,
+  dataSourceId: string,
+): Promise<boolean> {
+  const resposta = await notion("GET", `/data_sources/${dataSourceId}/templates?page_size=100`);
+  const templates = Array.isArray(resposta.templates) ? (resposta.templates as Array<Json>) : [];
+  return templates.some((t) => t.is_default === true);
+}
+
 /**
- * Replace the lines table under the "Linhas" heading. Old tickets (before
- * the heading existed) get heading + table appended once.
+ * Create the ticket. With a default template Notion applies the template
+ * body asynchronously and `children` is not allowed, so our sections are
+ * added later by `garantirCorpo`.
  */
-async function reescreverTabelaLinhas(
+async function criarTicket(
+  notion: NotionRequest,
+  dataSourceId: string,
+  properties: Record<string, unknown>,
+  comTemplate: boolean,
+  corpo: () => Promise<Array<Record<string, unknown>>>,
+): Promise<string> {
+  const criada = await notion("POST", "/pages", {
+    parent: { type: "data_source_id", data_source_id: dataSourceId },
+    properties,
+    ...(comTemplate ? { template: { type: "default" } } : { children: await corpo() }),
+  });
+  return criada.id as string;
+}
+
+function indiceCabecalho(filhos: ReadonlyArray<Json>, texto: string): number {
+  return filhos.findIndex((b) => {
+    if (b.type !== "heading_2") return false;
+    const rich = (b.heading_2 as { rich_text?: Array<{ plain_text?: string }> } | undefined)
+      ?.rich_text;
+    return (rich ?? []).map((r) => r.plain_text ?? "").join("") === texto;
+  });
+}
+
+/**
+ * Make sure the ticket body has our sections: the lines table (only when
+ * there is no template — the template carries its own linked view), the
+ * supplier drafts and the log. Returns `false` while a template is still
+ * being applied (the page is blank), so the caller can come back later.
+ */
+async function garantirCorpo(
   notion: NotionRequest,
   pageId: string,
+  comTemplate: boolean,
   tabela: Record<string, unknown>,
-): Promise<void> {
+  emails: () => Promise<Array<Record<string, unknown>>>,
+): Promise<boolean> {
   const filhos = await listarTudo(notion, "GET", `/blocks/${pageId}/children`, {}, 200);
-  const textoDe = (b: Json, tipo: string) => {
-    const rich = (b[tipo] as { rich_text?: Array<{ plain_text?: string }> } | undefined)
-      ?.rich_text;
-    return (rich ?? []).map((r) => r.plain_text ?? "").join("");
-  };
-  const cabecalho = filhos.findIndex(
-    (b) => b.type === "heading_2" && textoDe(b, "heading_2") === SECCAO_LINHAS,
-  );
-  if (cabecalho === -1) {
-    await notion("PATCH", `/blocks/${pageId}/children`, {
-      children: [bloco.h2(SECCAO_LINHAS), tabela],
-    });
-    return;
+  if (comTemplate && filhos.length === 0) return false;
+
+  const cabecalho = indiceCabecalho(filhos, SECCAO_LINHAS);
+  if (comTemplate) {
+    // Older tickets carry our table; the template's linked view replaces it.
+    const seguinte = filhos[cabecalho + 1];
+    if (cabecalho !== -1 && seguinte && seguinte.type === "table") {
+      await notion("DELETE", `/blocks/${seguinte.id as string}`);
+      await notion("DELETE", `/blocks/${filhos[cabecalho]?.id as string}`);
+    }
+  } else {
+    if (cabecalho === -1) {
+      await notion("PATCH", `/blocks/${pageId}/children`, {
+        children: [bloco.h2(SECCAO_LINHAS), tabela],
+      });
+    } else {
+      const seguinte = filhos[cabecalho + 1];
+      if (seguinte && seguinte.type === "table") {
+        await notion("DELETE", `/blocks/${seguinte.id as string}`);
+      }
+      await notion("PATCH", `/blocks/${pageId}/children`, {
+        children: [tabela],
+        after: filhos[cabecalho]?.id,
+      });
+    }
   }
-  const seguinte = filhos[cabecalho + 1];
-  if (seguinte && seguinte.type === "table") {
-    await notion("DELETE", `/blocks/${seguinte.id as string}`);
+
+  const emFalta: Array<Record<string, unknown>> = [];
+  if (indiceCabecalho(filhos, SECCAO_EMAILS) === -1) emFalta.push(...(await emails()));
+  if (indiceCabecalho(filhos, SECCAO_REGISTO) === -1) emFalta.push(...seccaoRegisto());
+  if (emFalta.length > 0) {
+    await notion("PATCH", `/blocks/${pageId}/children`, { children: emFalta });
   }
-  await notion("PATCH", `/blocks/${pageId}/children`, {
-    children: [tabela],
-    after: filhos[cabecalho]?.id,
-  });
+  return true;
 }
 
 async function carregarModelos(
@@ -151,27 +210,49 @@ export const renderizar = internalAction({
 
     try {
       const eventos: Array<string> = [];
-      const ticket = await upsertPagina(
+      const tentativa = args.tentativa ?? 1;
+      const comTemplate = await temTemplatePadrao(notion, baseEncomendas.dataSourceId);
+      const modelos = () =>
+        carregarModelos(notion, dados.bases.find((b) => b.chave === "modelos")?.dataSourceId);
+      const emails = async () => seccaoEmails(encomenda, linhas, await modelos(), nomeMarca);
+      const propriedades = espelhoEncomenda(encomenda, linhas, empresa, agora);
+
+      // Header: patch, or (re)create when missing / deleted by hand.
+      let ticket: { pageId: string; criada: boolean };
+      if (encomenda.notionPageId) {
+        try {
+          await notion("PATCH", `/pages/${encomenda.notionPageId}`, { properties: propriedades });
+          ticket = { pageId: encomenda.notionPageId, criada: false };
+        } catch (e) {
+          if (!paginaDesapareceu(e)) throw e;
+          ticket = { pageId: "", criada: true };
+        }
+      } else {
+        ticket = { pageId: "", criada: true };
+      }
+      if (ticket.criada) {
+        ticket.pageId = await criarTicket(
+          notion,
+          baseEncomendas.dataSourceId,
+          propriedades,
+          comTemplate,
+          async () => corpoInicial(encomenda, linhas, await modelos(), nomeMarca),
+        );
+        if (encomenda.notionPageId) {
+          eventos.push("Ticket recriado (o anterior foi apagado no Notion)");
+        }
+      }
+
+      // Body: wait for the template to be applied before adding our sections
+      // (a blank page means Notion is still copying it). Give up waiting after
+      // the usual number of attempts and write our sections anyway.
+      const corpoPronto = await garantirCorpo(
         notion,
-        encomenda.notionPageId,
-        baseEncomendas.dataSourceId,
-        espelhoEncomenda(encomenda, linhas, empresa, agora),
-        corpoInicial(
-          encomenda,
-          linhas,
-          await carregarModelos(
-            notion,
-            dados.bases.find((b) => b.chave === "modelos")?.dataSourceId,
-          ),
-          nomeMarca,
-        ),
+        ticket.pageId,
+        comTemplate && tentativa < MAX_TENTATIVAS,
+        tabelaLinhas(linhas, nomeMarca),
+        emails,
       );
-      if (ticket.criada && encomenda.notionPageId) {
-        eventos.push("Ticket recriado (o anterior foi apagado no Notion)");
-      }
-      if (!ticket.criada) {
-        await reescreverTabelaLinhas(notion, ticket.pageId, tabelaLinhas(linhas, nomeMarca));
-      }
 
       const novasLinhas: Array<{ linhaId: Id<"installerOrderLines">; pageId: string }> = [];
       for (const linha of linhas) {
@@ -189,19 +270,28 @@ export const renderizar = internalAction({
         }
       }
 
-      if (args.evento) eventos.unshift(args.evento);
-      if (eventos.length > 0) {
-        await notion("PATCH", `/blocks/${ticket.pageId}/children`, {
-          children: eventos.map((e) => linhaRegisto(agora, e)),
-        });
-      }
-
       await ctx.runMutation(internal.notion.dados.guardarPaginas, {
         encomendaId: encomenda._id,
         encomendaPageId: ticket.criada ? ticket.pageId : undefined,
         linhas: novasLinhas,
         agora,
       });
+
+      if (args.evento) eventos.unshift(args.evento);
+      if (!corpoPronto) {
+        // Template still applying: come back for the body and the log.
+        await ctx.scheduler.runAfter(15_000, internal.notion.sync.renderizar, {
+          encomendaId: encomenda._id,
+          evento: eventos.join(" · ") || undefined,
+          tentativa: tentativa + 1,
+        });
+        return null;
+      }
+      if (eventos.length > 0) {
+        await notion("PATCH", `/blocks/${ticket.pageId}/children`, {
+          children: eventos.map((e) => linhaRegisto(agora, e)),
+        });
+      }
     } catch (e) {
       const mensagem = e instanceof Error ? e.message : String(e);
       const tentativa = args.tentativa ?? 1;

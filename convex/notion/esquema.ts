@@ -419,18 +419,36 @@ export function tabelaLinhas(
   );
 }
 
-/** Page body at ticket creation: lines table, one draft per marca, event log. */
+export const SECCAO_EMAILS = "Emails aos fornecedores";
+export const SECCAO_REGISTO = "Registo";
+
+/** Page body when the data source has no default template. */
 export function corpoInicial(
   encomenda: Pick<Doc<"installerOrders">, "titulo">,
   linhas: ReadonlyArray<Doc<"installerOrderLines">>,
   modelos: Map<string, Modelo>,
   nomeMarca: (slug: string) => string,
 ): Array<Record<string, unknown>> {
-  const blocos: Array<Record<string, unknown>> = [
+  return [
     bloco.h2(SECCAO_LINHAS),
     tabelaLinhas(linhas, nomeMarca),
-    bloco.h2("Emails aos fornecedores"),
+    ...seccaoEmails(encomenda, linhas, modelos, nomeMarca),
+    ...seccaoRegisto(),
   ];
+}
+
+export function seccaoRegisto(): Array<Record<string, unknown>> {
+  return [bloco.divisor(), bloco.h2(SECCAO_REGISTO)];
+}
+
+/** One supplier email draft per remaining marca. */
+export function seccaoEmails(
+  encomenda: Pick<Doc<"installerOrders">, "titulo">,
+  linhas: ReadonlyArray<Doc<"installerOrderLines">>,
+  modelos: Map<string, Modelo>,
+  nomeMarca: (slug: string) => string,
+): Array<Record<string, unknown>> {
+  const blocos: Array<Record<string, unknown>> = [bloco.h2(SECCAO_EMAILS)];
   for (const marca of marcasDe(linhas)) {
     const daMarca = linhasRestantes(linhas).filter((l) => l.marca === marca);
     const modelo = modelos.get(marca) ?? modelos.get(MODELO_PADRAO);
@@ -447,7 +465,6 @@ export function corpoInicial(
     blocos.push(bloco.paragrafo(`Assunto: ${preenchido.assunto}`));
     blocos.push(bloco.paragrafo(preenchido.corpo));
   }
-  blocos.push(bloco.divisor(), bloco.h2("Registo"));
   return blocos;
 }
 
