@@ -40,6 +40,7 @@ export const ENC = {
   linkPagamento: "Link pagamento",
   faturaRecibo: "Fatura-recibo",
   notasCredito: "Notas de crédito",
+  linhas: "Linhas", // synced side of the lines relation — Notion maintains it
   acao: "Ação",
   motivo: "Motivo",
   erro: "Erro",
@@ -185,15 +186,20 @@ export function esquemaEncomendas(): Esquema {
   };
 }
 
+/** Two-way relation: the ticket shows its lines as chips under `Linhas`. */
+export function relacaoEncomendaDasLinhas(encomendasDataSourceId: string) {
+  return {
+    relation: {
+      data_source_id: encomendasDataSourceId,
+      dual_property: { synced_property_name: ENC.linhas },
+    },
+  };
+}
+
 export function esquemaLinhas(encomendasDataSourceId: string): Esquema {
   return {
     [LIN.titulo]: { title: {} },
-    [LIN.encomenda]: {
-      relation: {
-        data_source_id: encomendasDataSourceId,
-        single_property: {},
-      },
-    },
+    [LIN.encomenda]: relacaoEncomendaDasLinhas(encomendasDataSourceId),
     [LIN.convexId]: { rich_text: {} },
     [LIN.ref]: { rich_text: {} },
     [LIN.nome]: { rich_text: {} },
@@ -384,7 +390,36 @@ export function linhasParaEmail(
   return linhas.map((l) => `- ${l.ref} — ${l.nome} × ${l.qty}`).join("\n");
 }
 
-/** Page body at ticket creation: one draft per marca, then the event log. */
+export const SECCAO_LINHAS = "Linhas";
+
+/**
+ * Read-only table of the lines, rewritten on every render (the API cannot
+ * create linked views). Actions happen on the line rows themselves.
+ */
+export function tabelaLinhas(
+  linhas: ReadonlyArray<Doc<"installerOrderLines">>,
+  nomeMarca: (slug: string) => string,
+): Record<string, unknown> {
+  const eur = (c: number) => `${euros(c).toFixed(2)} €`;
+  const retirada = (l: Doc<"installerOrderLines">) => (l.estadoLinha === "retirada" ? 1 : 0);
+  const ordenadas = [...linhas].sort(
+    (a, b) => retirada(a) - retirada(b) || a.ref.localeCompare(b.ref),
+  );
+  return bloco.tabela(
+    ["Ref", "Nome", "Marca", "Qtd", "Preço revenda", "Custo", "Estado"],
+    ordenadas.map((l) => [
+      l.ref,
+      l.nome,
+      nomeMarca(l.marca),
+      String(l.qty),
+      eur(l.precoRevendaCents),
+      l.custoCents === undefined ? "—" : eur(l.custoCents),
+      ESTADO_LINHA_DESK[l.estadoLinha],
+    ]),
+  );
+}
+
+/** Page body at ticket creation: lines table, one draft per marca, event log. */
 export function corpoInicial(
   encomenda: Pick<Doc<"installerOrders">, "titulo">,
   linhas: ReadonlyArray<Doc<"installerOrderLines">>,
@@ -392,6 +427,8 @@ export function corpoInicial(
   nomeMarca: (slug: string) => string,
 ): Array<Record<string, unknown>> {
   const blocos: Array<Record<string, unknown>> = [
+    bloco.h2(SECCAO_LINHAS),
+    tabelaLinhas(linhas, nomeMarca),
     bloco.h2("Emails aos fornecedores"),
   ];
   for (const marca of marcasDe(linhas)) {

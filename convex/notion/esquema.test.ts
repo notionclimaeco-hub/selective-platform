@@ -17,6 +17,7 @@ import {
   limparEntradasLinha,
   MODELO_PADRAO_CORPO,
   preencherModelo,
+  tabelaLinhas,
 } from "./esquema";
 import { pageIdDoWebhook } from "./webhook";
 
@@ -145,12 +146,29 @@ describe("supplier drafts", () => {
       (slug) => slug.toUpperCase(),
     );
     const texto = JSON.stringify(blocos);
-    expect(texto).toContain("HISENSE");
     expect(texto).toContain("Assunto: Pedido HISENSE");
     expect(texto).toContain("Assunto: Nipon ENC-7");
     expect(texto).toContain("N: - NP-1 — Suporte × 2");
-    expect(texto).not.toContain("DAIKIN");
+    // Dropped line: in the table (as Retirada) but no supplier draft.
+    const rascunhos = JSON.stringify(blocos.filter((b) => b.type !== "table"));
+    expect(rascunhos).not.toContain("DAIKIN");
     expect(texto).toContain("Registo");
+  });
+
+  it("lists every line in the table, dropped ones last", () => {
+    const tabela = tabelaLinhas(
+      [
+        linha({ ref: "Z-1", estadoLinha: "retirada" }),
+        linha({ ref: "B-1", custoCents: 1234 }),
+        linha({ ref: "A-1", estadoLinha: "confirmada" }),
+      ],
+      (slug) => slug,
+    );
+    const linhasTabela = (tabela.table as { children: Array<{ table_row: { cells: Array<Array<{ text: { content: string } }>> } }> }).children;
+    const refs = linhasTabela.slice(1).map((r) => r.table_row.cells[0]?.[0]?.text.content);
+    expect(refs).toEqual(["A-1", "B-1", "Z-1"]);
+    expect(linhasTabela[2]?.table_row.cells[5]?.[0]?.text.content).toBe("12.34 €");
+    expect(linhasTabela[3]?.table_row.cells[6]?.[0]?.text.content).toBe("Retirada");
   });
 });
 

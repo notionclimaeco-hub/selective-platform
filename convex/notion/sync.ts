@@ -4,6 +4,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
   clienteDoAmbiente,
+  listarTudo,
   NotionError,
   type Json,
   type NotionRequest,
@@ -16,9 +17,11 @@ import {
   LIN,
   linhaRegisto,
   MOD,
+  SECCAO_LINHAS,
+  tabelaLinhas,
   type Modelo,
 } from "./esquema";
-import { ler } from "./propriedades";
+import { bloco, ler } from "./propriedades";
 
 /**
  * Convex → Notion. `renderizar` rewrites every mirror field of one order's
@@ -60,6 +63,40 @@ async function upsertPagina(
     ...(children ? { children } : {}),
   });
   return { pageId: criada.id as string, criada: true };
+}
+
+/**
+ * Replace the lines table under the "Linhas" heading. Old tickets (before
+ * the heading existed) get heading + table appended once.
+ */
+async function reescreverTabelaLinhas(
+  notion: NotionRequest,
+  pageId: string,
+  tabela: Record<string, unknown>,
+): Promise<void> {
+  const filhos = await listarTudo(notion, "GET", `/blocks/${pageId}/children`, {}, 200);
+  const textoDe = (b: Json, tipo: string) => {
+    const rich = (b[tipo] as { rich_text?: Array<{ plain_text?: string }> } | undefined)
+      ?.rich_text;
+    return (rich ?? []).map((r) => r.plain_text ?? "").join("");
+  };
+  const cabecalho = filhos.findIndex(
+    (b) => b.type === "heading_2" && textoDe(b, "heading_2") === SECCAO_LINHAS,
+  );
+  if (cabecalho === -1) {
+    await notion("PATCH", `/blocks/${pageId}/children`, {
+      children: [bloco.h2(SECCAO_LINHAS), tabela],
+    });
+    return;
+  }
+  const seguinte = filhos[cabecalho + 1];
+  if (seguinte && seguinte.type === "table") {
+    await notion("DELETE", `/blocks/${seguinte.id as string}`);
+  }
+  await notion("PATCH", `/blocks/${pageId}/children`, {
+    children: [tabela],
+    after: filhos[cabecalho]?.id,
+  });
 }
 
 async function carregarModelos(
@@ -131,6 +168,9 @@ export const renderizar = internalAction({
       );
       if (ticket.criada && encomenda.notionPageId) {
         eventos.push("Ticket recriado (o anterior foi apagado no Notion)");
+      }
+      if (!ticket.criada) {
+        await reescreverTabelaLinhas(notion, ticket.pageId, tabelaLinhas(linhas, nomeMarca));
       }
 
       const novasLinhas: Array<{ linhaId: Id<"installerOrderLines">; pageId: string }> = [];

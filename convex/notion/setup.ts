@@ -9,12 +9,15 @@ import {
   type NotionRequest,
 } from "./cliente";
 import {
+  ENC,
   esquemaEncomendas,
   esquemaExcecoes,
   esquemaLinhas,
   esquemaModelos,
+  LIN,
   MOD,
   MODELO_PADRAO,
+  relacaoEncomendaDasLinhas,
   MODELO_PADRAO_ASSUNTO,
   MODELO_PADRAO_CORPO,
   NOME_BASE,
@@ -113,6 +116,24 @@ async function garantirBase(
   return { base: { chave, databaseId, dataSourceId }, criada: false, acrescentadas };
 }
 
+/** Older installs created `Encomenda` one-way; make it two-way (`Linhas` on the ticket). */
+async function garantirRelacaoBidirecional(
+  notion: NotionRequest,
+  linhas: Base,
+  encomendas: Base,
+): Promise<boolean> {
+  const atual = await notion("GET", `/data_sources/${linhas.dataSourceId}`);
+  const props = (atual.properties as Record<string, Json> | undefined) ?? {};
+  const relacao = props[LIN.encomenda]?.relation as { type?: unknown } | undefined;
+  if (relacao?.type !== "single_property") return false;
+  await notion("PATCH", `/data_sources/${linhas.dataSourceId}`, {
+    properties: {
+      [LIN.encomenda]: relacaoEncomendaDasLinhas(encomendas.dataSourceId),
+    },
+  });
+  return true;
+}
+
 async function semearModeloPadrao(
   notion: NotionRequest,
   modelos: Base,
@@ -192,6 +213,9 @@ export const configurar = internalAction({
         conhecida("linhas"),
       ),
     );
+    if (await garantirRelacaoBidirecional(notion, linhas, encomendas)) {
+      acrescentadas.push(`${NOME_BASE.encomendas}: ${ENC.linhas} (relação bidirecional)`);
+    }
     await regista(
       await garantirBase(
         notion,

@@ -62,6 +62,21 @@ export const bloco = {
     paragraph: { rich_text: rich(texto) },
   }),
   divisor: () => ({ object: "block", type: "divider", divider: {} }),
+  /** Simple table with a header row. Cells are plain strings. */
+  tabela: (cabecalho: ReadonlyArray<string>, linhas: ReadonlyArray<ReadonlyArray<string>>) => ({
+    object: "block",
+    type: "table",
+    table: {
+      table_width: cabecalho.length,
+      has_column_header: true,
+      has_row_header: false,
+      children: [cabecalho, ...linhas].map((celulas) => ({
+        object: "block",
+        type: "table_row",
+        table_row: { cells: celulas.map((c) => rich(c)) },
+      })),
+    },
+  }),
 };
 
 // --- readers ----------------------------------------------------------------
