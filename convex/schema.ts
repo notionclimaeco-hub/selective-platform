@@ -55,6 +55,13 @@ export const motivoCancelamentoValidator = v.union(
 
 // Installer-order line state before pay. After `paga`, progress lives in the
 // qty buckets on the line — there is no post-pay status enum (#5).
+export const notionBaseValidator = v.union(
+  v.literal("encomendas"),
+  v.literal("linhas"),
+  v.literal("excecoes"),
+  v.literal("modelos"),
+);
+
 export const estadoLinhaValidator = v.union(
   v.literal("por_confirmar"),
   v.literal("confirmada"),
@@ -272,10 +279,16 @@ export default defineSchema({
     stockRequestedAt: v.optional(v.number()),
     cancelledAt: v.optional(v.number()),
     cancelledBy: v.optional(v.string()),
+    // Notion desk ticket (#12). Set by the first successful render; the
+    // office never needs it. `notionErro` is the last failed render reason.
+    notionPageId: v.optional(v.string()),
+    notionSyncAt: v.optional(v.number()),
+    notionErro: v.optional(v.string()),
   })
     .index("by_empresaId", ["empresaId"])
     .index("by_estado", ["estado"])
-    .index("by_numero", ["numero"]),
+    .index("by_numero", ["numero"])
+    .index("by_notionPageId", ["notionPageId"]),
 
   // One SKU × qty on an installer order.
   installerOrderLines: defineTable({
@@ -298,7 +311,18 @@ export default defineSchema({
     qtyAguardaRecolha: v.optional(v.number()),
     qtyFalhada: v.optional(v.number()),
     reembolsadoAt: v.optional(v.number()),
+    // Row in db-linhas-selectivedistribui (#12).
+    notionPageId: v.optional(v.string()),
   })
     .index("by_encomendaId", ["encomendaId"])
-    .index("by_encomenda_and_ref", ["encomendaId", "ref"]),
+    .index("by_encomenda_and_ref", ["encomendaId", "ref"])
+    .index("by_notionPageId", ["notionPageId"]),
+
+  // The four office databases created by `notion/setup.ts` inside the
+  // `back-end` Notion page (#10, #12). One row per database.
+  notionBases: defineTable({
+    chave: notionBaseValidator,
+    databaseId: v.string(),
+    dataSourceId: v.string(),
+  }).index("by_chave", ["chave"]),
 });

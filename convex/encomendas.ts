@@ -27,11 +27,13 @@ import {
   totalRestanteCents,
   type MotivoCancelamento,
 } from "./lib/encomendaEstados";
+import { agendarRender } from "./notion/agendar";
 
 /**
  * Installer orders (#5). Public functions serve members of an approved
- * installer company. Office actions are `internalMutation`s for now — the
- * office desk is Notion (#12) and arrives in a later slice.
+ * installer company and queue a Notion desk render (#12). Office actions are
+ * `internalMutation`s driven by `notion/entrada.ts`, which renders itself
+ * with the right log entry — so they do not queue a render here.
  */
 
 const CONTADOR = "encomendas";
@@ -288,6 +290,7 @@ export const submeter = mutation({
       });
     }
 
+    await agendarRender(ctx, encomendaId, "Encomenda submetida pelo instalador");
     return { encomendaId, numero };
   },
 });
@@ -308,6 +311,7 @@ export const cancelar = mutation({
       "installer",
       installer.identity.subject,
     );
+    await agendarRender(ctx, cancelada._id, "Cancelada pelo instalador");
     return await vistaCliente(ctx, cancelada);
   },
 });
