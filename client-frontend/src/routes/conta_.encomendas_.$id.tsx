@@ -1,24 +1,13 @@
 import { useState } from "react"
-import { Show } from "@clerk/tanstack-react-start"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Authenticated, useMutation, useQuery } from "convex/react"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
+import { AreaCliente, Aviso } from "@/components/conta/area-cliente"
+import { EncomendaDetalhe } from "@/components/encomendas/encomenda-detalhe"
 import { Button } from "@/components/ui/button"
-import { eurExato, rotuloMarca } from "@/lib/catalogo"
 import { useEmpresaActiva } from "@/lib/empresa-activa"
-import {
-  ESTADO_ENCOMENDA_CLASSES,
-  ESTADO_ENCOMENDA_LABELS,
-  ESTADO_ENCOMENDA_TEXTO,
-  ESTADO_LINHA_LABELS,
-  MOTIVO_CANCELAMENTO_LABELS,
-  formatarDataEncomenda,
-  podeCancelarEncomenda,
-} from "@/lib/encomendas"
 
 export const Route = createFileRoute("/conta_/encomendas_/$id")({
   component: EncomendaPage,
@@ -28,21 +17,12 @@ function EncomendaPage() {
   const { id } = Route.useParams()
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6">
-        <Show when="signed-out">
-          <p className="text-sm text-muted-foreground">A redirecionar…</p>
-        </Show>
-        <Show when="signed-in">
-          <Authenticated>
-            {/* Convex validates the id; a malformed one yields null → "não encontrada". */}
-            <Detalhe id={id as Id<"installerOrders">} />
-          </Authenticated>
-        </Show>
-      </main>
-      <SiteFooter />
-    </div>
+    <AreaCliente largura="larga">
+      <Authenticated>
+        {/* Convex validates the id; a malformed one yields null → "não encontrada". */}
+        <Detalhe id={id as Id<"installerOrders">} />
+      </Authenticated>
+    </AreaCliente>
   )
 }
 
@@ -55,64 +35,53 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
     orgActiva ? { encomendaId: id } : "skip",
   )
   const cancelar = useMutation(api.encomendas.cancelar)
+  const [agora] = useState(() => Date.now())
   const [aCancelar, setACancelar] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   if (vista !== undefined && vista?.kind !== "empresa") {
     return (
-      <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <p className="text-sm text-muted-foreground">
-          Complete o registo da empresa para ver encomendas.
-        </p>
-      </section>
+      <Aviso
+        titulo="Ainda sem empresa"
+        accao={
+          <Button render={<Link to="/registo" />} nativeButton={false}>
+            Registar empresa
+          </Button>
+        }
+      >
+        Complete o registo da empresa para ver encomendas.
+      </Aviso>
     )
   }
   if (!orgActiva && activacaoFalhou) {
     return (
-      <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <p className="text-sm text-muted-foreground">
-          Não foi possível activar a organização da empresa nesta sessão. Use o
-          seletor de organização em{" "}
-          <Link to="/conta" className="font-medium text-primary underline-offset-4 hover:underline">
-            Conta
-          </Link>
-          .
-        </p>
-      </section>
+      <Aviso titulo="Empresa não activa nesta sessão">
+        Não foi possível activar a organização da empresa. Use o seletor de
+        organização no topo da página e tente de novo.
+      </Aviso>
     )
   }
-  if (encomenda === undefined) {
-    return <p className="text-sm text-muted-foreground">A carregar…</p>
-  }
+  if (encomenda === undefined) return <Esqueleto />
   if (encomenda === null) {
     return (
-      <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <h1 className="text-lg font-semibold tracking-tight">
-          Encomenda não encontrada
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Esta encomenda não existe ou não pertence à sua empresa.
-        </p>
-        <Button
-          render={<Link to="/conta/encomendas" />}
-          nativeButton={false}
-          variant="outline"
-          className="mt-4"
-        >
-          Voltar às encomendas
-        </Button>
-      </section>
+      <Aviso
+        titulo="Encomenda não encontrada"
+        accao={
+          <Button
+            render={<Link to="/conta/encomendas" />}
+            nativeButton={false}
+            variant="outline"
+          >
+            Voltar às encomendas
+          </Button>
+        }
+      >
+        Esta encomenda não existe ou não pertence à sua empresa.
+      </Aviso>
     )
   }
 
   async function onCancelar() {
-    if (
-      !window.confirm(
-        "Cancelar esta encomenda? Esta acção não pode ser desfeita.",
-      )
-    ) {
-      return
-    }
     setErro(null)
     setACancelar(true)
     try {
@@ -125,126 +94,22 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
   }
 
   return (
-    <>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-          Área de Cliente
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {encomenda.titulo}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          <Link
-            to="/conta/encomendas"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Encomendas
-          </Link>
-          <span aria-hidden> · </span>
-          {formatarDataEncomenda(encomenda.placedAt)}
-        </p>
-      </div>
+    <EncomendaDetalhe
+      encomenda={encomenda}
+      agora={agora}
+      onCancelar={() => void onCancelar()}
+      aCancelar={aCancelar}
+      erro={erro}
+    />
+  )
+}
 
-      <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${ESTADO_ENCOMENDA_CLASSES[encomenda.estado]}`}
-        >
-          {ESTADO_ENCOMENDA_LABELS[encomenda.estado]}
-        </span>
-        <p className="mt-3 text-sm text-muted-foreground">
-          {encomenda.cancelReason
-            ? MOTIVO_CANCELAMENTO_LABELS[encomenda.cancelReason]
-            : ESTADO_ENCOMENDA_TEXTO[encomenda.estado]}
-        </p>
-        {encomenda.estado === "aguardando_pagamento" && encomenda.pagamentoToken && (
-          <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
-            <p className="text-sm">
-              Total a pagar (c/IVA):{" "}
-              <span className="font-semibold tabular-nums">
-                {eurExato.format((encomenda.totalPagamentoCents ?? 0) / 100)}
-              </span>
-              {encomenda.paymentExpiresAt && (
-                <span className="text-muted-foreground">
-                  {" "}· até {formatarDataEncomenda(encomenda.paymentExpiresAt)}
-                </span>
-              )}
-            </p>
-            <Button
-              render={<Link to="/pagamento/$token" params={{ token: encomenda.pagamentoToken }} />}
-              nativeButton={false}
-              className="mt-3"
-            >
-              Pagar por transferência bancária
-            </Button>
-          </div>
-        )}
-        {encomenda.paidAt && encomenda.estado !== "cancelada" && (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Pagamento recebido em {formatarDataEncomenda(encomenda.paidAt)}.
-          </p>
-        )}
-        <div className="flex flex-wrap gap-3">
-          {podeCancelarEncomenda(encomenda.estado) && (
-            <Button
-              variant="destructive"
-              className="mt-4"
-              disabled={aCancelar}
-              onClick={() => void onCancelar()}
-            >
-              {aCancelar ? "A cancelar…" : "Cancelar encomenda"}
-            </Button>
-          )}
-        </div>
-        {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <ul className="divide-y">
-          {encomenda.linhas.map((linha) => {
-            const retirada = linha.estadoLinha === "retirada"
-            return (
-              <li
-                key={linha._id}
-                className={`flex items-start justify-between gap-4 px-4 py-3.5 ${retirada ? "opacity-60" : ""}`}
-              >
-                <div className="min-w-0">
-                  <p className={`truncate font-medium ${retirada ? "line-through" : ""}`}>
-                    {linha.nome}
-                  </p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {rotuloMarca(linha.marca)} · {linha.ref} · {linha.qty} ×{" "}
-                    {eurExato.format(linha.precoRevendaCents / 100)}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold tabular-nums">
-                    {eurExato.format(
-                      (linha.precoRevendaCents * linha.qty) / 100,
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {ESTADO_LINHA_LABELS[linha.estadoLinha]}
-                  </p>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-        <div className="flex items-baseline justify-between border-t px-4 py-3">
-          <span className="text-sm text-muted-foreground">
-            Total revenda (s/IVA)
-          </span>
-          <span className="text-lg font-semibold tabular-nums text-primary">
-            {eurExato.format(encomenda.totalRevendaCents / 100)}
-          </span>
-        </div>
-      </section>
-
-      <p className="text-sm text-muted-foreground">
-        Os preços desta encomenda foram congelados ao submeter. Alterações às
-        linhas fazem-se através do escritório. IVA a {encomenda.ivaPercent}%
-        aplicado nos documentos.
-      </p>
-    </>
+function Esqueleto() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy>
+      <div className="h-16 w-64 animate-pulse rounded-xl bg-secondary/60" />
+      <div className="h-32 animate-pulse rounded-2xl border bg-secondary/60" />
+      <div className="h-72 animate-pulse rounded-2xl border bg-secondary/60" />
+    </div>
   )
 }

@@ -1,16 +1,15 @@
-import {
-  OrganizationSwitcher,
-  Show,
-  SignOutButton,
-  UserButton,
-} from "@clerk/tanstack-react-start"
+import { SignOutButton } from "@clerk/tanstack-react-start"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { CheckCircle2 } from "lucide-react"
+import { ArrowRight, CheckCircle2, ClipboardList, Search } from "lucide-react"
 
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
+import {
+  AreaCliente,
+  Aviso,
+  CabecalhoPagina,
+} from "@/components/conta/area-cliente"
 import { Button } from "@/components/ui/button"
 import { useEmpresaActiva } from "@/lib/empresa-activa"
+import { cn } from "@/lib/utils"
 
 type ContaSearch = {
   pedido?: "enviado"
@@ -25,48 +24,43 @@ export const Route = createFileRoute("/conta")({
 
 const ESTADO_COPY: Record<
   string,
-  { titulo: string; texto: string; classe: string }
+  { titulo: string; texto: string; classe: string; ponto: string }
 > = {
   pendente: {
     titulo: "Empresa em aprovação",
     texto:
       "A nossa equipa comercial está a analisar o pedido. Até lá, o catálogo mostra o PVP.",
-    classe: "bg-amber-100 text-amber-800",
+    classe: "bg-amber-50 text-amber-800 ring-amber-600/20",
+    ponto: "bg-amber-500",
   },
   aprovada: {
     titulo: "Empresa aprovada",
     texto:
-      "Já vê os preços de revenda no catálogo e pode submeter encomendas a partir da lista de orçamento.",
-    classe: "bg-green-100 text-green-800",
+      "Vê os preços de revenda no catálogo e pode submeter encomendas a partir da lista de orçamento.",
+    classe: "bg-emerald-50 text-emerald-800 ring-emerald-600/20",
+    ponto: "bg-emerald-500",
   },
   rejeitada: {
     titulo: "Pedido rejeitado",
     texto:
       "Não há re-candidatura automática. Contacte o escritório se precisar de esclarecimentos.",
-    classe: "bg-destructive/10 text-destructive",
+    classe: "bg-destructive/10 text-destructive ring-destructive/20",
+    ponto: "bg-destructive",
   },
   suspensa: {
     titulo: "Conta suspensa",
     texto:
       "Mantém o acesso a esta página, mas os preços de revenda estão bloqueados. Contacte o escritório.",
-    classe: "bg-muted text-muted-foreground",
+    classe: "bg-muted text-muted-foreground ring-border",
+    ponto: "bg-muted-foreground/50",
   },
 }
 
 function ContaPage() {
   return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6">
-        <Show when="signed-out">
-          <p className="text-sm text-muted-foreground">A redirecionar…</p>
-        </Show>
-        <Show when="signed-in">
-          <ContaAutenticada />
-        </Show>
-      </main>
-      <SiteFooter />
-    </div>
+    <AreaCliente>
+      <ContaAutenticada />
+    </AreaCliente>
   )
 }
 
@@ -76,28 +70,15 @@ function ContaAutenticada() {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            Área de Cliente
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">Conta</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <OrganizationSwitcher
-            hidePersonal
-            afterSelectOrganizationUrl="/conta"
-          />
-          <UserButton />
-        </div>
-      </div>
+      <CabecalhoPagina
+        titulo="A sua empresa"
+        descricao="Dados da empresa instaladora, estado da aprovação e condições comerciais."
+      />
 
       {vista === undefined && (
-        <p className="text-sm text-muted-foreground">A carregar…</p>
+        <div className="h-40 animate-pulse rounded-2xl border bg-secondary/60" aria-busy />
       )}
-      {vista === null && (
-        <p className="text-sm text-muted-foreground">Sessão indisponível.</p>
-      )}
+      {vista === null && <Aviso>Sessão indisponível.</Aviso>}
       {vista?.kind === "sem-org" && <SemEmpresa />}
       {vista?.kind === "sem-empresa" && <Orfao orgId={vista.orgId} />}
       {vista?.kind === "empresa" && (
@@ -112,36 +93,36 @@ function ContaAutenticada() {
 
 function SemEmpresa() {
   return (
-    <section className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="font-medium">Ainda sem empresa</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Esta conta ainda não está ligada a uma empresa instaladora. Complete o
-        registo para pedirmos a aprovação comercial.
-      </p>
-      <Button render={<Link to="/registo" />} nativeButton={false} className="mt-4">
-        Registar empresa
-      </Button>
-    </section>
+    <Aviso
+      titulo="Ainda sem empresa"
+      accao={
+        <Button render={<Link to="/registo" />} nativeButton={false}>
+          Registar empresa
+        </Button>
+      }
+    >
+      Esta conta ainda não está ligada a uma empresa instaladora. Complete o
+      registo para pedirmos a aprovação comercial.
+    </Aviso>
   )
 }
 
 function Orfao({ orgId }: { orgId: string }) {
   return (
-    <section className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="font-medium">Empresa não encontrada</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        A organização Clerk ({orgId}) não tem um registo correspondente. Contacte
-        o escritório.
-      </p>
-      <p className="mt-4">
+    <Aviso
+      titulo="Empresa não encontrada"
+      accao={
         <a
           href="mailto:geral@climaeco.pt"
           className="text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           geral@climaeco.pt
         </a>
-      </p>
-    </section>
+      }
+    >
+      A organização Clerk ({orgId}) não tem um registo correspondente. Contacte
+      o escritório.
+    </Aviso>
   )
 }
 
@@ -165,92 +146,80 @@ function PerfilEmpresa({
   const estado = ESTADO_COPY[empresa.estadoAprovacao] ?? {
     titulo: empresa.estadoAprovacao,
     texto: "",
-    classe: "bg-muted text-muted-foreground",
+    classe: "bg-muted text-muted-foreground ring-border",
+    ponto: "bg-muted-foreground/50",
   }
   const recemPendente =
     pedidoRecemEnviado && empresa.estadoAprovacao === "pendente"
+  const aprovada = empresa.estadoAprovacao === "aprovada"
 
   return (
     <>
-      <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        {recemPendente ? (
-          <div className="flex gap-3">
-            <CheckCircle2
-              className="mt-0.5 size-6 shrink-0 text-primary"
-              aria-hidden
-            />
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">
-                Pedido enviado
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Recebemos o pedido de{" "}
-                <span className="font-medium text-foreground">
-                  {empresa.nomeLegal}
-                </span>{" "}
-                (NIF {empresa.nif}). A nossa equipa comercial vai analisar. Até
-                haver uma decisão, o catálogo continua a mostrar o PVP.
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Não precisa de voltar a submeter. O estado deste pedido fica
-                sempre nesta página.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${estado.classe}`}
-            >
-              {estado.titulo}
-            </span>
-            <p className="mt-3 text-sm text-muted-foreground">{estado.texto}</p>
-          </>
-        )}
-        {empresa.estadoAprovacao === "pendente" && !recemPendente && (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Quando houver uma decisão, o estado nesta página actualiza-se. Até
-            lá não é preciso voltar a registar.
-          </p>
-        )}
-      </section>
-
-      <section className="grid gap-4 rounded-2xl border bg-card p-6 shadow-sm sm:grid-cols-2">
-        <Campo label="Nome legal" valor={empresa.nomeLegal} />
-        <Campo label="NIF" valor={empresa.nif} />
-        <Campo label="Morada" valor={empresa.morada} className="sm:col-span-2" />
-        <Campo label="Email" valor={empresa.email} />
-        <Campo label="Telefone" valor={empresa.telefone} />
-        <Campo label="CERTIF" valor={empresa.certifNumero ?? "—"} />
-        <Campo
-          label="Condições comerciais"
-          valor={
-            empresa.estadoAprovacao === "aprovada"
-              ? empresa.tierNome ?? "Base"
-              : "—"
-          }
-        />
-      </section>
-
-      {empresa.estadoAprovacao === "aprovada" && (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
+      {recemPendente && (
+        <section className="flex gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-sm">
+          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden />
           <div>
-            <h2 className="font-medium">Encomendas</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Acompanhe o estado de cada encomenda submetida a partir da lista
-              de orçamento.
+            <h2 className="text-lg font-semibold tracking-tight">Pedido enviado</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Recebemos o pedido de{" "}
+              <span className="font-medium text-foreground">{empresa.nomeLegal}</span>{" "}
+              (NIF {empresa.nif}). A nossa equipa comercial vai analisar. Não
+              precisa de voltar a submeter — o estado fica sempre nesta página.
             </p>
           </div>
-          <Button render={<Link to="/conta/encomendas" />} nativeButton={false}>
-            Ver encomendas
-          </Button>
         </section>
       )}
 
-      <p className="text-sm text-muted-foreground">
-        Alterações aos dados da empresa fazem-se através do escritório. A gestão
-        de membros usa o menu da organização acima.
-      </p>
+      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold tracking-tight">{empresa.nomeLegal}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">NIF {empresa.nif}</p>
+          </div>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
+              estado.classe,
+            )}
+          >
+            <span aria-hidden className={cn("size-1.5 rounded-full", estado.ponto)} />
+            {estado.titulo}
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">{estado.texto}</p>
+
+        <dl className="mt-6 grid gap-x-6 gap-y-4 border-t pt-5 sm:grid-cols-2">
+          <Campo label="Morada" valor={empresa.morada} className="sm:col-span-2" />
+          <Campo label="Email" valor={empresa.email} />
+          <Campo label="Telefone" valor={empresa.telefone} />
+          <Campo label="N.º CERTIF" valor={empresa.certifNumero ?? "—"} />
+          <Campo
+            label="Condições comerciais"
+            valor={aprovada ? empresa.tierNome ?? "Base" : "Após aprovação"}
+          />
+        </dl>
+        <p className="mt-5 text-xs text-muted-foreground">
+          Alterações aos dados fazem-se através do escritório. A gestão de
+          membros usa o menu da organização no topo.
+        </p>
+      </section>
+
+      {aprovada && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Atalho
+            to="/conta/encomendas"
+            icon={ClipboardList}
+            titulo="Encomendas"
+            texto="Estado de cada encomenda, pagamentos e levantamentos."
+          />
+          <Atalho
+            to="/produtos"
+            icon={Search}
+            titulo="Catálogo com preços de revenda"
+            texto="Junte equipamentos à lista de orçamento e submeta."
+          />
+        </div>
+      )}
 
       <SignOutButton>
         <button className="self-start text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
@@ -258,6 +227,36 @@ function PerfilEmpresa({
         </button>
       </SignOutButton>
     </>
+  )
+}
+
+function Atalho({
+  to,
+  icon: Icon,
+  titulo,
+  texto,
+}: {
+  to: "/conta/encomendas" | "/produtos"
+  icon: typeof ClipboardList
+  titulo: string
+  texto: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-start gap-4 rounded-2xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+        <Icon className="size-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-2 font-semibold">
+          {titulo}
+          <ArrowRight className="size-4 text-primary transition-transform group-hover:translate-x-0.5" />
+        </span>
+        <span className="mt-1 block text-sm text-muted-foreground">{texto}</span>
+      </span>
+    </Link>
   )
 }
 
@@ -272,10 +271,10 @@ function Campo({
 }) {
   return (
     <div className={className}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
         {label}
-      </p>
-      <p className="mt-0.5 text-sm break-all">{valor}</p>
+      </dt>
+      <dd className="mt-0.5 text-sm break-words">{valor}</dd>
     </div>
   )
 }

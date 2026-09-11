@@ -36,9 +36,71 @@ export function FacetPanel({
   limites: Limites | undefined
   onFiltrar: (patch: Partial<FiltrosCatalogo>) => void
 }) {
+  // Família has its own bar above the results; the sidebar refines within it.
+  const dimensoes = DIMENSOES.filter((d) => d.chave !== "familia")
+  const temKw = limites !== undefined && limites.frioKwMax > 0
+
   return (
     <div className="flex flex-col divide-y">
-      <Seccao titulo="Preço" aberta>
+      {dimensoes.map(({ chave, rotulo, rotuloValor }) => {
+        const opcoes = facetas?.[chave] ?? []
+        const escolhidos = selecionados(filtros, chave)
+        if (opcoes.length === 0 && escolhidos.length === 0) return null
+        return (
+          <Seccao
+            key={chave}
+            titulo={rotulo}
+            contagem={escolhidos.length}
+            aberta={
+              escolhidos.length > 0 ||
+              chave === "marca" ||
+              chave === "tipoUnidade"
+            }
+          >
+            <ListaOpcoes
+              opcoes={opcoes}
+              escolhidos={escolhidos}
+              rotuloValor={rotuloValor}
+              onAlternar={(valor) =>
+                onFiltrar(alternarValor(filtros, chave, valor))
+              }
+            />
+          </Seccao>
+        )
+      })}
+
+      {temKw && (
+        <Seccao
+          titulo="Potência de frio"
+          contagem={
+            filtros.kwMin !== undefined || filtros.kwMax !== undefined ? 1 : 0
+          }
+          aberta={filtros.kwMin !== undefined || filtros.kwMax !== undefined}
+        >
+          <RangeNumerico
+            key={`kw-${filtros.kwMin ?? ""}-${filtros.kwMax ?? ""}`}
+            min={limites.frioKwMin}
+            max={limites.frioKwMax}
+            de={filtros.kwMin}
+            ate={filtros.kwMax}
+            sufixo="kW"
+            formatarLimite={(n) => `${n} kW`}
+            onMudar={(de, ate) => onFiltrar({ kwMin: de, kwMax: ate })}
+          />
+        </Seccao>
+      )}
+
+      <Seccao
+        titulo="Preço"
+        contagem={
+          filtros.precoMin !== undefined || filtros.precoMax !== undefined
+            ? 1
+            : 0
+        }
+        aberta={
+          filtros.precoMin !== undefined || filtros.precoMax !== undefined
+        }
+      >
         <RangeNumerico
           // Remount when the URL value changes (chip removed, "limpar
           // filtros", browser back) so the inputs never show a stale value.
@@ -53,45 +115,7 @@ export function FacetPanel({
         />
       </Seccao>
 
-      {limites !== undefined && limites.frioKwMax > 0 && (
-        <Seccao titulo="Potência de frio">
-          <RangeNumerico
-            key={`kw-${filtros.kwMin ?? ""}-${filtros.kwMax ?? ""}`}
-            min={limites.frioKwMin}
-            max={limites.frioKwMax}
-            de={filtros.kwMin}
-            ate={filtros.kwMax}
-            sufixo="kW"
-            formatarLimite={(n) => `${n} kW`}
-            onMudar={(de, ate) => onFiltrar({ kwMin: de, kwMax: ate })}
-          />
-        </Seccao>
-      )}
-
-      {DIMENSOES.map(({ chave, rotulo, rotuloValor }) => {
-        const opcoes = facetas?.[chave] ?? []
-        const escolhidos = selecionados(filtros, chave)
-        if (opcoes.length === 0 && escolhidos.length === 0) return null
-        return (
-          <Seccao
-            key={chave}
-            titulo={rotulo}
-            contagem={escolhidos.length}
-            aberta={escolhidos.length > 0 || chave === "familia"}
-          >
-            <ListaOpcoes
-              opcoes={opcoes}
-              escolhidos={escolhidos}
-              rotuloValor={rotuloValor}
-              onAlternar={(valor) =>
-                onFiltrar(alternarValor(filtros, chave, valor))
-              }
-            />
-          </Seccao>
-        )
-      })}
-
-      <Seccao titulo="Outros" aberta>
+      <Seccao titulo="Outros" aberta={filtros.foto === true}>
         <label className="flex cursor-pointer items-center gap-2.5 text-sm">
           <Caixa marcada={filtros.foto === true} />
           <input

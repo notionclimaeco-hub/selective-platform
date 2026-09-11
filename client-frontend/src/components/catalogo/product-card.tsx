@@ -38,7 +38,14 @@ export function faixaKw(entrada: CatalogProduct): string | undefined {
     : `${kw.format(frioKwMin)} – ${kw.format(frioKwMax)} kW`
 }
 
-export function ProductCard({ entrada }: { entrada: CatalogProduct }) {
+export function ProductCard({
+  entrada,
+  mostrarFamilia = true,
+}: {
+  entrada: CatalogProduct
+  /** Hide the family badge when the whole grid is already one family. */
+  mostrarFamilia?: boolean
+}) {
   const capacidade = faixaKw(entrada)
 
   return (
@@ -53,6 +60,7 @@ export function ProductCard({ entrada }: { entrada: CatalogProduct }) {
         capaPdfUrl={entrada.capaPdfUrl}
         nome={entrada.nome}
         classeEnergetica={entrada.classeEnergetica}
+        mostrarFamilia={mostrarFamilia}
       />
 
       <div className="flex flex-1 flex-col gap-1.5 p-5">
@@ -73,9 +81,13 @@ export function ProductCard({ entrada }: { entrada: CatalogProduct }) {
           </div>
         )}
 
-        <div className="mt-auto flex items-end justify-between pt-4">
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">desde</span>
+            <span className="text-xs text-muted-foreground">
+              {entrada.numVariantes > 1
+                ? `desde · ${entrada.numVariantes} modelos`
+                : "PVP"}
+            </span>
             <span className="text-lg font-semibold text-primary">
               {eur.format(entrada.precoDesdeCents / 100)}
               <span className="ml-1 text-xs font-normal text-muted-foreground">
@@ -83,17 +95,13 @@ export function ProductCard({ entrada }: { entrada: CatalogProduct }) {
               </span>
             </span>
           </div>
-          {entrada.numVariantes > 1 && (
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">
-              {entrada.numVariantes} modelos
-            </span>
-          )}
+          <span
+            aria-hidden
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border text-primary transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground"
+          >
+            <ArrowRight className="size-4" />
+          </span>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between border-t px-5 py-3 text-sm font-medium text-primary">
-        Ver detalhes
-        <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
       </div>
     </Link>
   )

@@ -1,19 +1,17 @@
-import { Show } from "@clerk/tanstack-react-start"
+import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Authenticated, usePaginatedQuery } from "convex/react"
-import { ChevronRight } from "lucide-react"
+import { PackageOpen } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
-import { Button } from "@/components/ui/button"
-import { eurExato } from "@/lib/catalogo"
-import { useEmpresaActiva } from "@/lib/empresa-activa"
 import {
-  ESTADO_ENCOMENDA_CLASSES,
-  ESTADO_ENCOMENDA_LABELS,
-  formatarDataEncomenda,
-} from "@/lib/encomendas"
+  AreaCliente,
+  Aviso,
+  CabecalhoPagina,
+} from "@/components/conta/area-cliente"
+import { ListaEncomendas } from "@/components/encomendas/lista-encomendas"
+import { Button } from "@/components/ui/button"
+import { useEmpresaActiva } from "@/lib/empresa-activa"
 
 // `conta_.` keeps this a sibling of /conta (flat route), not a child rendered
 // inside the account page.
@@ -23,43 +21,26 @@ export const Route = createFileRoute("/conta_/encomendas")({
 
 function EncomendasPage() {
   return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            Área de Cliente
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-            Encomendas
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            <Link
-              to="/conta"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Conta
-            </Link>
-            <span aria-hidden> · </span>
-            Encomendas
-          </p>
-        </div>
-        <Show when="signed-out">
-          <p className="text-sm text-muted-foreground">A redirecionar…</p>
-        </Show>
-        <Show when="signed-in">
-          <Authenticated>
-            <Lista />
-          </Authenticated>
-        </Show>
-      </main>
-      <SiteFooter />
-    </div>
+    <AreaCliente>
+      <CabecalhoPagina
+        titulo="Encomendas"
+        descricao="Acompanhe cada encomenda desde a receção até ao levantamento no armazém."
+        acoes={
+          <Button render={<Link to="/produtos" />} nativeButton={false} variant="outline">
+            Ver catálogo
+          </Button>
+        }
+      />
+      <Authenticated>
+        <Lista />
+      </Authenticated>
+    </AreaCliente>
   )
 }
 
 function Lista() {
   const { vista, orgActiva, activacaoFalhou } = useEmpresaActiva()
+  const [agora] = useState(() => Date.now())
   const aprovada =
     vista?.kind === "empresa" && vista.empresa.estadoAprovacao === "aprovada"
   // `minhas` needs the org in the JWT; wait for the active org to match.
@@ -69,111 +50,93 @@ function Lista() {
     { initialNumItems: 20 },
   )
 
-  if (vista === undefined) {
-    return <p className="text-sm text-muted-foreground">A carregar…</p>
-  }
+  if (vista === undefined) return <Esqueleto />
   if (vista?.kind === "empresa" && aprovada && !orgActiva) {
     return activacaoFalhou ? (
-      <Aviso>
-        Não foi possível activar a organização da empresa nesta sessão. Use o
-        seletor de organização em{" "}
-        <Link to="/conta" className="font-medium text-primary underline-offset-4 hover:underline">
-          Conta
-        </Link>
-        .
+      <Aviso titulo="Empresa não activa nesta sessão">
+        Não foi possível activar a organização da empresa. Use o seletor de
+        organização no topo da página e tente de novo.
       </Aviso>
     ) : (
-      <p className="text-sm text-muted-foreground">A activar a empresa…</p>
+      <Esqueleto />
     )
   }
   if (vista?.kind !== "empresa") {
     return (
-      <Aviso>
-        Complete o registo da empresa para submeter encomendas.{" "}
-        <Link to="/registo" className="font-medium text-primary underline-offset-4 hover:underline">
-          Registar empresa
-        </Link>
+      <Aviso
+        titulo="Ainda sem empresa"
+        accao={
+          <Button render={<Link to="/registo" />} nativeButton={false}>
+            Registar empresa
+          </Button>
+        }
+      >
+        Complete o registo da empresa para submeter encomendas. A aprovação é
+        feita pela nossa equipa comercial.
       </Aviso>
     )
   }
   if (!aprovada) {
     return (
-      <Aviso>
-        As encomendas ficam disponíveis depois da aprovação comercial. O
-        estado do pedido está em{" "}
-        <Link to="/conta" className="font-medium text-primary underline-offset-4 hover:underline">
-          Conta
-        </Link>
-        .
+      <Aviso
+        titulo="Empresa em aprovação"
+        accao={
+          <Button render={<Link to="/conta" />} nativeButton={false} variant="outline">
+            Ver estado do pedido
+          </Button>
+        }
+      >
+        As encomendas ficam disponíveis depois da aprovação comercial. Até lá o
+        catálogo mostra o PVP.
       </Aviso>
     )
   }
-  if (status === "LoadingFirstPage") {
-    return <p className="text-sm text-muted-foreground">A carregar…</p>
-  }
-  if (results.length === 0) {
-    return (
-      <Aviso>
-        Ainda não há encomendas. Adicione equipamentos à lista de orçamento e
-        submeta a partir do{" "}
-        <Link to="/produtos" className="font-medium text-primary underline-offset-4 hover:underline">
-          catálogo
-        </Link>
-        .
-      </Aviso>
-    )
-  }
+  if (status === "LoadingFirstPage") return <Esqueleto />
+  if (results.length === 0) return <SemEncomendas />
 
   return (
     <>
-      <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
-        {results.map((encomenda) => (
-          <li key={encomenda._id}>
-            <Link
-              to="/conta/encomendas/$id"
-              params={{ id: encomenda._id }}
-              className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{encomenda.titulo}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {formatarDataEncomenda(encomenda.placedAt)} ·{" "}
-                  {encomenda.nLinhas}{" "}
-                  {encomenda.nLinhas === 1 ? "linha" : "linhas"}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="hidden text-sm tabular-nums text-muted-foreground sm:inline">
-                  {eurExato.format(encomenda.totalRevendaCents / 100)}
-                </span>
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_ENCOMENDA_CLASSES[encomenda.estado]}`}
-                >
-                  {ESTADO_ENCOMENDA_LABELS[encomenda.estado]}
-                </span>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <ListaEncomendas encomendas={results} agora={agora} />
       {status === "CanLoadMore" && (
         <Button
           variant="outline"
-          className="self-start"
+          className="self-center"
           onClick={() => loadMore(20)}
         >
-          Carregar mais
+          Mostrar encomendas mais antigas
         </Button>
       )}
     </>
   )
 }
 
-function Aviso({ children }: { children: React.ReactNode }) {
+function SemEncomendas() {
   return (
-    <p className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">
-      {children}
-    </p>
+    <section className="flex flex-col items-center gap-4 rounded-2xl border border-dashed bg-card px-6 py-14 text-center">
+      <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-primary">
+        <PackageOpen className="size-6" />
+      </span>
+      <div>
+        <h2 className="font-semibold">Ainda não há encomendas</h2>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          Adicione equipamentos à lista de orçamento no catálogo e submeta a
+          encomenda a partir daí. Os preços de revenda ficam congelados ao
+          submeter.
+        </p>
+      </div>
+      <Button render={<Link to="/produtos" />} nativeButton={false}>
+        Explorar o catálogo
+      </Button>
+    </section>
+  )
+}
+
+function Esqueleto() {
+  return (
+    <div className="flex flex-col gap-3" aria-busy>
+      {Array.from({ length: 3 }, (_, i) => (
+        <div key={i} className="h-[4.5rem] animate-pulse rounded-2xl border bg-secondary/60" />
+      ))}
+    </div>
   )
 }

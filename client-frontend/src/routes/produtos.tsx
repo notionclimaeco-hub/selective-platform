@@ -9,6 +9,7 @@ import { ActiveFilters } from "@/components/catalogo/active-filters"
 import { CatalogSearch } from "@/components/catalogo/catalog-search"
 import { CatalogToolbar } from "@/components/catalogo/catalog-toolbar"
 import { FacetPanel } from "@/components/catalogo/facet-panel"
+import { FamiliaNav } from "@/components/catalogo/familia-nav"
 import {
   ProductCard,
   ProductCardSkeleton,
@@ -20,7 +21,7 @@ import {
 import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
-import { rotuloMarca } from "@/lib/catalogo"
+import { rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
 import { useMapaDesdePorGrupo } from "@/lib/precos-revenda"
 import {
   argsCatalogo,
@@ -103,6 +104,11 @@ function CatalogoConteudo() {
   const vista = filtros.vista ?? "grelha"
   const ordenar = filtros.ordenar ?? "relevancia"
   const marcasEscolhidas = lerLista(filtros.marca)
+  const familiasEscolhidas = lerLista(filtros.familia)
+  // The family bar is single-choice; a multi-family URL (still valid) shows
+  // as "no single family" and the chips in the active-filter row handle it.
+  const familiaActiva =
+    familiasEscolhidas.length === 1 ? familiasEscolhidas[0] : undefined
 
   function limpar() {
     void navigate({ search: semFiltros(filtros) })
@@ -124,24 +130,32 @@ function CatalogoConteudo() {
         className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-accent/60 via-background to-background"
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14">
-        <Cabecalho marcas={marcasEscolhidas} />
+      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-12">
+        <Cabecalho marcas={marcasEscolhidas} familia={familiaActiva} />
 
-        <div className="mt-8">
+        <div className="mt-6">
           <CatalogSearch
             valor={filtros.q ?? ""}
             onBusca={(termo) => aplicar({ q: termo })}
           />
         </div>
 
-        <div className="mt-8 flex gap-8">
+        <div className="mt-5">
+          <FamiliaNav
+            opcoes={data?.facetas.familia}
+            escolhida={familiaActiva}
+            onEscolher={(f) => aplicar({ familia: f })}
+          />
+        </div>
+
+        <div className="mt-6 flex gap-8">
           {/* Desktop sidebar; the same panel is reused in the mobile sheet. */}
           <aside className="hidden w-64 shrink-0 lg:block xl:w-72">
             <div className="sticky top-24">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <SlidersHorizontal className="size-4 text-muted-foreground" />
-                  Filtros
+                  Refinar
                 </h2>
                 {numFiltros > 0 && (
                   <button
@@ -160,30 +174,34 @@ function CatalogoConteudo() {
           </aside>
 
           <div className="min-w-0 flex-1">
-            <CatalogToolbar
-              total={data?.totalFamilias}
-              aCarregar={isLoading}
-              aAtualizar={isFetching && !isLoading}
-              ordenar={ordenar}
-              vista={vista}
-              numFiltros={numFiltros}
-              onOrdenar={(valor) =>
-                aplicar({
-                  ordenar: valor === "relevancia" ? undefined : valor,
-                })
-              }
-              onVista={(v) =>
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    vista: v === "grelha" ? undefined : v,
-                  }),
-                })
-              }
-              onAbrirFiltros={() => setFiltrosAbertos(true)}
-            />
+            {/* Stays under the site header while the grid scrolls, so sorting
+                and the mobile filter button are always one tap away. */}
+            <div className="sticky top-16 z-30 -mx-4 border-b bg-background/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+              <CatalogToolbar
+                total={data?.totalFamilias}
+                aCarregar={isLoading}
+                aAtualizar={isFetching && !isLoading}
+                ordenar={ordenar}
+                vista={vista}
+                numFiltros={numFiltros}
+                onOrdenar={(valor) =>
+                  aplicar({
+                    ordenar: valor === "relevancia" ? undefined : valor,
+                  })
+                }
+                onVista={(v) =>
+                  void navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      vista: v === "grelha" ? undefined : v,
+                    }),
+                  })
+                }
+                onAbrirFiltros={() => setFiltrosAbertos(true)}
+              />
+            </div>
 
-            <div className="mt-4">
+            <div className="mt-4 empty:hidden">
               <ActiveFilters
                 filtros={filtros}
                 onFiltrar={aplicar}
@@ -194,6 +212,7 @@ function CatalogoConteudo() {
             <Resultados
               data={data}
               vista={vista}
+              mostrarFamilia={familiaActiva === undefined}
               aCarregar={isLoading}
               aAtualizar={isFetching && !isLoading}
               temFiltro={numFiltros > 0}
@@ -224,25 +243,36 @@ function CatalogoConteudo() {
   )
 }
 
-function Cabecalho({ marcas }: { marcas: Array<string> }) {
-  // A single-brand filter (the landing marquee links here) deserves a title
-  // that says so — it reads like a brand page instead of a filtered list.
+function Cabecalho({
+  marcas,
+  familia,
+}: {
+  marcas: Array<string>
+  familia: string | undefined
+}) {
+  // The title follows the primary navigation: a family and/or a single brand
+  // read like a section of the catalog instead of a filtered list.
   const marcaUnica = marcas.length === 1 ? marcas[0] : undefined
+  const titulo =
+    familia && marcaUnica
+      ? `${rotuloFamilia(familia)} ${rotuloMarca(marcaUnica)}`
+      : familia
+        ? rotuloFamilia(familia)
+        : marcaUnica
+          ? `Equipamentos ${rotuloMarca(marcaUnica)}`
+          : "Equipamentos de climatização"
 
   return (
     <div className="max-w-2xl">
       <p className="text-sm font-medium tracking-[0.2em] text-primary uppercase">
         Catálogo
       </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-        {marcaUnica
-          ? `Equipamentos ${rotuloMarca(marcaUnica)}`
-          : "Equipamentos de climatização"}
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+        {titulo}
       </h1>
-      <p className="mt-3 leading-relaxed text-pretty text-muted-foreground">
-        {marcaUnica
-          ? `Toda a gama ${rotuloMarca(marcaUnica)} que distribuímos. Filtre por família, tipo de unidade ou potência. Preços de tabela (PVP), sem IVA.`
-          : "Filtre por família, marca, tipo de unidade, potência ou preço, ou pesquise por modelo. Preços de tabela (PVP), sem IVA."}
+      <p className="mt-2 leading-relaxed text-pretty text-muted-foreground">
+        Escolha a família, refine por marca, tipo de unidade ou potência, ou
+        pesquise pela referência. Preços de tabela (PVP), sem IVA.
       </p>
     </div>
   )
@@ -258,6 +288,7 @@ type Dados = {
 function Resultados({
   data,
   vista,
+  mostrarFamilia,
   aCarregar,
   aAtualizar,
   temFiltro,
@@ -266,6 +297,7 @@ function Resultados({
 }: {
   data: Dados | undefined
   vista: "grelha" | "lista"
+  mostrarFamilia: boolean
   aCarregar: boolean
   aAtualizar: boolean
   temFiltro: boolean
@@ -294,6 +326,7 @@ function Resultados({
     <ResultadosComPrecos
       data={data}
       vista={vista}
+      mostrarFamilia={mostrarFamilia}
       aAtualizar={aAtualizar}
       onPagina={onPagina}
     />
@@ -303,11 +336,13 @@ function Resultados({
 function ResultadosComPrecos({
   data,
   vista,
+  mostrarFamilia,
   aAtualizar,
   onPagina,
 }: {
   data: Dados
   vista: "grelha" | "lista"
+  mostrarFamilia: boolean
   aAtualizar: boolean
   onPagina: (pagina: number) => void
 }) {
@@ -324,7 +359,11 @@ function ResultadosComPrecos({
               overlay?.get(entrada.grupoModelo) ?? entrada.precoDesdeCents
             const entradaVista = { ...entrada, precoDesdeCents }
             return vista === "grelha" ? (
-              <ProductCard key={entrada.grupoModelo} entrada={entradaVista} />
+              <ProductCard
+                key={entrada.grupoModelo}
+                entrada={entradaVista}
+                mostrarFamilia={mostrarFamilia}
+              />
             ) : (
               <ProductRow key={entrada.grupoModelo} entrada={entradaVista} />
             )
