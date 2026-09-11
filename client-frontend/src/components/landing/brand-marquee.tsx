@@ -84,7 +84,7 @@ function BrandLogo({ marca }: { marca: Marca }) {
       <img
         src={marca.logo}
         alt={marca.nome}
-        loading="lazy"
+        // Eager: a lazily-loaded image would decode on first hover and flash.
         className="absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-300 group-hover/logo:opacity-100"
       />
     </div>
@@ -120,7 +120,13 @@ export function BrandMarquee() {
                   // The second copy exists only to make the marquee loop
                   // seamlessly, so keep it out of the tab order.
                   tabIndex={duplicado ? -1 : undefined}
-                  className="flex items-center justify-center rounded-lg px-3 py-2 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className={cn(
+                    "flex items-center justify-center rounded-lg px-3 py-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    // Masked logos cross-fade to full color on hover; darkening
+                    // the mask at the same time reads as a black flash, so only
+                    // the plain wordmark gets the hover tint.
+                    !marca.logo && "transition-colors hover:text-foreground"
+                  )}
                 >
                   <BrandLogo marca={marca} />
                 </Link>
