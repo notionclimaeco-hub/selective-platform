@@ -278,7 +278,7 @@ function SubmeterEncomenda({
       ) : (
         <p className="mt-2 text-center text-xs text-muted-foreground">
           Os preços de revenda ficam congelados. O escritório confirma stock e
-          depois envia a pró-forma. Acompanhe em{" "}
+          depois envia o pedido de pagamento. Acompanhe em{" "}
           <Link
             to="/conta/encomendas"
             onClick={onFechar}

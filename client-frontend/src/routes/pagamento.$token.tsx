@@ -3,16 +3,27 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import type { PaymentsModulePayByBankInstance } from "@revolut/checkout/types/types"
+import {
+  CheckCircle2,
+  Clock,
+  Landmark,
+  Receipt,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react"
 
 import { api } from "@convex/_generated/api"
+import { LinhasEncomenda } from "@/components/encomendas/linhas-encomenda"
 import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
-import { eurExato, rotuloMarca } from "@/lib/catalogo"
+import { eurExato } from "@/lib/catalogo"
 import {
   MOTIVO_CANCELAMENTO_LABELS,
   formatarDataEncomenda,
+  prazoRelativo,
 } from "@/lib/encomendas"
+import { cn } from "@/lib/utils"
 
 /**
  * Merchant-hosted payment page (#8): no login, the token is the credential.
@@ -33,9 +44,9 @@ function PagamentoPage() {
   return (
     <div className="flex min-h-svh flex-col">
       <SiteHeader />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-12 sm:px-6">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
         {pagamento === undefined ? (
-          <p className="text-sm text-muted-foreground">A carregar…</p>
+          <Esqueleto />
         ) : pagamento === null ? (
           <LinkInvalido />
         ) : (
@@ -49,7 +60,7 @@ function PagamentoPage() {
 
 function LinkInvalido() {
   return (
-    <section className="rounded-2xl border bg-card p-6 shadow-sm">
+    <section className="mx-auto w-full max-w-xl rounded-2xl border bg-card p-6 shadow-sm">
       <h1 className="text-lg font-semibold tracking-tight">
         Link de pagamento inválido
       </h1>
@@ -72,112 +83,113 @@ function LinkInvalido() {
 type Vista = NonNullable<FunctionReturnType<typeof api.pagamentos.porToken>>
 
 function Pagamento({ pagamento }: { pagamento: Vista }) {
-  const totalIva = pagamento.totalPagamentoCents ?? 0
-  const iva = totalIva - pagamento.totalRevendaCents
+  const [agora] = useState(() => Date.now())
+  const pagavel =
+    pagamento.estado === "aguardando_pagamento" && !!pagamento.revolutToken
 
   return (
     <>
       <div>
-        <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-          Pagamento
+        <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+          <ShieldCheck className="size-3.5" /> Pagamento seguro
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {pagamento.titulo}
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+          Encomenda ENC-{pagamento.numero}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {pagamento.empresa}
-        </p>
+        <p className="mt-1.5 text-sm text-muted-foreground">{pagamento.empresa}</p>
       </div>
 
-      <Estado pagamento={pagamento} />
-
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <ul className="divide-y">
-          {pagamento.linhas.map((linha) => (
-            <li
-              key={linha.ref}
-              className="flex items-start justify-between gap-4 px-4 py-3.5"
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="order-2 flex min-w-0 flex-col gap-6 lg:order-1">
+          <LinhasEncomenda
+            linhas={pagamento.linhas}
+            totais={pagamento}
+            mostrarEstado={false}
+          />
+          <p className="text-sm text-muted-foreground">
+            Preços de revenda congelados ao submeter a encomenda. IVA a{" "}
+            {pagamento.ivaPercent}%. Dúvidas?{" "}
+            <a
+              href={`mailto:geral@climaeco.pt?subject=${encodeURIComponent(`Encomenda ENC-${pagamento.numero}`)}`}
+              className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{linha.nome}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {rotuloMarca(linha.marca)} · {linha.ref} · {linha.qty} ×{" "}
-                  {eurExato.format(linha.precoRevendaCents / 100)}
-                </p>
-              </div>
-              <p className="shrink-0 text-sm font-semibold tabular-nums">
-                {eurExato.format((linha.precoRevendaCents * linha.qty) / 100)}
-              </p>
-            </li>
-          ))}
-        </ul>
-        <dl className="space-y-1 border-t px-4 py-3 text-sm">
-          <div className="flex justify-between text-muted-foreground">
-            <dt>Subtotal (s/IVA)</dt>
-            <dd className="tabular-nums">
-              {eurExato.format(pagamento.totalRevendaCents / 100)}
-            </dd>
-          </div>
-          {pagamento.totalPagamentoCents !== undefined && (
-            <>
-              <div className="flex justify-between text-muted-foreground">
-                <dt>IVA ({pagamento.ivaPercent}%)</dt>
-                <dd className="tabular-nums">{eurExato.format(iva / 100)}</dd>
-              </div>
-              <div className="flex justify-between pt-1 text-base font-semibold">
-                <dt>Total a pagar</dt>
-                <dd className="text-primary tabular-nums">
-                  {eurExato.format(totalIva / 100)}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-      </section>
+              geral@climaeco.pt
+            </a>
+          </p>
+        </div>
 
-      <p className="text-sm text-muted-foreground">
-        A fatura-recibo é emitida automaticamente após a confirmação do
-        pagamento e fica disponível na área de cliente.
-      </p>
+        <aside className="order-1 flex flex-col gap-4 lg:order-2 lg:sticky lg:top-24">
+          {pagavel ? (
+            <PagarPorBanco
+              revolutToken={pagamento.revolutToken!}
+              totalCents={pagamento.totalPagamentoCents ?? 0}
+              expiraEm={pagamento.paymentExpiresAt}
+              agora={agora}
+            />
+          ) : (
+            <EstadoNaoPagavel pagamento={pagamento} />
+          )}
+          <Link
+            to="/conta/encomendas"
+            className="text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Ver todas as encomendas na área de cliente
+          </Link>
+        </aside>
+      </div>
     </>
   )
 }
 
-function Estado({ pagamento }: { pagamento: Vista }) {
-  if (pagamento.estado === "aguardando_pagamento" && pagamento.revolutToken) {
-    return (
-      <PagarPorBanco
-        revolutToken={pagamento.revolutToken}
-        expiraEm={pagamento.paymentExpiresAt}
-      />
-    )
-  }
-  const { titulo, texto } = textoEstado(pagamento)
+function EstadoNaoPagavel({ pagamento: p }: { pagamento: Vista }) {
+  const { icon: Icon, tom, titulo, texto } = textoEstado(p)
   return (
-    <section className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="text-lg font-semibold tracking-tight">{titulo}</h2>
+    <section className={cn("rounded-2xl border p-6 shadow-sm", tom)}>
+      <Icon className="size-8" />
+      <h2 className="mt-3 text-lg font-semibold tracking-tight text-foreground">
+        {titulo}
+      </h2>
       <p className="mt-2 text-sm text-muted-foreground">{texto}</p>
+      {p.totalPagamentoCents !== undefined && (
+        <p className="mt-4 border-t pt-3 text-sm text-muted-foreground">
+          Total{p.estado === "paga" || p.estado === "concluida" ? " pago" : ""}{" "}
+          <span className="float-right font-semibold text-foreground tabular-nums">
+            {eurExato.format(p.totalPagamentoCents / 100)}
+          </span>
+        </p>
+      )}
     </section>
   )
 }
 
-function textoEstado(p: Vista): { titulo: string; texto: string } {
+function textoEstado(p: Vista): {
+  icon: typeof CheckCircle2
+  tom: string
+  titulo: string
+  texto: string
+} {
   switch (p.estado) {
     case "paga":
     case "concluida":
       return {
+        icon: CheckCircle2,
+        tom: "border-emerald-200 bg-emerald-50/60 text-emerald-600",
         titulo: "Pagamento recebido",
         texto: `Obrigado. Recebemos o pagamento${p.paidAt ? ` em ${formatarDataEncomenda(p.paidAt)}` : ""}. Vamos encomendar aos fornecedores e avisamos quando o equipamento estiver no armazém.`,
       }
     case "cancelada":
       return {
+        icon: XCircle,
+        tom: "bg-card text-muted-foreground",
         titulo: "Encomenda cancelada",
         texto: p.cancelReason
-          ? MOTIVO_CANCELAMENTO_LABELS[p.cancelReason]
+          ? `${MOTIVO_CANCELAMENTO_LABELS[p.cancelReason]} Esta encomenda já não pode ser paga.`
           : "Esta encomenda foi cancelada e já não pode ser paga.",
       }
     default:
       return {
+        icon: Clock,
+        tom: "bg-card text-amber-600",
         titulo: "Pagamento ainda não disponível",
         texto:
           "O escritório está a rever esta encomenda. Quando o valor final estiver fechado, este link volta a ficar activo.",
@@ -187,10 +199,14 @@ function textoEstado(p: Vista): { titulo: string; texto: string } {
 
 function PagarPorBanco({
   revolutToken,
+  totalCents,
   expiraEm,
+  agora,
 }: {
   revolutToken: string
+  totalCents: number
   expiraEm?: number
+  agora: number
 }) {
   const [fase, setFase] = useState<Fase>("pronto")
   const [erro, setErro] = useState<string | null>(null)
@@ -237,35 +253,82 @@ function PagarPorBanco({
   }
 
   return (
-    <section className="rounded-2xl border bg-card p-6 shadow-sm">
-      <h2 className="text-lg font-semibold tracking-tight">
-        Pagar por transferência bancária
-      </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Escolha o seu banco e autorize a transferência na app ou no homebanking.
-        Sem cartão, sem taxas adicionais.
-        {expiraEm && ` Link válido até ${formatarDataEncomenda(expiraEm)}.`}
-      </p>
-      <Button
-        className="mt-4"
-        size="lg"
-        disabled={fase === "a_abrir"}
-        onClick={() => void pagar()}
-      >
-        {fase === "a_abrir" ? "A abrir…" : "Pagar com o meu banco"}
-      </Button>
-      {fase === "aberto" && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          Assim que o banco confirmar a transferência, esta página actualiza
-          automaticamente. Pode demorar alguns segundos.
+    <section className="overflow-hidden rounded-2xl border border-primary/30 bg-card shadow-md">
+      <div className="p-6">
+        <p className="text-sm text-muted-foreground">Total a pagar (c/IVA)</p>
+        <p className="mt-1 text-3xl font-semibold tracking-tight text-primary tabular-nums">
+          {eurExato.format(totalCents / 100)}
         </p>
-      )}
-      {fase === "cancelado" && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          Pagamento cancelado. Pode tentar de novo.
-        </p>
-      )}
-      {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
+        {expiraEm && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-800 ring-1 ring-orange-600/20 ring-inset">
+            <Clock className="size-3.5" />
+            Válido até {formatarDataEncomenda(expiraEm)} · {prazoRelativo(expiraEm, agora)}
+          </p>
+        )}
+
+        <Button
+          className="mt-5 h-12 w-full text-base"
+          size="lg"
+          disabled={fase === "a_abrir"}
+          onClick={() => void pagar()}
+        >
+          <Landmark data-icon="inline-start" />
+          {fase === "a_abrir" ? "A abrir…" : "Pagar com o meu banco"}
+        </Button>
+
+        {fase === "aberto" && (
+          <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
+            Assim que o banco confirmar a transferência, esta página actualiza
+            automaticamente. Pode demorar alguns segundos.
+          </p>
+        )}
+        {fase === "cancelado" && (
+          <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
+            Pagamento cancelado. Pode tentar de novo quando quiser.
+          </p>
+        )}
+        {erro && (
+          <p className="mt-3 text-sm text-destructive" aria-live="polite">
+            {erro}
+          </p>
+        )}
+      </div>
+
+      <ol className="space-y-2.5 border-t bg-secondary/40 px-6 py-4 text-sm">
+        <PassoAjuda n={1}>Escolha o seu banco na janela que abre.</PassoAjuda>
+        <PassoAjuda n={2}>
+          Autorize a transferência na app ou no homebanking — sem cartão.
+        </PassoAjuda>
+        <PassoAjuda n={3}>
+          <span className="inline-flex items-center gap-1.5">
+            <Receipt className="size-3.5 text-primary" /> A fatura-recibo é
+            emitida automaticamente.
+          </span>
+        </PassoAjuda>
+      </ol>
     </section>
+  )
+}
+
+function PassoAjuda({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2.5 text-muted-foreground">
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+        {n}
+      </span>
+      <span>{children}</span>
+    </li>
+  )
+}
+
+function Esqueleto() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy>
+      <div className="h-16 w-64 animate-pulse rounded-xl bg-secondary/60" />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="h-72 animate-pulse rounded-2xl border bg-secondary/60" />
+        <div className="h-64 animate-pulse rounded-2xl border bg-secondary/60" />
+      </div>
+    </div>
   )
 }

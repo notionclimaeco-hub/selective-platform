@@ -54,6 +54,10 @@ const encomendaValidator = v.object({
   totalRevendaCents: v.number(),
   ivaPercent: v.number(),
   nLinhas: v.number(),
+  // Lifecycle timestamps feed the installer's order timeline.
+  stockRequestedAt: v.optional(v.number()),
+  paymentRequestedAt: v.optional(v.number()),
+  cancelledAt: v.optional(v.number()),
   // Payment (#8): the link is live only while `aguardando_pagamento`.
   pagamentoToken: v.optional(v.string()),
   totalPagamentoCents: v.optional(v.number()),
@@ -61,7 +65,8 @@ const encomendaValidator = v.object({
   paidAt: v.optional(v.number()),
 });
 
-// No `custoCents`, no qty buckets yet (post-pay view is a later slice).
+// No `custoCents` (internal). The post-pay qty buckets are present only after
+// ORDER_COMPLETED; the installer sees them as delivery progress per line.
 const linhaValidator = v.object({
   _id: v.id("installerOrderLines"),
   ref: v.string(),
@@ -71,6 +76,10 @@ const linhaValidator = v.object({
   precoRevendaCents: v.number(),
   pvpCents: v.number(),
   estadoLinha: estadoLinhaValidator,
+  qtyPorEnviar: v.optional(v.number()),
+  qtyEmTransito: v.optional(v.number()),
+  qtyAguardaRecolha: v.optional(v.number()),
+  qtyFalhada: v.optional(v.number()),
 });
 
 const detalheValidator = encomendaValidator.extend({
@@ -91,6 +100,9 @@ function paraCliente(
     totalRevendaCents: doc.totalRevendaCents,
     ivaPercent: doc.ivaPercent,
     nLinhas,
+    stockRequestedAt: doc.stockRequestedAt,
+    paymentRequestedAt: doc.paymentRequestedAt,
+    cancelledAt: doc.cancelledAt,
     pagamentoToken: doc.estado === "aguardando_pagamento" ? doc.pagamentoToken : undefined,
     totalPagamentoCents: doc.totalPagamentoCents,
     paymentExpiresAt: doc.estado === "aguardando_pagamento" ? doc.paymentExpiresAt : undefined,
@@ -108,6 +120,10 @@ function linhaParaCliente(doc: Doc<"installerOrderLines">) {
     precoRevendaCents: doc.precoRevendaCents,
     pvpCents: doc.pvpCents,
     estadoLinha: doc.estadoLinha,
+    qtyPorEnviar: doc.qtyPorEnviar,
+    qtyEmTransito: doc.qtyEmTransito,
+    qtyAguardaRecolha: doc.qtyAguardaRecolha,
+    qtyFalhada: doc.qtyFalhada,
   };
 }
 

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { useAuth } from "@clerk/tanstack-react-start"
+import { UserRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { QuoteTrigger } from "@/components/orcamento/quote-trigger"
@@ -47,6 +48,16 @@ export function SiteHeader() {
               </a>
             ),
           )}
+          {/* Signed-in installers live in Encomendas; give it a first-class slot. */}
+          {isSignedIn && (
+            <Link
+              to="/conta/encomendas"
+              className="transition-colors hover:text-foreground"
+              activeProps={{ className: "text-foreground" }}
+            >
+              Encomendas
+            </Link>
+          )}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -59,6 +70,13 @@ export function SiteHeader() {
           >
             Área de Cliente
           </Button>
+          <Link
+            to={areaClienteTo}
+            aria-label="Área de Cliente"
+            className="flex size-10 items-center justify-center rounded-full border bg-card text-primary transition-colors hover:bg-secondary sm:hidden"
+          >
+            <UserRound className="size-5" />
+          </Link>
         </div>
       </div>
     </header>
