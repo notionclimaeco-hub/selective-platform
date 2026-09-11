@@ -53,7 +53,7 @@ function PagamentoPage() {
           <Pagamento pagamento={pagamento} />
         )}
       </main>
-      <SiteFooter cta={false} />
+      <SiteFooter />
     </div>
   )
 }

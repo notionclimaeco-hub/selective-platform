@@ -38,7 +38,7 @@ export function AreaCliente({ children }: { children: React.ReactNode }) {
           </div>
         </Show>
       </main>
-      <SiteFooter cta={false} />
+      <SiteFooter />
     </div>
   )
 }

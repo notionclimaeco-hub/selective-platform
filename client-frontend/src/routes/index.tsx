@@ -4,6 +4,7 @@ import { BrandMarquee } from "@/components/landing/brand-marquee"
 import { Hero } from "@/components/landing/hero"
 import { FlowSteps } from "@/components/landing/flow-steps"
 import { ProductShowcase } from "@/components/landing/product-showcase"
+import { ClosingCta } from "@/components/landing/closing-cta"
 import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { WhyUs } from "@/components/landing/why-us"
@@ -20,6 +21,7 @@ function LandingPage() {
         <BrandMarquee />
         <ProductShowcase />
         <WhyUs />
+        <ClosingCta />
       </main>
       <SiteFooter />
     </div>

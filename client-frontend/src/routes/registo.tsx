@@ -50,7 +50,7 @@ function RegistoPage() {
           <FormularioEmpresa />
         </Show>
       </main>
-      <SiteFooter cta={false} />
+      <SiteFooter />
     </div>
   )
 }

@@ -50,7 +50,7 @@ function EntrarPage() {
           </Link>
         </p>
       </main>
-      <SiteFooter cta={false} />
+      <SiteFooter />
     </div>
   )
 }
