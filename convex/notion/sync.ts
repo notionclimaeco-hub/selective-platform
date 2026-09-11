@@ -17,6 +17,7 @@ import {
   LIN,
   linhaRegisto,
   MOD,
+  nomeMarcaPadrao,
   SECCAO_EMAILS,
   SECCAO_LINHAS,
   SECCAO_REGISTO,
@@ -206,7 +207,7 @@ export const renderizar = internalAction({
     const agora = Date.now();
     const { encomenda, linhas, empresa } = dados;
     const nomeMarca = (slug: string) =>
-      dados.marcas.find((m) => m.slug === slug)?.nome ?? slug;
+      dados.marcas.find((m) => m.slug === slug)?.nome ?? nomeMarcaPadrao(slug);
 
     try {
       const eventos: Array<string> = [];

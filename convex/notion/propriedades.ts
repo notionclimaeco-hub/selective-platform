@@ -4,17 +4,22 @@
  * by hand, so anything can be missing or of the wrong type.
  */
 
-export type Rich = { type: "text"; text: { content: string } };
+export type Rich = {
+  type: "text";
+  text: { content: string };
+  annotations?: { bold: true };
+};
 
 const MAX_RICH_TEXT = 2000;
 
-function rich(texto: string): Array<Rich> {
+function rich(texto: string, negrito = false): Array<Rich> {
   if (texto.length === 0) return [];
   const partes: Array<Rich> = [];
   for (let i = 0; i < texto.length; i += MAX_RICH_TEXT) {
     partes.push({
       type: "text",
       text: { content: texto.slice(i, i + MAX_RICH_TEXT) },
+      ...(negrito ? { annotations: { bold: true } } : {}),
     });
   }
   return partes;
@@ -60,6 +65,21 @@ export const bloco = {
     object: "block",
     type: "paragraph",
     paragraph: { rich_text: rich(texto) },
+  }),
+  /** Callout with a bold title line and nested blocks (one level deep). */
+  callout: (
+    titulo: string,
+    emoji: string,
+    filhos: ReadonlyArray<Record<string, unknown>>,
+  ) => ({
+    object: "block",
+    type: "callout",
+    callout: {
+      rich_text: rich(titulo, true),
+      icon: { type: "emoji", emoji },
+      color: "gray_background",
+      children: [...filhos],
+    },
   }),
   divisor: () => ({ object: "block", type: "divider", divider: {} }),
   /** Simple table with a header row. Cells are plain strings. */

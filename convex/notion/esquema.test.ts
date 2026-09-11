@@ -17,6 +17,8 @@ import {
   limparEntradasLinha,
   MODELO_PADRAO_CORPO,
   preencherModelo,
+  blocosDoCorpo,
+  tabelaEmail,
   tabelaLinhas,
 } from "./esquema";
 import { pageIdDoWebhook } from "./webhook";
@@ -123,12 +125,22 @@ describe("supplier drafts", () => {
   it("fills placeholders", () => {
     const m = preencherModelo(
       { assunto: "Stock {{encomenda}}", corpo: MODELO_PADRAO_CORPO },
-      { marca: "Hisense", encomenda: "ENC-7", linhas: "- HS-001 × 2" },
+      { marca: "Hisense", encomenda: "ENC-7" },
     );
     expect(m.assunto).toBe("Stock ENC-7");
     expect(m.corpo).toContain("artigos Hisense:");
-    expect(m.corpo).toContain("- HS-001 × 2");
-    expect(m.corpo).not.toContain("{{");
+    expect(m.corpo).toContain("{{linhas}}");
+    expect(m.corpo).not.toContain("{{marca}}");
+  });
+
+  it("puts the table where {{linhas}} sits, between paragraphs", () => {
+    const tabela = tabelaEmail([linha({ ref: "HS-1", nome: "Split", qty: 2 })]);
+    const blocos = blocosDoCorpo("Bom dia,\nsegue:\n\n{{linhas}}\n\nObrigado", tabela);
+    expect(blocos.map((b) => b.type)).toEqual(["paragraph", "table", "paragraph"]);
+    expect(JSON.stringify(blocos[0])).toContain("Bom dia,\\nsegue:");
+    expect(JSON.stringify(tabela)).toContain("HS-1");
+    // Without a marker the table goes last.
+    expect(blocosDoCorpo("Olá", tabela).map((b) => b.type)).toEqual(["paragraph", "table"]);
   });
 
   it("builds one draft per remaining marca, falling back to the default model", () => {
@@ -148,9 +160,14 @@ describe("supplier drafts", () => {
     const texto = JSON.stringify(blocos);
     expect(texto).toContain("Assunto: Pedido HISENSE");
     expect(texto).toContain("Assunto: Nipon ENC-7");
-    expect(texto).toContain("N: - NP-1 — Suporte × 2");
-    // Dropped line: in the table (as Retirada) but no supplier draft.
-    const rascunhos = JSON.stringify(blocos.filter((b) => b.type !== "table"));
+    const callouts = blocos.filter((b) => b.type === "callout");
+    expect(callouts).toHaveLength(2);
+    const nipon = JSON.stringify(callouts[1]);
+    expect(nipon).toContain('"N:"');
+    expect(nipon).toContain("NP-1");
+    expect(nipon).toContain("Suporte");
+    // Dropped line: in the lines table (as Retirada) but no supplier draft.
+    const rascunhos = JSON.stringify(callouts);
     expect(rascunhos).not.toContain("DAIKIN");
     expect(texto).toContain("Registo");
   });

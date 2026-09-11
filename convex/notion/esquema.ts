@@ -255,15 +255,16 @@ export function esquemaModelos(): Esquema {
   };
 }
 
+/**
+ * Placeholders: {{encomenda}} = ENC-n, {{marca}} = brand name, {{linhas}} =
+ * where the reference/quantity table goes (rendered as a Notion table).
+ */
 export const MODELO_PADRAO_ASSUNTO = "Pedido de stock — {{encomenda}}";
 export const MODELO_PADRAO_CORPO = [
   "Bom dia,",
-  "",
   "Agradecemos confirmação de stock e prazo para os seguintes artigos {{marca}}:",
   "",
   "{{linhas}}",
-  "",
-  "Referência interna: {{encomenda}}.",
   "",
   "Obrigado,",
   "Climaeco Selective",
@@ -372,22 +373,62 @@ export function limparEntradasLinha(erro: string | null): Record<string, unknown
 
 export type Modelo = { assunto: string; corpo: string };
 
+/** Display names when the `marcas` table has no row for the slug. */
+const NOMES_MARCA: Record<string, string> = {
+  mitsubishi: "Mitsubishi Electric",
+  daikin: "Daikin",
+  nipon: "Nipon",
+  hisense: "Hisense",
+  midea: "Midea",
+};
+
+export function nomeMarcaPadrao(slug: string): string {
+  return NOMES_MARCA[slug] ?? (slug.charAt(0).toUpperCase() + slug.slice(1));
+}
+
+export const MARCADOR_LINHAS = "{{linhas}}";
+
+/** Fills text placeholders; `{{linhas}}` is kept for `blocosDoCorpo`. */
 export function preencherModelo(
   modelo: Modelo,
-  dados: { marca: string; encomenda: string; linhas: string },
+  dados: { marca: string; encomenda: string },
 ): Modelo {
   const subst = (texto: string) =>
-    texto
-      .replaceAll("{{marca}}", dados.marca)
-      .replaceAll("{{encomenda}}", dados.encomenda)
-      .replaceAll("{{linhas}}", dados.linhas);
+    texto.replaceAll("{{marca}}", dados.marca).replaceAll("{{encomenda}}", dados.encomenda);
   return { assunto: subst(modelo.assunto), corpo: subst(modelo.corpo) };
 }
 
-export function linhasParaEmail(
+/** Reference / quantity table the supplier reads. */
+export function tabelaEmail(
   linhas: ReadonlyArray<Pick<Doc<"installerOrderLines">, "ref" | "nome" | "qty">>,
-): string {
-  return linhas.map((l) => `- ${l.ref} — ${l.nome} × ${l.qty}`).join("\n");
+): Record<string, unknown> {
+  return bloco.tabela(
+    ["Referência", "Descrição", "Quantidade"],
+    linhas.map((l) => [l.ref, l.nome, String(l.qty)]),
+  );
+}
+
+/**
+ * Turns the filled body into blocks: blank-line separated paragraphs, with
+ * the lines table where `{{linhas}}` sits (appended at the end if absent).
+ */
+export function blocosDoCorpo(
+  corpo: string,
+  tabela: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const paragrafos = (texto: string) =>
+    texto
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
+      .map((p) => bloco.paragrafo(p));
+  const posicao = corpo.indexOf(MARCADOR_LINHAS);
+  if (posicao === -1) return [...paragrafos(corpo), tabela];
+  return [
+    ...paragrafos(corpo.slice(0, posicao)),
+    tabela,
+    ...paragrafos(corpo.slice(posicao + MARCADOR_LINHAS.length)),
+  ];
 }
 
 export const SECCAO_LINHAS = "Linhas";
@@ -424,7 +465,7 @@ export const SECCAO_REGISTO = "Registo";
 
 /** Page body when the data source has no default template. */
 export function corpoInicial(
-  encomenda: Pick<Doc<"installerOrders">, "titulo">,
+  encomenda: Pick<Doc<"installerOrders">, "numero">,
   linhas: ReadonlyArray<Doc<"installerOrderLines">>,
   modelos: Map<string, Modelo>,
   nomeMarca: (slug: string) => string,
@@ -441,9 +482,9 @@ export function seccaoRegisto(): Array<Record<string, unknown>> {
   return [bloco.divisor(), bloco.h2(SECCAO_REGISTO)];
 }
 
-/** One supplier email draft per remaining marca. */
+/** One supplier email draft per remaining marca, each in its own callout. */
 export function seccaoEmails(
-  encomenda: Pick<Doc<"installerOrders">, "titulo">,
+  encomenda: Pick<Doc<"installerOrders">, "numero">,
   linhas: ReadonlyArray<Doc<"installerOrderLines">>,
   modelos: Map<string, Modelo>,
   nomeMarca: (slug: string) => string,
@@ -451,19 +492,22 @@ export function seccaoEmails(
   const blocos: Array<Record<string, unknown>> = [bloco.h2(SECCAO_EMAILS)];
   for (const marca of marcasDe(linhas)) {
     const daMarca = linhasRestantes(linhas).filter((l) => l.marca === marca);
+    const tabela = tabelaEmail(daMarca);
     const modelo = modelos.get(marca) ?? modelos.get(MODELO_PADRAO);
-    blocos.push(bloco.h3(nomeMarca(marca)));
     if (!modelo) {
-      blocos.push(bloco.paragrafo(linhasParaEmail(daMarca)));
+      blocos.push(bloco.callout(nomeMarca(marca), "✉️", [tabela]));
       continue;
     }
     const preenchido = preencherModelo(modelo, {
       marca: nomeMarca(marca),
-      encomenda: encomenda.titulo,
-      linhas: linhasParaEmail(daMarca),
+      encomenda: `ENC-${encomenda.numero}`,
     });
-    blocos.push(bloco.paragrafo(`Assunto: ${preenchido.assunto}`));
-    blocos.push(bloco.paragrafo(preenchido.corpo));
+    blocos.push(
+      bloco.callout(nomeMarca(marca), "✉️", [
+        bloco.paragrafo(`Assunto: ${preenchido.assunto}`),
+        ...blocosDoCorpo(preenchido.corpo, tabela),
+      ]),
+    );
   }
   return blocos;
 }
