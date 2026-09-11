@@ -8,6 +8,7 @@ import {
   type MotivoCancelamento,
 } from "../lib/encomendaEstados";
 import { bloco, euros, ler, prop } from "./propriedades";
+import { urlPagamento } from "../revolut/regras";
 
 /**
  * The office desk contract (#12), amended on 2026-09-11 (no pró-forma).
@@ -311,7 +312,13 @@ export function espelhoEncomenda(
   linhas: ReadonlyArray<Doc<"installerOrderLines">>,
   empresa: Pick<Doc<"installerCompanies">, "nomeLegal" | "nif">,
   agora: number,
+  /** Public app origin for the payment link (CLIENT_APP_URL); null hides it. */
+  baseUrl: string | null = null,
 ): Record<string, unknown> {
+  const linkPagamento =
+    baseUrl && encomenda.pagamentoToken && encomenda.estado === "aguardando_pagamento"
+      ? urlPagamento(baseUrl, encomenda.pagamentoToken)
+      : null;
   return {
     [ENC.titulo]: prop.titulo(encomenda.titulo),
     [ENC.convexId]: prop.texto(encomenda._id),
@@ -323,6 +330,7 @@ export function espelhoEncomenda(
     [ENC.marcas]: prop.multiSelecao(marcasDe(linhas)),
     [ENC.submetida]: prop.data(encomenda.placedAt),
     [ENC.atualizada]: prop.data(agora),
+    [ENC.linkPagamento]: prop.url(linkPagamento),
   };
 }
 
@@ -521,6 +529,8 @@ export function linhaRegisto(agora: number, evento: string): Record<string, unkn
 
 export type ComandoEncomenda =
   | { tipo: "stock_pedido" }
+  | { tipo: "pedir_pagamento" }
+  | { tipo: "voltar_editar" }
   | { tipo: "cancelar"; motivo: string }
   | { tipo: "nao_disponivel"; acao: string };
 
@@ -539,6 +549,10 @@ export function interpretarEncomenda(props: Props): ComandoEncomenda | null {
   switch (acao) {
     case ACAO_ENCOMENDA.stockPedido:
       return { tipo: "stock_pedido" };
+    case ACAO_ENCOMENDA.pedirPagamento:
+      return { tipo: "pedir_pagamento" };
+    case ACAO_ENCOMENDA.voltarAEditar:
+      return { tipo: "voltar_editar" };
     case ACAO_ENCOMENDA.cancelar:
       return { tipo: "cancelar", motivo: ler.texto(props, ENC.motivo) };
     default:

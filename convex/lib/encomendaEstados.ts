@@ -103,6 +103,26 @@ export function prontaParaPagamento(
   );
 }
 
+export function assertProntaParaPagamento(
+  estado: EstadoEncomenda,
+  linhas: ReadonlyArray<{ estadoLinha: EstadoLinha }>,
+): void {
+  if (!prontaParaPagamento(estado, linhas)) {
+    throw new Error(
+      estado === "aguardando_stock"
+        ? "Every remaining line must be confirmed before requesting payment"
+        : `Cannot request payment from state ${estado}`,
+    );
+  }
+}
+
+/** Office void-to-edit: back to `aguardando_stock`, Revolut order cancelled. */
+export function assertPodeVoltarAEditar(estado: EstadoEncomenda): void {
+  if (estado !== "aguardando_pagamento") {
+    throw new Error(`Cannot return to editing from state ${estado}`);
+  }
+}
+
 /** Reduce keeps `confirmada`; any increase returns to `por_confirmar`. */
 export function estadoLinhaAposQty(
   estadoLinha: EstadoLinha,

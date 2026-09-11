@@ -15,6 +15,7 @@ import {
   type Props,
 } from "./esquema";
 import { ler, prop } from "./propriedades";
+import { pedirPagamento, voltarAEditar } from "../revolut/fluxo";
 
 /**
  * Notion → Convex. A database automation posts to `/notion/webhook`
@@ -84,6 +85,15 @@ async function processarEncomenda(
         await ctx.runMutation(internal.encomendas.pedirStock, { encomendaId });
         evento = "Stock pedido aos fornecedores (escritório)";
         break;
+      case "pedir_pagamento":
+        // The mutation writes its own log entry (amount + deadline).
+        await pedirPagamento(ctx, encomendaId);
+        evento = "";
+        break;
+      case "voltar_editar":
+        await voltarAEditar(ctx, encomendaId);
+        evento = "";
+        break;
       case "cancelar":
         await ctx.runMutation(internal.encomendas.cancelarPeloEscritorio, {
           encomendaId,
@@ -100,7 +110,9 @@ async function processarEncomenda(
   }
 
   await notion("PATCH", `/pages/${pageId}`, { properties: limparEntradasEncomenda(null) });
-  await ctx.scheduler.runAfter(0, internal.notion.sync.renderizar, { encomendaId, evento });
+  if (evento.length > 0) {
+    await ctx.scheduler.runAfter(0, internal.notion.sync.renderizar, { encomendaId, evento });
+  }
 }
 
 async function adotarLinha(

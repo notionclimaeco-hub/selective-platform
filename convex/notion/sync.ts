@@ -216,7 +216,13 @@ export const renderizar = internalAction({
       const modelos = () =>
         carregarModelos(notion, dados.bases.find((b) => b.chave === "modelos")?.dataSourceId);
       const emails = async () => seccaoEmails(encomenda, linhas, await modelos(), nomeMarca);
-      const propriedades = espelhoEncomenda(encomenda, linhas, empresa, agora);
+      const propriedades = espelhoEncomenda(
+        encomenda,
+        linhas,
+        empresa,
+        agora,
+        process.env.CLIENT_APP_URL ?? null,
+      );
 
       // Header: patch, or (re)create when missing / deleted by hand.
       let ticket: { pageId: string; criada: boolean };

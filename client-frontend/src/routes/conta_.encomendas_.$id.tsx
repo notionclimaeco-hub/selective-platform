@@ -156,16 +156,45 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
             ? MOTIVO_CANCELAMENTO_LABELS[encomenda.cancelReason]
             : ESTADO_ENCOMENDA_TEXTO[encomenda.estado]}
         </p>
-        {podeCancelarEncomenda(encomenda.estado) && (
-          <Button
-            variant="destructive"
-            className="mt-4"
-            disabled={aCancelar}
-            onClick={() => void onCancelar()}
-          >
-            {aCancelar ? "A cancelar…" : "Cancelar encomenda"}
-          </Button>
+        {encomenda.estado === "aguardando_pagamento" && encomenda.pagamentoToken && (
+          <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <p className="text-sm">
+              Total a pagar (c/IVA):{" "}
+              <span className="font-semibold tabular-nums">
+                {eurExato.format((encomenda.totalPagamentoCents ?? 0) / 100)}
+              </span>
+              {encomenda.paymentExpiresAt && (
+                <span className="text-muted-foreground">
+                  {" "}· até {formatarDataEncomenda(encomenda.paymentExpiresAt)}
+                </span>
+              )}
+            </p>
+            <Button
+              render={<Link to="/pagamento/$token" params={{ token: encomenda.pagamentoToken }} />}
+              nativeButton={false}
+              className="mt-3"
+            >
+              Pagar por transferência bancária
+            </Button>
+          </div>
         )}
+        {encomenda.paidAt && encomenda.estado !== "cancelada" && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Pagamento recebido em {formatarDataEncomenda(encomenda.paidAt)}.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          {podeCancelarEncomenda(encomenda.estado) && (
+            <Button
+              variant="destructive"
+              className="mt-4"
+              disabled={aCancelar}
+              onClick={() => void onCancelar()}
+            >
+              {aCancelar ? "A cancelar…" : "Cancelar encomenda"}
+            </Button>
+          )}
+        </div>
         {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
       </section>
 

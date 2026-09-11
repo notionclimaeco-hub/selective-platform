@@ -64,14 +64,22 @@ static lines table itself. Tickets created before the template existed keep
 their old body; new ones get the template. Edit the template freely — only
 the two Convex headings above are looked up by name.
 
-## How the office uses it (this phase: stock)
+## How the office uses it (stock + payment)
 
 - **Estado** is written by Convex only: `Nova — pedir stock` → `A confirmar
   stock` → `Pronta a cobrar` → `A aguardar pagamento` → `Paga — em curso` →
   `Concluída`; `Cancelada (…)`.
 - Ticket **Ação**: `Stock pedido` (after emailing the suppliers — drafts are
-  in the ticket body), `Cancelar` (+ optional `Motivo`). `Pedir pagamento`
-  and `Voltar a editar` arrive with the Revolut slice.
+  in the ticket body), `Pedir pagamento` (only at `Pronta a cobrar`: creates
+  the Revolut order, mirrors `Link pagamento`, logs amount c/IVA and the
+  7-day deadline — see `docs/pagamentos.md`), `Voltar a editar` (cancels the
+  Revolut order and reopens the lines; refused if Revolut already reports
+  the order paid), `Cancelar` (+ optional `Motivo`; also cancels an open
+  Revolut order).
+- Payment events are logged in **Registo** by the webhook: received, expired
+  (ticket → `Cancelada (pagamento expirado)`), declined attempts, and an
+  `ATENÇÃO` line if money arrives on a ticket that is no longer awaiting
+  payment (manual refund).
 - Line **Ação**: `Confirmar stock` (+ `Custo (€)`), `Retirar`, `Alterar qtd`
   (+ `Nova qtd`). `Registar guia`, `Receção armazém`, `Falhar qtd` arrive
   with the post-payment slice.
