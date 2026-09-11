@@ -21,7 +21,7 @@ export function ProductRow({ entrada }: { entrada: CatalogProduct }) {
     <Link
       to="/produto/$ref"
       params={{ ref: entrada.ref }}
-      className="group flex gap-4 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm transition-all hover:border-primary/30 hover:shadow-md sm:gap-5 sm:p-4"
+      className="group flex gap-4 overflow-hidden rounded-xl border bg-card p-3 transition-all hover:border-foreground/25 sm:gap-5 sm:p-4"
     >
       <CardMedia
         familia={entrada.familia}
@@ -71,6 +71,6 @@ export function ProductRow({ entrada }: { entrada: CatalogProduct }) {
 
 export function ProductRowSkeleton() {
   return (
-    <div className="h-36 animate-pulse rounded-2xl border bg-secondary/60" />
+    <div className="h-36 animate-pulse rounded-xl border bg-secondary/60" />
   )
 }

@@ -76,7 +76,10 @@ function ContaAutenticada() {
       />
 
       {vista === undefined && (
-        <div className="h-40 animate-pulse rounded-2xl border bg-secondary/60" aria-busy />
+        <div
+          className="h-40 animate-pulse rounded-xl border bg-secondary/60"
+          aria-busy
+        />
       )}
       {vista === null && <Aviso>Sessão indisponível.</Aviso>}
       {vista?.kind === "sem-org" && <SemEmpresa />}
@@ -156,13 +159,20 @@ function PerfilEmpresa({
   return (
     <>
       {recemPendente && (
-        <section className="flex gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-sm">
-          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden />
+        <section className="flex gap-3 rounded-xl border border-primary/30 bg-primary/5 p-5">
+          <CheckCircle2
+            className="mt-0.5 size-6 shrink-0 text-primary"
+            aria-hidden
+          />
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Pedido enviado</h2>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Pedido enviado
+            </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Recebemos o pedido de{" "}
-              <span className="font-medium text-foreground">{empresa.nomeLegal}</span>{" "}
+              <span className="font-medium text-foreground">
+                {empresa.nomeLegal}
+              </span>{" "}
               (NIF {empresa.nif}). A nossa equipa comercial vai analisar. Não
               precisa de voltar a submeter — o estado fica sempre nesta página.
             </p>
@@ -170,32 +180,43 @@ function PerfilEmpresa({
         </section>
       )}
 
-      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+      <section className="rounded-xl border bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-tight">{empresa.nomeLegal}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">NIF {empresa.nif}</p>
+            <h2 className="text-xl font-semibold tracking-tight">
+              {empresa.nomeLegal}
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              NIF {empresa.nif}
+            </p>
           </div>
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-              estado.classe,
+              estado.classe
             )}
           >
-            <span aria-hidden className={cn("size-1.5 rounded-full", estado.ponto)} />
+            <span
+              aria-hidden
+              className={cn("size-1.5 rounded-full", estado.ponto)}
+            />
             {estado.titulo}
           </span>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">{estado.texto}</p>
 
         <dl className="mt-6 grid gap-x-6 gap-y-4 border-t pt-5 sm:grid-cols-2">
-          <Campo label="Morada" valor={empresa.morada} className="sm:col-span-2" />
+          <Campo
+            label="Morada"
+            valor={empresa.morada}
+            className="sm:col-span-2"
+          />
           <Campo label="Email" valor={empresa.email} />
           <Campo label="Telefone" valor={empresa.telefone} />
           <Campo label="N.º CERTIF" valor={empresa.certifNumero ?? "—"} />
           <Campo
             label="Condições comerciais"
-            valor={aprovada ? empresa.tierNome ?? "Base" : "Após aprovação"}
+            valor={aprovada ? (empresa.tierNome ?? "Base") : "Após aprovação"}
           />
         </dl>
         <p className="mt-5 text-xs text-muted-foreground">
@@ -244,7 +265,7 @@ function Atalho({
   return (
     <Link
       to={to}
-      className="group flex items-start gap-4 rounded-2xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+      className="group flex items-start gap-4 rounded-xl border bg-card p-5 transition-all hover:border-foreground/25"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
         <Icon className="size-5" />
@@ -254,7 +275,9 @@ function Atalho({
           {titulo}
           <ArrowRight className="size-4 text-primary transition-transform group-hover:translate-x-0.5" />
         </span>
-        <span className="mt-1 block text-sm text-muted-foreground">{texto}</span>
+        <span className="mt-1 block text-sm text-muted-foreground">
+          {texto}
+        </span>
       </span>
     </Link>
   )

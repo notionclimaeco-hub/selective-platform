@@ -35,20 +35,18 @@ export function WhyUs() {
   return (
     <section
       id="sobre"
-      className="scroll-mt-20 border-t bg-secondary/40 py-16 md:py-24"
+      className="scroll-mt-20 border-t bg-muted/40 py-16 md:py-24"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="max-w-2xl">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">
-            Sobre nós
-          </p>
-          <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+          <p className="text-sm font-medium text-primary">Sobre nós</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Um parceiro de confiança, há mais de 20 anos
           </h2>
-          <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
+          <p className="mt-4 leading-relaxed text-pretty text-muted-foreground">
             A Clima Eco Selective é uma empresa estabelecida no mercado
-            português de climatização. A nossa longevidade e o reconhecimento
-            de entidades independentes são o reflexo da confiança dos nossos
+            português de climatização. A nossa longevidade e o reconhecimento de
+            entidades independentes são o reflexo da confiança dos nossos
             parceiros e da seriedade com que tratamos cada projeto.
           </p>
         </div>
@@ -57,9 +55,9 @@ export function WhyUs() {
           {CARTOES.map((cartao) => (
             <div
               key={cartao.titulo}
-              className="flex flex-col gap-5 rounded-2xl border bg-card p-8 shadow-sm"
+              className="flex flex-col gap-5 rounded-xl border bg-card p-6 sm:p-8"
             >
-              <span className="flex size-16 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+              <span className="flex size-14 items-center justify-center overflow-hidden rounded-lg border bg-background text-primary">
                 {cartao.logo ? (
                   <img
                     src={cartao.logo}
@@ -70,7 +68,7 @@ export function WhyUs() {
                   <cartao.icon className="size-7" />
                 ) : null}
               </span>
-              <h3 className="text-lg font-semibold leading-snug">
+              <h3 className="text-lg leading-snug font-semibold">
                 {cartao.titulo}
               </h3>
               <p className="text-sm leading-relaxed text-muted-foreground">

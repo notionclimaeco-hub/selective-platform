@@ -12,13 +12,13 @@ export function QuoteTrigger() {
     <button
       type="button"
       onClick={abrir}
-      className="relative inline-flex h-11 items-center gap-2 rounded-xl border bg-card px-3.5 text-sm font-medium shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/50"
+      className="relative inline-flex h-9 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-medium shadow-xs transition-colors hover:bg-muted"
       aria-label={`Lista de orçamento${mostrarBadge ? ` (${totalLinhas})` : ""}`}
     >
-      <FileText className="size-4 text-primary" />
+      <FileText className="size-4" />
       <span className="hidden sm:inline">Orçamento</span>
       {mostrarBadge && (
-        <span className="flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold leading-5 text-primary-foreground">
+        <span className="flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] leading-5 font-semibold text-primary-foreground">
           {totalLinhas}
         </span>
       )}

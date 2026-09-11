@@ -41,7 +41,7 @@ export function LinhasEncomenda({
   const retiradas = linhas.filter((l) => l.estadoLinha === "retirada")
 
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-xl border bg-card">
       <header className="flex items-baseline justify-between border-b px-5 py-3.5">
         <h2 className="font-semibold">Equipamentos</h2>
         <span className="text-sm text-muted-foreground">
@@ -94,14 +94,14 @@ function Linha({
     <li
       className={cn(
         "flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-6",
-        retirada && "bg-muted/30",
+        retirada && "bg-muted/30"
       )}
     >
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "font-medium leading-snug",
-            retirada && "text-muted-foreground line-through",
+            "leading-snug font-medium",
+            retirada && "text-muted-foreground line-through"
           )}
         >
           {linha.nome}
@@ -121,7 +121,7 @@ function Linha({
         <p
           className={cn(
             "font-semibold tabular-nums",
-            retirada && "text-muted-foreground line-through",
+            retirada && "text-muted-foreground line-through"
           )}
         >
           {eurExato.format((linha.precoRevendaCents * linha.qty) / 100)}
@@ -146,7 +146,7 @@ function EstadoLinhaPill({ estado }: { estado: EstadoLinha }) {
         "mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
         confirmada
           ? "bg-emerald-50 text-emerald-800 ring-emerald-600/20"
-          : "bg-amber-50 text-amber-800 ring-amber-600/20",
+          : "bg-amber-50 text-amber-800 ring-amber-600/20"
       )}
     >
       {confirmada ? (
@@ -159,7 +159,12 @@ function EstadoLinhaPill({ estado }: { estado: EstadoLinha }) {
   )
 }
 
-type ParteProgresso = { rotulo: string; qty: number; icon: typeof Truck; tom: string }
+type ParteProgresso = {
+  rotulo: string
+  qty: number
+  icon: typeof Truck
+  tom: string
+}
 
 /** Post-payment delivery buckets, only when the office has set them. */
 function progressoLinha(l: LinhaVista): Array<ParteProgresso> | null {
@@ -199,7 +204,10 @@ function Progresso({ partes }: { partes: Array<ParteProgresso> }) {
   return (
     <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
       {partes.map(({ rotulo, qty, icon: Icon, tom }) => (
-        <li key={rotulo} className={cn("inline-flex items-center gap-1 font-medium", tom)}>
+        <li
+          key={rotulo}
+          className={cn("inline-flex items-center gap-1 font-medium", tom)}
+        >
           <Icon className="size-3.5" />
           {qty} {rotulo}
         </li>

@@ -125,11 +125,6 @@ function CatalogoConteudo() {
 
   return (
     <div className="relative">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-accent/60 via-background to-background"
-      />
-
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-12">
         <Cabecalho marcas={marcasEscolhidas} familia={familiaActiva} />
 
@@ -167,7 +162,7 @@ function CatalogoConteudo() {
                   </button>
                 )}
               </div>
-              <div className="max-h-[calc(100svh-11rem)] overflow-y-auto rounded-2xl border bg-card px-4 py-4">
+              <div className="max-h-[calc(100svh-11rem)] overflow-y-auto rounded-xl border bg-card px-4 py-4">
                 {painel}
               </div>
             </div>
@@ -264,9 +259,7 @@ function Cabecalho({
 
   return (
     <div className="max-w-2xl">
-      <p className="text-sm font-medium tracking-[0.2em] text-primary uppercase">
-        Catálogo
-      </p>
+      <p className="text-sm font-medium text-primary">Catálogo</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
         {titulo}
       </h1>
@@ -346,9 +339,7 @@ function ResultadosComPrecos({
   aAtualizar: boolean
   onPagina: (pagina: number) => void
 }) {
-  const overlay = useMapaDesdePorGrupo(
-    data.entradas.map((e) => e.grupoModelo),
-  )
+  const overlay = useMapaDesdePorGrupo(data.entradas.map((e) => e.grupoModelo))
 
   return (
     <>

@@ -44,38 +44,41 @@
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.2);
+  --radius-2xl: calc(var(--radius) * 1.4);
+  --radius-3xl: calc(var(--radius) * 1.8);
+  --radius-4xl: calc(var(--radius) * 2.4);
 }
 
 /*
- * Clima Eco Selective brand palette, derived from the logo:
+ * Clima Eco Selective palette.
+ *
+ * Brand greens come from the logo and are used sparingly, the way modern
+ * product sites (Linear, Attio, Stripe) use their accent: primary actions,
+ * active states and small highlights. Everything else is a neutral grey scale
+ * on white so content and imagery carry the page.
  *  - deep forest green (wordmark "eco" / "SELECTIVE")  -> --primary
- *  - lime/leaf green (leaf + "clima")                  -> --brand (accent)
- * Neutrals carry a faint green tint so the page feels cohesive without
- * everything being saturated green.
+ *  - lime/leaf green (leaf + "clima")                  -> --brand
  */
 :root {
   --background: oklch(1 0 0);
-  --foreground: oklch(0.22 0.02 150);
+  --foreground: oklch(0.2 0.005 260);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 150);
+  --card-foreground: oklch(0.2 0.005 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 150);
+  --popover-foreground: oklch(0.2 0.005 260);
   --primary: oklch(0.45 0.115 148);
-  --primary-foreground: oklch(0.98 0.01 130);
-  --secondary: oklch(0.965 0.012 140);
-  --secondary-foreground: oklch(0.32 0.06 149);
-  --muted: oklch(0.966 0.008 140);
-  --muted-foreground: oklch(0.5 0.025 150);
+  --primary-foreground: oklch(0.985 0.005 130);
+  --secondary: oklch(0.968 0.002 260);
+  --secondary-foreground: oklch(0.3 0.005 260);
+  --muted: oklch(0.968 0.002 260);
+  --muted-foreground: oklch(0.52 0.012 260);
   --accent: oklch(0.955 0.03 132);
   --accent-foreground: oklch(0.35 0.08 148);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.917 0.012 145);
-  --input: oklch(0.917 0.012 145);
-  --ring: oklch(0.62 0.12 140);
+  --border: oklch(0.905 0.003 260);
+  --input: oklch(0.87 0.004 260);
+  --ring: oklch(0.55 0.11 148);
   --brand: oklch(0.76 0.185 129);
   --brand-foreground: oklch(0.27 0.07 145);
   --chart-1: oklch(0.76 0.185 129);
@@ -84,14 +87,14 @@
   --chart-4: oklch(0.45 0.115 148);
   --chart-5: oklch(0.36 0.09 150);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.005 140);
-  --sidebar-foreground: oklch(0.22 0.02 150);
+  --sidebar: oklch(0.985 0.002 260);
+  --sidebar-foreground: oklch(0.2 0.005 260);
   --sidebar-primary: oklch(0.45 0.115 148);
-  --sidebar-primary-foreground: oklch(0.98 0.01 130);
+  --sidebar-primary-foreground: oklch(0.985 0.005 130);
   --sidebar-accent: oklch(0.955 0.03 132);
   --sidebar-accent-foreground: oklch(0.35 0.08 148);
-  --sidebar-border: oklch(0.917 0.012 145);
-  --sidebar-ring: oklch(0.62 0.12 140);
+  --sidebar-border: oklch(0.905 0.003 260);
+  --sidebar-ring: oklch(0.55 0.11 148);
 }
 
 .dark {
@@ -135,10 +138,20 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    /* Inter reads tighter and crisper at a slightly negative tracking; this
+     * is the single biggest "modern product site" typographic cue. */
+    letter-spacing: -0.011em;
+    font-feature-settings: "cv11", "ss01";
   }
   html {
     @apply scroll-smooth font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-tight text-balance;
   }
 }
 

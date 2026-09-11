@@ -7,13 +7,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { FunctionReturnType } from "convex/server"
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  Download,
-  Plus,
-} from "lucide-react"
+import { ArrowLeft, Check, ChevronRight, Download, Plus } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
@@ -49,7 +43,7 @@ type Detalhe = NonNullable<FunctionReturnType<typeof api.produtos.obterPorRef>>
 function ProdutoPage() {
   const { ref } = Route.useParams()
   const { data: base } = useSuspenseQuery(
-    convexQuery(api.produtos.obterPorRef, { ref }),
+    convexQuery(api.produtos.obterPorRef, { ref })
   )
 
   return (
@@ -96,7 +90,7 @@ function ProdutoFamilia({
   grupoModelo: string
 }) {
   const { data: grupo } = useSuspenseQuery(
-    convexQuery(api.produtos.obterGrupo, { grupoModelo }),
+    convexQuery(api.produtos.obterGrupo, { grupoModelo })
   )
   const [selectedRef, setSelectedRef] = useState(routeRef)
 
@@ -174,7 +168,7 @@ function ProdutoLayout({
           </div>
           {ativo.descricao && (
             <div className="order-3 min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">
+              <p className="text-sm font-medium text-muted-foreground">
                 Descrição
               </p>
               <div className="mt-2.5">
@@ -187,13 +181,13 @@ function ProdutoLayout({
         <div className="order-2 flex min-w-0 flex-col gap-5 sm:gap-6">
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium uppercase tracking-[0.15em] text-primary">
+              <p className="text-sm font-medium text-primary">
                 {rotuloMarca(base.marca)}
                 {base.gama ? ` · ${base.gama}` : ""}
               </p>
               {/* Page title is nomeGrupo (no capacity); capacity lives in the
                   variant table / SKU `nome` used by the quote list. */}
-              <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
+              <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl">
                 {base.nomeGrupo}
               </h1>
             </div>
@@ -227,7 +221,7 @@ function ProdutoLayout({
 
           {temVariantes && selectedRef && onSelect && (
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">
+              <p className="text-sm font-medium text-muted-foreground">
                 Escolha o modelo
               </p>
               <div className="mt-2.5">
@@ -243,7 +237,7 @@ function ProdutoLayout({
 
           {especificacoes.length > 0 && (
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">
+              <p className="text-sm font-medium text-muted-foreground">
                 Especificações
               </p>
               <div className="mt-2.5">
@@ -287,7 +281,7 @@ function SpecChips({ atributos }: { atributos: Array<Atributo> }) {
       {atributos.map((a) => (
         <div
           key={a.chave}
-          className="flex items-baseline gap-1.5 rounded-full border bg-card px-3.5 py-1.5 text-sm shadow-sm"
+          className="flex items-baseline gap-1.5 rounded-full border bg-card px-3.5 py-1.5 text-sm"
         >
           <dt className="text-xs text-muted-foreground">
             {rotuloChave(a.chave)}
@@ -322,14 +316,14 @@ function QuoteCta({
         capaUrl: ativo.imagensUrls[0] ?? null,
         capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
       },
-      quantidade,
+      quantidade
     )
     setQuantidade(1)
     abrir()
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
+    <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <QuantityStepper
           value={quantidade}
@@ -381,11 +375,7 @@ function QuoteCta({
   )
 }
 
-function FichasCatalogo({
-  fichas,
-}: {
-  fichas: Detalhe["fichasCatalogo"]
-}) {
+function FichasCatalogo({ fichas }: { fichas: Detalhe["fichasCatalogo"] }) {
   const varias = fichas.length > 1
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -395,7 +385,7 @@ function FichasCatalogo({
           href={ficha.url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/50"
+          className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-secondary/50"
         >
           <Download className="size-3.5 text-primary" />
           {varias ? `Ficha PDF ${i + 1}` : "Ficha do catálogo (PDF)"}

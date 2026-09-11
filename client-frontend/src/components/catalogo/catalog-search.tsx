@@ -142,7 +142,7 @@ export function CatalogSearch({
         aria-autocomplete="list"
         placeholder="Pesquisar por nome, referência, gama…"
         aria-label="Pesquisar no catálogo"
-        className="h-12 w-full rounded-xl border bg-card pr-24 pl-11 text-sm shadow-sm transition-shadow outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+        className="h-12 w-full rounded-xl border bg-card pr-24 pl-11 text-sm transition-shadow outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
       />
       {texto === "" ? (
         <kbd className="pointer-events-none absolute top-1/2 right-4 hidden -translate-y-1/2 rounded border bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground sm:block">

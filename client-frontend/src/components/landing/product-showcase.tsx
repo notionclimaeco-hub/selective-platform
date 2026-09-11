@@ -17,13 +17,11 @@ export function ProductShowcase() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">
-              Catálogo
-            </p>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+            <p className="text-sm font-medium text-primary">Catálogo</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               Produtos em destaque
             </h2>
-            <p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">
+            <p className="max-w-2xl leading-relaxed text-pretty text-muted-foreground">
               Uma seleção do nosso catálogo de equipamentos, do split
               residencial à bomba de calor comercial. Preços de tabela (PVP),
               sem IVA.
@@ -53,7 +51,7 @@ function ShowcaseGrid() {
     convexQuery(api.produtos.listarCatalogo, {
       pagina: 0,
       porPagina: 8,
-    }),
+    })
   )
 
   if (data.entradas.length === 0) {
@@ -68,10 +66,7 @@ function ShowcaseGrid() {
   return (
     <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {data.entradas.map((entrada) => (
-        <ProductCard
-          key={entrada.grupoModelo}
-          entrada={entrada}
-        />
+        <ProductCard key={entrada.grupoModelo} entrada={entrada} />
       ))}
     </div>
   )

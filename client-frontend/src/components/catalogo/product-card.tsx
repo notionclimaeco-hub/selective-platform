@@ -52,7 +52,7 @@ export function ProductCard({
     <Link
       to="/produto/$ref"
       params={{ ref: entrada.ref }}
-      className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+      className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-all hover:border-foreground/25"
     >
       <CardMedia
         familia={entrada.familia}
@@ -160,7 +160,7 @@ export function CardMedia({
   return (
     <div
       className={cn(
-        "relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-accent via-secondary to-brand/15",
+        "relative flex h-40 items-center justify-center overflow-hidden bg-muted",
         className
       )}
     >
@@ -200,6 +200,6 @@ export function CardMedia({
 
 export function ProductCardSkeleton() {
   return (
-    <div className="h-80 animate-pulse rounded-2xl border bg-secondary/60" />
+    <div className="h-80 animate-pulse rounded-xl border bg-secondary/60" />
   )
 }

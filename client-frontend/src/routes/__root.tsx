@@ -11,6 +11,7 @@ import type { ConvexReactClient } from "convex/react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start"
 import { auth } from "@clerk/tanstack-react-start/server"
+import { ptPT } from "@clerk/localizations"
 import { createServerFn } from "@tanstack/react-start"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
@@ -26,9 +27,7 @@ import appCss from "../styles.css?url"
 const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
   const { userId, getToken, sessionClaims } = await auth()
   const claims = sessionClaims as
-    | { org_id?: string; role?: string; aud?: unknown }
-    | null
-    | undefined
+    { org_id?: string; role?: string; aud?: unknown } | null | undefined
   const token = await fetchConvexClerkToken(getToken, claims)
   return {
     userId,
@@ -93,6 +92,22 @@ function RootComponent() {
       signInUrl="/entrar"
       signUpUrl="/registo"
       signInFallbackRedirectUrl="/conta"
+      localization={ptPT}
+      appearance={{
+        variables: {
+          colorPrimary: "#2f6b3f",
+          colorForeground: "#1f2023",
+          colorMutedForeground: "#6b6e76",
+          colorNeutral: "#1f2023",
+          borderRadius: "0.625rem",
+          fontFamily: '"Inter Variable", sans-serif',
+          fontSize: "0.875rem",
+        },
+        elements: {
+          cardBox: "shadow-none border border-border",
+          formButtonPrimary: "shadow-none",
+        },
+      }}
     >
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         <RootDocument>

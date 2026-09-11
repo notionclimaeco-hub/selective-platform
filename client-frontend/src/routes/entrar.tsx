@@ -21,12 +21,8 @@ function EntrarPage() {
       <SiteHeader />
       <main className="flex flex-1 flex-col items-center px-4 py-12 sm:px-6">
         <div className="mb-8 max-w-md text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            Área de Cliente
-          </p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-            Entrar
-          </h1>
+          <p className="text-sm font-medium text-primary">Área de Cliente</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Entrar</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Aceda aos preços de revenda da sua empresa instaladora.
           </p>
@@ -46,12 +42,15 @@ function EntrarPage() {
         </Show>
         <p className="mt-6 text-sm text-muted-foreground">
           Ainda sem conta?{" "}
-          <Link to="/registo" className="font-medium text-primary underline-offset-4 hover:underline">
+          <Link
+            to="/registo"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
             Registe a sua empresa
           </Link>
         </p>
       </main>
-      <SiteFooter />
+      <SiteFooter cta={false} />
     </div>
   )
 }

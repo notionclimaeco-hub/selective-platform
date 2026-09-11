@@ -17,7 +17,7 @@ function EncomendaPage() {
   const { id } = Route.useParams()
 
   return (
-    <AreaCliente largura="larga">
+    <AreaCliente>
       <Authenticated>
         {/* Convex validates the id; a malformed one yields null → "não encontrada". */}
         <Detalhe id={id as Id<"installerOrders">} />
@@ -32,7 +32,7 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
   // encontrada" while the active org is still being switched.
   const encomenda = useQuery(
     api.encomendas.obter,
-    orgActiva ? { encomendaId: id } : "skip",
+    orgActiva ? { encomendaId: id } : "skip"
   )
   const cancelar = useMutation(api.encomendas.cancelar)
   const [agora] = useState(() => Date.now())
@@ -108,8 +108,8 @@ function Esqueleto() {
   return (
     <div className="flex flex-col gap-6" aria-busy>
       <div className="h-16 w-64 animate-pulse rounded-xl bg-secondary/60" />
-      <div className="h-32 animate-pulse rounded-2xl border bg-secondary/60" />
-      <div className="h-72 animate-pulse rounded-2xl border bg-secondary/60" />
+      <div className="h-32 animate-pulse rounded-xl border bg-secondary/60" />
+      <div className="h-72 animate-pulse rounded-xl border bg-secondary/60" />
     </div>
   )
 }

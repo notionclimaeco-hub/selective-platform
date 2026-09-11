@@ -1,61 +1,51 @@
 import { Link } from "@tanstack/react-router"
-import { BadgeCheck, ChevronRight } from "lucide-react"
+import { ArrowRight, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
+/**
+ * Centered hero on plain white: eyebrow pill, one big statement, one line of
+ * support, two actions. No decoration competing with the copy.
+ */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden">
-      {/* Soft brand-green washes; decorative only. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-accent/80 via-background to-background"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 right-[-10%] size-[480px] rounded-full bg-brand/15 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-56 left-[-12%] size-[480px] rounded-full bg-primary/10 blur-3xl"
-      />
+    <section className="border-b">
+      <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pt-16 pb-14 text-center sm:px-6 md:pt-24 md:pb-20">
+        <Link
+          to="/produtos"
+          className="group inline-flex items-center gap-1.5 rounded-full border bg-background py-1 pr-2 pl-3 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+        >
+          <span className="size-1.5 rounded-full bg-brand" aria-hidden />
+          Mais de 20 anos ao lado de instaladores
+          <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </Link>
 
-      <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-8 px-4 py-20 sm:px-6 md:py-28">
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-sm font-medium text-primary">
-          <BadgeCheck className="size-4" />
-          Mais de 20 anos de experiência em climatização
-        </span>
-
-        <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-          Distribuição seletiva de{" "}
-          <span className="text-primary">climatização</span> para profissionais
+        <h1 className="mt-6 text-4xl font-semibold tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl md:leading-[1.02]">
+          Distribuição seletiva de climatização para profissionais.
         </h1>
 
-        <p className="max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
+        <p className="mt-5 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
           Ar condicionado, bombas de calor, ventiloconvetores e ventilação das
-          marcas líderes do mercado. Parceiro de confiança de instaladores e
-          projetistas em Portugal, com apoio técnico especializado em cada
-          projeto.
+          marcas líderes, com preços de revenda e apoio técnico para
+          instaladores e projetistas em Portugal.
         </p>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            render={<Link to="/produtos" />}
-            nativeButton={false}
-            size="lg"
-            className="px-6"
-          >
-            Ver produtos
-            <ChevronRight data-icon="inline-end" />
-          </Button>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button
             render={<a href="#contactos" />}
             nativeButton={false}
             variant="outline"
             size="lg"
-            className="px-6"
           >
-            Contacte-nos
+            Falar com a equipa
+          </Button>
+          <Button
+            render={<Link to="/produtos" />}
+            nativeButton={false}
+            size="lg"
+          >
+            Ver catálogo
+            <ArrowRight data-icon="inline-end" />
           </Button>
         </div>
       </div>

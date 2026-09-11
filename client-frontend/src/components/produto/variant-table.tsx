@@ -95,7 +95,7 @@ export function atributosComuns(variantes: Array<Variante>): Array<Atributo> {
   if (!primeira) return []
   if (variantes.length === 1) return primeira.atributos
   return primeira.atributos.filter((a) =>
-    variantes.every((v) => valorDe(v, a.chave) === a.valor),
+    variantes.every((v) => valorDe(v, a.chave) === a.valor)
   )
 }
 
@@ -105,7 +105,7 @@ export function atributosComuns(variantes: Array<Variante>): Array<Atributo> {
  */
 export function rotuloVariante(
   variante: Variante,
-  variantes: Array<Variante>,
+  variantes: Array<Variante>
 ): string {
   return chavesVariaveis(variantes)
     .map((chave) => valorDe(variante, chave))
@@ -121,7 +121,7 @@ function RadioDot({ ativo }: { ativo: boolean }) {
         "flex size-4 shrink-0 items-center justify-center rounded-full border",
         ativo
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-muted-foreground/40",
+          : "border-muted-foreground/40"
       )}
     >
       {ativo && <Check className="size-3" strokeWidth={3} />}
@@ -173,16 +173,16 @@ export function VariantTable({
               aria-checked={ativo}
               onClick={() => onSelect(v.ref)}
               className={cn(
-                "flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors",
+                "flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors",
                 ativo
                   ? "border-primary/40 bg-primary/5"
-                  : "bg-card hover:bg-secondary/40",
+                  : "bg-card hover:bg-secondary/40"
               )}
             >
               <RadioDot ativo={ativo} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="break-all text-sm font-medium leading-snug">
+                  <p className="text-sm leading-snug font-medium break-all">
                     {v.ref}
                   </p>
                   <p className="shrink-0 text-sm font-semibold text-primary">
@@ -211,23 +211,23 @@ export function VariantTable({
       </div>
 
       {/* Desktop / tablet: comparison table */}
-      <div className="hidden overflow-x-auto rounded-2xl border bg-card md:block">
+      <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
         <table className="w-full min-w-max text-sm">
           <thead>
             <tr className="border-b bg-secondary/40 text-left">
               <th className="w-9 px-3 py-2.5" aria-label="Selecionado" />
-              <th className="px-2.5 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <th className="px-2.5 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 Ref.
               </th>
               {chaves.map((chave) => (
                 <th
                   key={chave}
-                  className="px-2.5 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                  className="px-2.5 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase"
                 >
                   {rotuloChave(chave)}
                 </th>
               ))}
-              <th className="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <th className="px-3 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {rotuloPreco}
               </th>
             </tr>
@@ -252,13 +252,13 @@ export function VariantTable({
                     "cursor-pointer border-b transition-colors last:border-b-0",
                     ativo
                       ? "bg-primary/5"
-                      : "hover:bg-secondary/40 focus-visible:bg-secondary/40",
+                      : "hover:bg-secondary/40 focus-visible:bg-secondary/40"
                   )}
                 >
                   <td className="px-3 py-2.5">
                     <RadioDot ativo={ativo} />
                   </td>
-                  <td className="whitespace-nowrap px-2.5 py-2.5 font-medium">
+                  <td className="px-2.5 py-2.5 font-medium whitespace-nowrap">
                     {v.ref}
                   </td>
                   {chaves.map((chave) => {
@@ -267,15 +267,15 @@ export function VariantTable({
                       <td
                         key={chave}
                         className={cn(
-                          "whitespace-nowrap px-2.5 py-2.5",
-                          valor === undefined && "text-muted-foreground",
+                          "px-2.5 py-2.5 whitespace-nowrap",
+                          valor === undefined && "text-muted-foreground"
                         )}
                       >
                         {valor !== undefined ? rotuloValor(valor) : "—"}
                       </td>
                     )
                   })}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold text-primary">
+                  <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap text-primary">
                     {eurExato.format(centsDe(v) / 100)}
                   </td>
                 </tr>
