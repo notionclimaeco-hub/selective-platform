@@ -35,6 +35,32 @@ export const estadoAprovacaoValidator = v.union(
   v.literal("suspensa"),
 );
 
+// Installer-order header states (#5). `cancelada` and `concluida` are terminal.
+export const estadoEncomendaValidator = v.union(
+  v.literal("recebida"),
+  v.literal("aguardando_stock"),
+  v.literal("aguardando_pagamento"),
+  v.literal("paga"),
+  v.literal("cancelada"),
+  v.literal("concluida"),
+);
+
+// Why a header reached `cancelada`.
+export const motivoCancelamentoValidator = v.union(
+  v.literal("installer"),
+  v.literal("office"),
+  v.literal("payment_expired"),
+  v.literal("all_lines_dropped"),
+);
+
+// Installer-order line state before pay. After `paga`, progress lives in the
+// qty buckets on the line — there is no post-pay status enum (#5).
+export const estadoLinhaValidator = v.union(
+  v.literal("por_confirmar"),
+  v.literal("confirmada"),
+  v.literal("retirada"),
+);
+
 // Company address as a single string (street, postal code, locality).
 export const moradaValidator = v.string();
 
@@ -218,4 +244,61 @@ export default defineSchema({
     .index("by_nif", ["nif"])
     .index("by_estadoAprovacao", ["estadoAprovacao"])
     .index("by_registadoPor", ["registadoPor"]),
+
+  // Named sequential counters (e.g. "encomendas" → ENC-n). One row per chave;
+  // the mutation reads + patches inside the same transaction, so OCC keeps
+  // numbers unique.
+  counters: defineTable({
+    chave: v.string(),
+    valor: v.number(),
+  }).index("by_chave", ["chave"]),
+
+  // Installer order header (#5). Convex is the source of truth; Notion (#12),
+  // InvoiceXpress (#14) and Revolut (#8) attach to this record in later slices.
+  installerOrders: defineTable({
+    empresaId: v.id("installerCompanies"),
+    clerkOrgId: v.string(),
+    numero: v.number(), // ENC-<numero>
+    titulo: v.string(), // "ENC-12 — Clima Teste Lda"
+    estado: estadoEncomendaValidator,
+    cancelReason: v.optional(motivoCancelamentoValidator),
+    // Clerk user id of the member who placed the order.
+    placedBy: v.string(),
+    placedAt: v.number(),
+    // Sum of remaining lines (precoRevendaCents × qty), VAT-exclusive.
+    totalRevendaCents: v.number(),
+    // VAT rate used on documents (#14). Header totals stay s/IVA.
+    ivaPercent: v.number(),
+    stockRequestedAt: v.optional(v.number()),
+    cancelledAt: v.optional(v.number()),
+    cancelledBy: v.optional(v.string()),
+  })
+    .index("by_empresaId", ["empresaId"])
+    .index("by_estado", ["estado"])
+    .index("by_numero", ["numero"]),
+
+  // One SKU × qty on an installer order.
+  installerOrderLines: defineTable({
+    encomendaId: v.id("installerOrders"),
+    ref: v.string(),
+    marca: v.string(),
+    nome: v.string(),
+    qty: v.number(),
+    // Price snapshot: reseller cents when the line was added. Never
+    // re-snapshotted; to refresh a price the office drops and re-adds the SKU.
+    precoRevendaCents: v.number(),
+    pvpCents: v.number(),
+    estadoLinha: estadoLinhaValidator,
+    // Internal supplier cost recorded on confirm. Never installer-facing.
+    custoCents: v.optional(v.number()),
+    // Post-pay buckets, set on ORDER_COMPLETED. Invariant afterwards:
+    // qtyPorEnviar + qtyEmTransito + qtyAguardaRecolha + qtyFalhada = qty.
+    qtyPorEnviar: v.optional(v.number()),
+    qtyEmTransito: v.optional(v.number()),
+    qtyAguardaRecolha: v.optional(v.number()),
+    qtyFalhada: v.optional(v.number()),
+    reembolsadoAt: v.optional(v.number()),
+  })
+    .index("by_encomendaId", ["encomendaId"])
+    .index("by_encomenda_and_ref", ["encomendaId", "ref"]),
 });

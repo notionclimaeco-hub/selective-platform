@@ -1,6 +1,8 @@
-/** Only the account home may be used as a post-login return (open-redirect). */
+// Client-area paths allowed as a post-login return (open-redirect guard).
+const REGRESSO_SEGURO = /^\/conta(?:\/encomendas(?:\/[a-z0-9]+)?)?$/
+
 export function caminhoSeguroDeRegresso(raw: unknown): string | undefined {
-  if (raw === "/conta") return "/conta"
+  if (typeof raw === "string" && REGRESSO_SEGURO.test(raw)) return raw
   return undefined
 }
 

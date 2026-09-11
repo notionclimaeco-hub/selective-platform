@@ -6,9 +6,16 @@ import {
 } from "./auth-gate"
 
 describe("caminhoSeguroDeRegresso", () => {
-  it("allows only /conta paths", () => {
+  it("allows only client-area paths", () => {
     expect(caminhoSeguroDeRegresso("/conta")).toBe("/conta")
-    expect(caminhoSeguroDeRegresso("/conta/encomendas")).toBeUndefined()
+    expect(caminhoSeguroDeRegresso("/conta/encomendas")).toBe(
+      "/conta/encomendas",
+    )
+    expect(caminhoSeguroDeRegresso("/conta/encomendas/j57abc123")).toBe(
+      "/conta/encomendas/j57abc123",
+    )
+    expect(caminhoSeguroDeRegresso("/conta/encomendas/../x")).toBeUndefined()
+    expect(caminhoSeguroDeRegresso("/conta/outra")).toBeUndefined()
     expect(caminhoSeguroDeRegresso("/produtos")).toBeUndefined()
     expect(caminhoSeguroDeRegresso("//evil")).toBeUndefined()
     expect(caminhoSeguroDeRegresso("https://evil.example")).toBeUndefined()
