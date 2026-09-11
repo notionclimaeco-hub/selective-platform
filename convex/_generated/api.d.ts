@@ -10,9 +10,11 @@
 
 import type * as admin_health from "../admin/health.js";
 import type * as comercial from "../comercial.js";
+import type * as crons from "../crons.js";
 import type * as empresas from "../empresas.js";
 import type * as empresasActions from "../empresasActions.js";
 import type * as encomendas from "../encomendas.js";
+import type * as http from "../http.js";
 import type * as imagens from "../imagens.js";
 import type * as importData from "../importData.js";
 import type * as lib_aprovacao from "../lib/aprovacao.js";
@@ -25,6 +27,15 @@ import type * as lib_precoRevenda from "../lib/precoRevenda.js";
 import type * as lib_slug from "../lib/slug.js";
 import type * as marcas from "../marcas.js";
 import type * as migrations from "../migrations.js";
+import type * as notion_agendar from "../notion/agendar.js";
+import type * as notion_cliente from "../notion/cliente.js";
+import type * as notion_dados from "../notion/dados.js";
+import type * as notion_entrada from "../notion/entrada.js";
+import type * as notion_esquema from "../notion/esquema.js";
+import type * as notion_propriedades from "../notion/propriedades.js";
+import type * as notion_setup from "../notion/setup.js";
+import type * as notion_sync from "../notion/sync.js";
+import type * as notion_webhook from "../notion/webhook.js";
 import type * as paginasCatalogo from "../paginasCatalogo.js";
 import type * as precos from "../precos.js";
 import type * as produtos from "../produtos.js";
@@ -39,9 +50,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   "admin/health": typeof admin_health;
   comercial: typeof comercial;
+  crons: typeof crons;
   empresas: typeof empresas;
   empresasActions: typeof empresasActions;
   encomendas: typeof encomendas;
+  http: typeof http;
   imagens: typeof imagens;
   importData: typeof importData;
   "lib/aprovacao": typeof lib_aprovacao;
@@ -54,6 +67,15 @@ declare const fullApi: ApiFromModules<{
   "lib/slug": typeof lib_slug;
   marcas: typeof marcas;
   migrations: typeof migrations;
+  "notion/agendar": typeof notion_agendar;
+  "notion/cliente": typeof notion_cliente;
+  "notion/dados": typeof notion_dados;
+  "notion/entrada": typeof notion_entrada;
+  "notion/esquema": typeof notion_esquema;
+  "notion/propriedades": typeof notion_propriedades;
+  "notion/setup": typeof notion_setup;
+  "notion/sync": typeof notion_sync;
+  "notion/webhook": typeof notion_webhook;
   paginasCatalogo: typeof paginasCatalogo;
   precos: typeof precos;
   produtos: typeof produtos;
