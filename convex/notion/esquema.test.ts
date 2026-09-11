@@ -203,7 +203,14 @@ describe("interpretation of office input", () => {
     ).toEqual({ tipo: "cancelar", motivo: "sem stock" });
     expect(
       interpretarEncomenda({ [ENC.acao]: select(ACAO_ENCOMENDA.pedirPagamento) }),
-    ).toEqual({ tipo: "nao_disponivel", acao: "Pedir pagamento" });
+    ).toEqual({ tipo: "pedir_pagamento" });
+    expect(
+      interpretarEncomenda({ [ENC.acao]: select(ACAO_ENCOMENDA.voltarAEditar) }),
+    ).toEqual({ tipo: "voltar_editar" });
+    expect(interpretarEncomenda({ [ENC.acao]: select("Outra coisa") })).toEqual({
+      tipo: "nao_disponivel",
+      acao: "Outra coisa",
+    });
   });
 
   it("line: confirm converts euros to cents; qty change validates", () => {

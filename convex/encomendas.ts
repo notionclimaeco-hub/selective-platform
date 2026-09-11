@@ -28,6 +28,7 @@ import {
   type MotivoCancelamento,
 } from "./lib/encomendaEstados";
 import { agendarRender } from "./notion/agendar";
+import { internal } from "./_generated/api";
 
 /**
  * Installer orders (#5). Public functions serve members of an approved
@@ -53,6 +54,11 @@ const encomendaValidator = v.object({
   totalRevendaCents: v.number(),
   ivaPercent: v.number(),
   nLinhas: v.number(),
+  // Payment (#8): the link is live only while `aguardando_pagamento`.
+  pagamentoToken: v.optional(v.string()),
+  totalPagamentoCents: v.optional(v.number()),
+  paymentExpiresAt: v.optional(v.number()),
+  paidAt: v.optional(v.number()),
 });
 
 // No `custoCents`, no qty buckets yet (post-pay view is a later slice).
@@ -85,6 +91,10 @@ function paraCliente(
     totalRevendaCents: doc.totalRevendaCents,
     ivaPercent: doc.ivaPercent,
     nLinhas,
+    pagamentoToken: doc.estado === "aguardando_pagamento" ? doc.pagamentoToken : undefined,
+    totalPagamentoCents: doc.totalPagamentoCents,
+    paymentExpiresAt: doc.estado === "aguardando_pagamento" ? doc.paymentExpiresAt : undefined,
+    paidAt: doc.paidAt,
   };
 }
 
@@ -234,6 +244,12 @@ async function cancelar_(
     cancelledAt: Date.now(),
     cancelledBy,
   });
+  // An open Revolut order must not stay payable after the cancel (#8).
+  if (encomenda.estado === "aguardando_pagamento" && encomenda.revolutOrderId) {
+    await ctx.scheduler.runAfter(0, internal.revolut.fluxo.cancelarOrdemRevolut, {
+      revolutOrderId: encomenda.revolutOrderId,
+    });
+  }
   return await encomendaOuErro(ctx, encomenda._id);
 }
 

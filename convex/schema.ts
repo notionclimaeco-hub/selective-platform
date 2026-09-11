@@ -279,6 +279,17 @@ export default defineSchema({
     stockRequestedAt: v.optional(v.number()),
     cancelledAt: v.optional(v.number()),
     cancelledBy: v.optional(v.string()),
+    // Payment (#8). `pagamentoToken` is the unguessable public id of
+    // /pagamento/$token, minted once and kept for the order's lifetime. The
+    // Revolut order is created by `Pedir pagamento` and replaced after
+    // `Voltar a editar`; `totalPagamentoCents` is the amount charged (c/IVA).
+    pagamentoToken: v.optional(v.string()),
+    revolutOrderId: v.optional(v.string()),
+    revolutToken: v.optional(v.string()),
+    totalPagamentoCents: v.optional(v.number()),
+    paymentRequestedAt: v.optional(v.number()),
+    paymentExpiresAt: v.optional(v.number()),
+    paidAt: v.optional(v.number()),
     // Notion desk ticket (#12). Set by the first successful render; the
     // office never needs it. `notionErro` is the last failed render reason.
     notionPageId: v.optional(v.string()),
@@ -288,7 +299,17 @@ export default defineSchema({
     .index("by_empresaId", ["empresaId"])
     .index("by_estado", ["estado"])
     .index("by_numero", ["numero"])
-    .index("by_notionPageId", ["notionPageId"]),
+    .index("by_notionPageId", ["notionPageId"])
+    .index("by_pagamentoToken", ["pagamentoToken"])
+    .index("by_revolutOrderId", ["revolutOrderId"]),
+
+  // Every Revolut webhook event we accepted, for idempotency and audit.
+  pagamentoEventos: defineTable({
+    revolutOrderId: v.string(),
+    evento: v.string(),
+    encomendaId: v.optional(v.id("installerOrders")),
+    recebidoEm: v.number(),
+  }).index("by_revolutOrderId", ["revolutOrderId"]),
 
   // One SKU × qty on an installer order.
   installerOrderLines: defineTable({

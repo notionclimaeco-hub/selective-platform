@@ -15,6 +15,7 @@ import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as RegistoRouteImport } from './routes/registo'
 import { Route as ContaEncomendasRouteImport } from './routes/conta_.encomendas'
+import { Route as PagamentoTokenRouteImport } from './routes/pagamento.$token'
 import { Route as ProdutoRefRouteImport } from './routes/produto.$ref'
 import { Route as ContaEncomendasIdRouteImport } from './routes/conta_.encomendas_.$id'
 
@@ -48,6 +49,11 @@ const ContaEncomendasRoute = ContaEncomendasRouteImport.update({
   path: '/conta/encomendas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PagamentoTokenRoute = PagamentoTokenRouteImport.update({
+  id: '/pagamento/$token',
+  path: '/pagamento/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProdutoRefRoute = ProdutoRefRouteImport.update({
   id: '/produto/$ref',
   path: '/produto/$ref',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/produtos': typeof ProdutosRoute
   '/registo': typeof RegistoRoute
   '/conta/encomendas': typeof ContaEncomendasRoute
+  '/pagamento/$token': typeof PagamentoTokenRoute
   '/produto/$ref': typeof ProdutoRefRoute
   '/conta/encomendas/$id': typeof ContaEncomendasIdRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/produtos': typeof ProdutosRoute
   '/registo': typeof RegistoRoute
   '/conta/encomendas': typeof ContaEncomendasRoute
+  '/pagamento/$token': typeof PagamentoTokenRoute
   '/produto/$ref': typeof ProdutoRefRoute
   '/conta/encomendas/$id': typeof ContaEncomendasIdRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/produtos': typeof ProdutosRoute
   '/registo': typeof RegistoRoute
   '/conta_/encomendas': typeof ContaEncomendasRoute
+  '/pagamento/$token': typeof PagamentoTokenRoute
   '/produto/$ref': typeof ProdutoRefRoute
   '/conta_/encomendas_/$id': typeof ContaEncomendasIdRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/registo'
     | '/conta/encomendas'
+    | '/pagamento/$token'
     | '/produto/$ref'
     | '/conta/encomendas/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/registo'
     | '/conta/encomendas'
+    | '/pagamento/$token'
     | '/produto/$ref'
     | '/conta/encomendas/$id'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/registo'
     | '/conta_/encomendas'
+    | '/pagamento/$token'
     | '/produto/$ref'
     | '/conta_/encomendas_/$id'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   ProdutosRoute: typeof ProdutosRoute
   RegistoRoute: typeof RegistoRoute
   ContaEncomendasRoute: typeof ContaEncomendasRoute
+  PagamentoTokenRoute: typeof PagamentoTokenRoute
   ProdutoRefRoute: typeof ProdutoRefRoute
   ContaEncomendasIdRoute: typeof ContaEncomendasIdRoute
 }
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContaEncomendasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pagamento/$token': {
+      id: '/pagamento/$token'
+      path: '/pagamento/$token'
+      fullPath: '/pagamento/$token'
+      preLoaderRoute: typeof PagamentoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/produto/$ref': {
       id: '/produto/$ref'
       path: '/produto/$ref'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProdutosRoute: ProdutosRoute,
   RegistoRoute: RegistoRoute,
   ContaEncomendasRoute: ContaEncomendasRoute,
+  PagamentoTokenRoute: PagamentoTokenRoute,
   ProdutoRefRoute: ProdutoRefRoute,
   ContaEncomendasIdRoute: ContaEncomendasIdRoute,
 }

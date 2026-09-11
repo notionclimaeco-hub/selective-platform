@@ -36,9 +36,13 @@ import type * as notion_propriedades from "../notion/propriedades.js";
 import type * as notion_setup from "../notion/setup.js";
 import type * as notion_sync from "../notion/sync.js";
 import type * as notion_webhook from "../notion/webhook.js";
+import type * as pagamentos from "../pagamentos.js";
 import type * as paginasCatalogo from "../paginasCatalogo.js";
 import type * as precos from "../precos.js";
 import type * as produtos from "../produtos.js";
+import type * as revolut_cliente from "../revolut/cliente.js";
+import type * as revolut_fluxo from "../revolut/fluxo.js";
+import type * as revolut_regras from "../revolut/regras.js";
 import type * as seed from "../seed.js";
 
 import type {
@@ -76,9 +80,13 @@ declare const fullApi: ApiFromModules<{
   "notion/setup": typeof notion_setup;
   "notion/sync": typeof notion_sync;
   "notion/webhook": typeof notion_webhook;
+  pagamentos: typeof pagamentos;
   paginasCatalogo: typeof paginasCatalogo;
   precos: typeof precos;
   produtos: typeof produtos;
+  "revolut/cliente": typeof revolut_cliente;
+  "revolut/fluxo": typeof revolut_fluxo;
+  "revolut/regras": typeof revolut_regras;
   seed: typeof seed;
 }>;
 

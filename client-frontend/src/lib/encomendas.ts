@@ -29,9 +29,9 @@ export const ESTADO_ENCOMENDA_TEXTO: Record<EstadoEncomenda, string> = {
   recebida:
     "Recebemos a encomenda. O escritório vai pedir stock aos fornecedores. Os preços ficam congelados.",
   aguardando_stock:
-    "Estamos a confirmar stock com os fornecedores. Quando todas as linhas estiverem confirmadas, emitimos a pró-forma.",
+    "Estamos a confirmar stock com os fornecedores. Quando todas as linhas estiverem confirmadas, enviamos o pedido de pagamento.",
   aguardando_pagamento:
-    "Stock confirmado. O link de pagamento chega em breve à área de cliente; a fatura-recibo é emitida após o pagamento.",
+    "Stock confirmado. Pague por transferência bancária através do link abaixo (válido 7 dias); a fatura-recibo é emitida após o pagamento.",
   paga: "Pagamento recebido. Estamos a encomendar aos fornecedores; o levantamento é no nosso armazém.",
   cancelada: "Esta encomenda foi cancelada. Pode voltar a encomendar a partir do catálogo.",
   concluida: "Todos os equipamentos estão disponíveis para levantamento ou foram reembolsados.",
