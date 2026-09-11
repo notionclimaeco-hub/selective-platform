@@ -82,8 +82,11 @@ the two Convex headings above are looked up by name.
   here when it could not apply the action. Fix the input and set `Ação`
   again; the text is cleared on the next successful action.
 - Templates: edit `db-modelos` rows (`Assunto`, `Corpo`); placeholders
-  `{{marca}}`, `{{linhas}}`, `{{encomenda}}`. Add a row titled with the
-  marca slug (e.g. `hisense`) to override `default`. Convex never sends email.
+  `{{marca}}` (brand name), `{{encomenda}}` (`ENC-n`, no customer name) and
+  `{{linhas}}` (replaced by a Referência / Descrição / Quantidade table).
+  Blank lines in `Corpo` become separate paragraphs. Each draft is rendered
+  as a callout titled with the brand. Add a row titled with the marca slug
+  (e.g. `hisense`) to override `default`. Convex never sends email.
 
 ## Production cutover
 
