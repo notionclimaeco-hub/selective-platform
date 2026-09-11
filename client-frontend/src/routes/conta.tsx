@@ -1,20 +1,16 @@
-import { useEffect, useRef } from "react"
 import {
   OrganizationSwitcher,
   Show,
   SignOutButton,
   UserButton,
-  useClerk,
-  useOrganization,
 } from "@clerk/tanstack-react-start"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useQuery } from "convex/react"
 import { CheckCircle2 } from "lucide-react"
 
-import { api } from "@convex/_generated/api"
 import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
+import { useEmpresaActiva } from "@/lib/empresa-activa"
 
 type ContaSearch = {
   pedido?: "enviado"
@@ -40,7 +36,7 @@ const ESTADO_COPY: Record<
   aprovada: {
     titulo: "Empresa aprovada",
     texto:
-      "Já vê os preços de revenda no catálogo. As encomendas online chegam em breve.",
+      "Já vê os preços de revenda no catálogo e pode submeter encomendas a partir da lista de orçamento.",
     classe: "bg-green-100 text-green-800",
   },
   rejeitada: {
@@ -76,21 +72,7 @@ function ContaPage() {
 
 function ContaAutenticada() {
   const { pedido } = Route.useSearch()
-  const { setActive } = useClerk()
-  const { organization, isLoaded } = useOrganization()
-  const vista = useQuery(api.empresas.minha)
-  const tentouActivar = useRef(false)
-
-  useEffect(() => {
-    if (tentouActivar.current || !isLoaded || vista?.kind !== "empresa") {
-      return
-    }
-    if (organization?.id === vista.empresa.clerkOrgId) {
-      return
-    }
-    tentouActivar.current = true
-    void setActive({ organization: vista.empresa.clerkOrgId })
-  }, [isLoaded, organization?.id, setActive, vista])
+  const { vista } = useEmpresaActiva()
 
   return (
     <>
@@ -249,6 +231,21 @@ function PerfilEmpresa({
           }
         />
       </section>
+
+      {empresa.estadoAprovacao === "aprovada" && (
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-6 shadow-sm">
+          <div>
+            <h2 className="font-medium">Encomendas</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Acompanhe o estado de cada encomenda submetida a partir da lista
+              de orçamento.
+            </p>
+          </div>
+          <Button render={<Link to="/conta/encomendas" />} nativeButton={false}>
+            Ver encomendas
+          </Button>
+        </section>
+      )}
 
       <p className="text-sm text-muted-foreground">
         Alterações aos dados da empresa fazem-se através do escritório. A gestão

@@ -14,7 +14,9 @@ import { Route as ContaRouteImport } from './routes/conta'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as RegistoRouteImport } from './routes/registo'
+import { Route as ContaEncomendasRouteImport } from './routes/conta_.encomendas'
 import { Route as ProdutoRefRouteImport } from './routes/produto.$ref'
+import { Route as ContaEncomendasIdRouteImport } from './routes/conta_.encomendas_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,9 +43,19 @@ const RegistoRoute = RegistoRouteImport.update({
   path: '/registo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContaEncomendasRoute = ContaEncomendasRouteImport.update({
+  id: '/conta_/encomendas',
+  path: '/conta/encomendas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProdutoRefRoute = ProdutoRefRouteImport.update({
   id: '/produto/$ref',
   path: '/produto/$ref',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContaEncomendasIdRoute = ContaEncomendasIdRouteImport.update({
+  id: '/conta_/encomendas_/$id',
+  path: '/conta/encomendas/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -53,7 +65,9 @@ export interface FileRoutesByFullPath {
   '/entrar': typeof EntrarRoute
   '/produtos': typeof ProdutosRoute
   '/registo': typeof RegistoRoute
+  '/conta/encomendas': typeof ContaEncomendasRoute
   '/produto/$ref': typeof ProdutoRefRoute
+  '/conta/encomendas/$id': typeof ContaEncomendasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +75,9 @@ export interface FileRoutesByTo {
   '/entrar': typeof EntrarRoute
   '/produtos': typeof ProdutosRoute
   '/registo': typeof RegistoRoute
+  '/conta/encomendas': typeof ContaEncomendasRoute
   '/produto/$ref': typeof ProdutoRefRoute
+  '/conta/encomendas/$id': typeof ContaEncomendasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,14 +86,31 @@ export interface FileRoutesById {
   '/entrar': typeof EntrarRoute
   '/produtos': typeof ProdutosRoute
   '/registo': typeof RegistoRoute
+  '/conta_/encomendas': typeof ContaEncomendasRoute
   '/produto/$ref': typeof ProdutoRefRoute
+  '/conta_/encomendas_/$id': typeof ContaEncomendasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/conta' | '/entrar' | '/produtos' | '/registo' | '/produto/$ref'
+    | '/'
+    | '/conta'
+    | '/entrar'
+    | '/produtos'
+    | '/registo'
+    | '/conta/encomendas'
+    | '/produto/$ref'
+    | '/conta/encomendas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/conta' | '/entrar' | '/produtos' | '/registo' | '/produto/$ref'
+  to:
+    | '/'
+    | '/conta'
+    | '/entrar'
+    | '/produtos'
+    | '/registo'
+    | '/conta/encomendas'
+    | '/produto/$ref'
+    | '/conta/encomendas/$id'
   id:
     | '__root__'
     | '/'
@@ -85,7 +118,9 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/produtos'
     | '/registo'
+    | '/conta_/encomendas'
     | '/produto/$ref'
+    | '/conta_/encomendas_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,7 +129,9 @@ export interface RootRouteChildren {
   EntrarRoute: typeof EntrarRoute
   ProdutosRoute: typeof ProdutosRoute
   RegistoRoute: typeof RegistoRoute
+  ContaEncomendasRoute: typeof ContaEncomendasRoute
   ProdutoRefRoute: typeof ProdutoRefRoute
+  ContaEncomendasIdRoute: typeof ContaEncomendasIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -134,11 +171,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conta_/encomendas': {
+      id: '/conta_/encomendas'
+      path: '/conta/encomendas'
+      fullPath: '/conta/encomendas'
+      preLoaderRoute: typeof ContaEncomendasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/produto/$ref': {
       id: '/produto/$ref'
       path: '/produto/$ref'
       fullPath: '/produto/$ref'
       preLoaderRoute: typeof ProdutoRefRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conta_/encomendas_/$id': {
+      id: '/conta_/encomendas_/$id'
+      path: '/conta/encomendas/$id'
+      fullPath: '/conta/encomendas/$id'
+      preLoaderRoute: typeof ContaEncomendasIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -150,7 +201,9 @@ const rootRouteChildren: RootRouteChildren = {
   EntrarRoute: EntrarRoute,
   ProdutosRoute: ProdutosRoute,
   RegistoRoute: RegistoRoute,
+  ContaEncomendasRoute: ContaEncomendasRoute,
   ProdutoRefRoute: ProdutoRefRoute,
+  ContaEncomendasIdRoute: ContaEncomendasIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

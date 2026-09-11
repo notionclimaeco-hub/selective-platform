@@ -1,11 +1,14 @@
-import { Link } from "@tanstack/react-router"
+import { useState } from "react"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { useAuth } from "@clerk/tanstack-react-start"
-import { useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { FileText, Trash2, X } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { eurExato, iconeFamilia, rotuloMarca } from "@/lib/catalogo"
+import { useEmpresaActiva } from "@/lib/empresa-activa"
+import { mensagemErroSubmeter } from "@/lib/encomendas"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 import { QuantityStepper } from "./quantity-stepper"
 import { useOrcamento, type ItemOrcamento } from "./orcamento-store"
@@ -108,7 +111,7 @@ function RodapeLista({
   onFechar: () => void
 }) {
   const { isSignedIn } = useAuth()
-  const vista = useQuery(api.empresas.minha, isSignedIn ? {} : "skip")
+  const { vista, orgActiva } = useEmpresaActiva(Boolean(isSignedIn))
   const estado =
     vista?.kind === "empresa" ? vista.empresa.estadoAprovacao : undefined
 
@@ -126,6 +129,7 @@ function RodapeLista({
         isSignedIn={Boolean(isSignedIn)}
         kind={vista === undefined && isSignedIn ? "a-carregar" : vista?.kind}
         estado={estado}
+        orgActiva={orgActiva}
         onFechar={onFechar}
       />
     </footer>
@@ -136,11 +140,13 @@ function CtaLista({
   isSignedIn,
   kind,
   estado,
+  orgActiva,
   onFechar,
 }: {
   isSignedIn: boolean
   kind: "sem-org" | "sem-empresa" | "empresa" | "a-carregar" | undefined
   estado: string | undefined
+  orgActiva: boolean
   onFechar: () => void
 }) {
   if (!isSignedIn) {
@@ -156,8 +162,8 @@ function CtaLista({
           Entre ou registe a sua empresa
         </Button>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          A lista mantém-se depois de entrar. As encomendas online chegam em
-          breve.
+          A lista mantém-se depois de entrar. Empresas aprovadas submetem a
+          encomenda aqui.
         </p>
       </>
     )
@@ -215,20 +221,74 @@ function CtaLista({
     )
   }
 
+  return <SubmeterEncomenda orgActiva={orgActiva} onFechar={onFechar} />
+}
+
+/** Approved member: turn the quote list into an installer order (#5). */
+function SubmeterEncomenda({
+  orgActiva,
+  onFechar,
+}: {
+  // `submeter` needs the company org in the Convex JWT; disabled until then.
+  orgActiva: boolean
+  onFechar: () => void
+}) {
+  const { itens, limpar } = useOrcamento()
+  const submeter = useMutation(api.encomendas.submeter)
+  const navigate = useNavigate()
+  const [aSubmeter, setASubmeter] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function onSubmeter() {
+    setErro(null)
+    setASubmeter(true)
+    try {
+      const { encomendaId } = await submeter({
+        linhas: itens.map((i) => ({ ref: i.ref, qty: i.quantidade })),
+      })
+      limpar()
+      onFechar()
+      await navigate({
+        to: "/conta/encomendas/$id",
+        params: { id: encomendaId },
+      })
+    } catch (error) {
+      setErro(mensagemErroSubmeter(error))
+    } finally {
+      setASubmeter(false)
+    }
+  }
+
   return (
     <>
       <Button
-        render={<a href="mailto:geral@climaeco.pt" />}
-        nativeButton={false}
         size="lg"
         className="w-full"
+        disabled={aSubmeter || !orgActiva || itens.length === 0}
+        onClick={() => void onSubmeter()}
       >
-        Enviar lista por email
+        {aSubmeter
+          ? "A submeter…"
+          : orgActiva
+            ? "Submeter encomenda"
+            : "A activar a empresa…"}
       </Button>
-      <p className="mt-2 text-center text-xs text-muted-foreground">
-        As encomendas na plataforma chegam em breve. Até lá, envie a lista para{" "}
-        geral@climaeco.pt ou ligue +351 210 000 000.
-      </p>
+      {erro ? (
+        <p className="mt-2 text-center text-xs text-destructive">{erro}</p>
+      ) : (
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Os preços de revenda ficam congelados. O escritório confirma stock e
+          depois envia a pró-forma. Acompanhe em{" "}
+          <Link
+            to="/conta/encomendas"
+            onClick={onFechar}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Encomendas
+          </Link>
+          .
+        </p>
+      )}
     </>
   )
 }
