@@ -175,6 +175,42 @@ export default defineSchema({
       filterFields: ["marca", "familia"],
     }),
 
+  // Denormalised catalog listing: one row per product page (grupoModelo) with
+  // at least one published SKU. Everything the public /produtos grid needs is
+  // precomputed here so listing reads ~1 small doc per group instead of every
+  // SKU (with its attributes) on every request. Kept in sync by
+  // `lib/catalogoGrupos.sincronizarGrupo`, which every produtos write calls;
+  // `catalogo:reconstruir` rebuilds the whole table from scratch.
+  catalogoGrupos: defineTable({
+    grupoModelo: v.string(),
+    // Canonical (cheapest) published variant — drives the product-page link.
+    ref: v.string(),
+    nome: v.string(), // nomeGrupo
+    marca: v.string(),
+    familia: v.string(),
+    gama: v.optional(v.string()),
+    tipoUnidade: v.optional(v.string()),
+    // Lowest / highest PVP among published variants (integer cents).
+    precoDesdeCents: v.number(),
+    precoAteCents: v.number(),
+    numVariantes: v.number(),
+    frioKwMin: v.optional(v.number()),
+    frioKwMax: v.optional(v.number()),
+    classeEnergetica: v.optional(v.string()),
+    // Cover image (first image of the canonical variant, else any variant's).
+    capa: v.union(v.id("_storage"), v.null()),
+    // Lower-cased "name refs gama grupoModelo" blob for substring search.
+    textoBusca: v.string(),
+    // Presentation weight for the default order, lower = better (has photo,
+    // has specs, is a main family).
+    peso: v.number(),
+    // Newest variant creation time — the "Novidades" ordering.
+    criadoEm: v.number(),
+  })
+    .index("by_grupoModelo", ["grupoModelo"])
+    .index("by_familia", ["familia"])
+    .index("by_marca", ["marca"]),
+
   // One-page catalog PDFs, stored once per (tabelaOrigem, pagina) and shared
   // across every product that references that page. Uniqueness on
   // (tabelaOrigem, pagina) is enforced in the mutation, not by the schema.

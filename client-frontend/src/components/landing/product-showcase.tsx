@@ -51,7 +51,7 @@ export function ProductShowcase() {
 
 function ShowcaseGrid() {
   const { data } = useSuspenseQuery(
-    convexQuery(api.produtos.listarCatalogo, {
+    convexQuery(api.catalogo.listar, {
       pagina: 0,
       porPagina: 8,
     })

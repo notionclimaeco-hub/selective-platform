@@ -1,87 +1,87 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { convexQuery } from "@convex-dev/react-query"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react"
+import type { FunctionReturnType } from "convex/server"
+import { SearchX } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
-import { ActiveFilters } from "@/components/catalogo/active-filters"
-import { CatalogSearch } from "@/components/catalogo/catalog-search"
-import { CatalogToolbar } from "@/components/catalogo/catalog-toolbar"
-import { FacetPanel } from "@/components/catalogo/facet-panel"
-import { FamiliaNav } from "@/components/catalogo/familia-nav"
+import { FilterChips } from "@/components/catalogo/filter-chips"
+import type { Opcao } from "@/components/catalogo/filter-chips"
+import { Pagination } from "@/components/catalogo/pagination"
 import {
   ProductCard,
   ProductCardSkeleton,
 } from "@/components/catalogo/product-card"
-import {
-  ProductRow,
-  ProductRowSkeleton,
-} from "@/components/catalogo/product-row"
+import { SearchBox } from "@/components/catalogo/search-box"
+import { SortSelect } from "@/components/catalogo/sort-select"
 import { SiteFooter } from "@/components/landing/site-footer"
 import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
-import { rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
-import { useMapaDesdePorGrupo } from "@/lib/precos-revenda"
+import { FAMILIAS, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
 import {
   argsCatalogo,
   contarFiltrosAtivos,
-  lerLista,
-  semFiltros,
+  POR_PAGINA,
   validarBusca,
 } from "@/lib/catalogo-search"
 import type { FiltrosCatalogo } from "@/lib/catalogo-search"
+import { useMapaDesdePorGrupo } from "@/lib/precos-revenda"
 import { cn } from "@/lib/utils"
-
-const POR_PAGINA = 24
 
 export const Route = createFileRoute("/produtos")({
   validateSearch: validarBusca,
   component: CatalogoPage,
 })
 
+type Lista = FunctionReturnType<typeof api.catalogo.listar>
+
+const numero = new Intl.NumberFormat("pt-PT")
+
 function CatalogoPage() {
   return (
     <div className="flex min-h-svh flex-col">
       <SiteHeader />
       <main className="flex-1">
-        <CatalogoConteudo />
+        <Catalogo />
       </main>
       <SiteFooter />
     </div>
   )
 }
 
-function CatalogoConteudo() {
+function Catalogo() {
   const filtros = Route.useSearch()
   const navigate = Route.useNavigate()
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
 
-  // Every filter change resets pagination — page 7 of the old result set says
-  // nothing about the new one.
+  // Every change that narrows or reorders the results starts over at page 1 —
+  // page 7 of the old result set says nothing about the new one. Typing
+  // replaces the history entry so the back button skips over keystrokes.
   const aplicar = useCallback(
-    (patch: Partial<FiltrosCatalogo>) => {
+    (patch: Partial<FiltrosCatalogo>, replace = false) => {
       void navigate({
         search: (prev) => ({ ...prev, ...patch, pagina: undefined }),
+        replace,
       })
     },
     [navigate]
   )
+  const onBusca = useCallback(
+    (q: string | undefined) => aplicar({ q }, true),
+    [aplicar]
+  )
 
-  const { data, isFetching, isLoading } = useQuery({
-    ...convexQuery(
-      api.produtos.listarCatalogo,
-      argsCatalogo(filtros, POR_PAGINA)
-    ),
-    // Keep the previous page on screen while the next one loads instead of
-    // flashing skeletons on every filter change.
+  const { data, isLoading, isFetching } = useQuery({
+    ...convexQuery(api.catalogo.listar, argsCatalogo(filtros)),
+    // Keep the current grid on screen (dimmed) while the next one loads
+    // instead of flashing skeletons on every filter change.
     placeholderData: keepPreviousData,
   })
 
-  // The server clamps the page when filters shrink the result set; mirror that
+  // The server clamps the page when filters shrink the result set; mirror it
   // back into the URL so a shared link never points past the last page.
   useEffect(() => {
-    if (!data) return
+    if (!data || isFetching) return
     const naUrl = filtros.pagina ?? 1
     const noServidor = data.pagina + 1
     if (naUrl !== noServidor) {
@@ -93,514 +93,315 @@ function CatalogoConteudo() {
         replace: true,
       })
     }
-  }, [data, navigate, filtros.pagina])
+  }, [data, isFetching, filtros.pagina, navigate])
 
+  // Jump back to the top of the results when the page changes (not on the
+  // first render, and not on filter changes — those already show at the top).
+  const paginaAnterior = useRef(filtros.pagina)
   useEffect(() => {
-    if (filtros.pagina === undefined || filtros.pagina <= 1) return
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    if (paginaAnterior.current !== filtros.pagina) {
+      paginaAnterior.current = filtros.pagina
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
   }, [filtros.pagina])
 
   const numFiltros = contarFiltrosAtivos(filtros)
-  const vista = filtros.vista ?? "grelha"
-  const ordenar = filtros.ordenar ?? "relevancia"
-  const marcasEscolhidas = lerLista(filtros.marca)
-  const familiasEscolhidas = lerLista(filtros.familia)
-  // The family bar is single-choice; a multi-family URL (still valid) shows
-  // as "no single family" and the chips in the active-filter row handle it.
-  const familiaActiva =
-    familiasEscolhidas.length === 1 ? familiasEscolhidas[0] : undefined
-
-  function limpar() {
-    void navigate({ search: semFiltros(filtros) })
-  }
-
-  const painel = (
-    <FacetPanel
-      filtros={filtros}
-      facetas={data?.facetas}
-      limites={data?.limites}
-      onFiltrar={aplicar}
-    />
-  )
+  const limpar = () => void navigate({ search: { ordenar: filtros.ordenar } })
 
   return (
-    <div className="relative">
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-12">
-        <Cabecalho marcas={marcasEscolhidas} familia={familiaActiva} />
+    <div className="overflow-x-clip">
+      <div className="mx-auto max-w-7xl px-4 pt-6 pb-16 sm:px-6 sm:pt-10">
+        <Cabecalho
+          filtros={filtros}
+          total={data?.total}
+          aCarregar={isLoading}
+        />
 
-        <div className="mt-6">
-          <CatalogSearch
+        <div className="mt-5 flex items-center gap-2 sm:mt-6 sm:gap-3">
+          <SearchBox
             valor={filtros.q ?? ""}
-            onBusca={(termo) => aplicar({ q: termo })}
+            onBusca={onBusca}
+            className="min-w-0 flex-1"
+          />
+          <SortSelect
+            valor={filtros.ordenar ?? "relevancia"}
+            onChange={(valor) =>
+              aplicar({ ordenar: valor === "relevancia" ? undefined : valor })
+            }
+            className="h-11 shrink-0"
           />
         </div>
 
-        <div className="mt-5">
-          <FamiliaNav
-            opcoes={data?.facetas.familia}
-            escolhida={familiaActiva}
-            onEscolher={(f) => aplicar({ familia: f })}
-          />
-        </div>
+        <Filtros
+          filtros={filtros}
+          data={data}
+          onFamilia={(familia) => aplicar({ familia })}
+          onMarca={(marca) => aplicar({ marca })}
+        />
 
-        <div className="mt-6 flex gap-8">
-          {/* Desktop sidebar; the same panel is reused in the mobile sheet. */}
-          <aside className="hidden w-64 shrink-0 lg:block xl:w-72">
-            <div className="sticky top-24">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-sm font-semibold">
-                  <SlidersHorizontal className="size-4 text-muted-foreground" />
-                  Refinar
-                </h2>
-                {numFiltros > 0 && (
-                  <button
-                    type="button"
-                    onClick={limpar}
-                    className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
-                  >
-                    Limpar ({numFiltros})
-                  </button>
-                )}
-              </div>
-              <div className="max-h-[calc(100svh-11rem)] overflow-y-auto rounded-xl border bg-card px-4 py-4">
-                {painel}
-              </div>
-            </div>
-          </aside>
-
-          <div className="min-w-0 flex-1">
-            {/* Stays under the site header while the grid scrolls, so sorting
-                and the mobile filter button are always one tap away. */}
-            <div className="sticky top-16 z-30 -mx-4 border-b bg-background/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
-              <CatalogToolbar
-                total={data?.totalFamilias}
-                aCarregar={isLoading}
-                aAtualizar={isFetching && !isLoading}
-                ordenar={ordenar}
-                vista={vista}
-                numFiltros={numFiltros}
-                onOrdenar={(valor) =>
-                  aplicar({
-                    ordenar: valor === "relevancia" ? undefined : valor,
-                  })
-                }
-                onVista={(v) =>
-                  void navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      vista: v === "grelha" ? undefined : v,
-                    }),
-                  })
-                }
-                onAbrirFiltros={() => setFiltrosAbertos(true)}
-              />
-            </div>
-
-            <div className="mt-4 empty:hidden">
-              <ActiveFilters
-                filtros={filtros}
-                onFiltrar={aplicar}
-                onLimpar={limpar}
-              />
-            </div>
-
-            <Resultados
-              data={data}
-              vista={vista}
-              mostrarFamilia={familiaActiva === undefined}
-              aCarregar={isLoading}
-              aAtualizar={isFetching && !isLoading}
-              temFiltro={numFiltros > 0}
-              onLimpar={limpar}
-              onPagina={(p) =>
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    pagina: p <= 0 ? undefined : p + 1,
-                  }),
-                })
-              }
-            />
-          </div>
-        </div>
+        <Resultados
+          data={data}
+          filtros={filtros}
+          aCarregar={isLoading}
+          aAtualizar={isFetching && !isLoading}
+          temFiltros={numFiltros > 0}
+          onLimpar={limpar}
+          onPagina={(p) =>
+            void navigate({
+              search: (prev) => ({
+                ...prev,
+                pagina: p <= 0 ? undefined : p + 1,
+              }),
+            })
+          }
+        />
       </div>
-
-      <PainelMobile
-        aberto={filtrosAbertos}
-        total={data?.totalFamilias}
-        numFiltros={numFiltros}
-        onFechar={() => setFiltrosAbertos(false)}
-        onLimpar={limpar}
-      >
-        {painel}
-      </PainelMobile>
     </div>
   )
 }
 
 function Cabecalho({
-  marcas,
-  familia,
+  filtros,
+  total,
+  aCarregar,
 }: {
-  marcas: Array<string>
-  familia: string | undefined
+  filtros: FiltrosCatalogo
+  total: number | undefined
+  aCarregar: boolean
 }) {
-  // The title follows the primary navigation: a family and/or a single brand
-  // read like a section of the catalog instead of a filtered list.
-  const marcaUnica = marcas.length === 1 ? marcas[0] : undefined
+  // The title follows the filters, so a family and/or brand reads like a
+  // section of the catalog instead of a filtered list.
+  const familia = filtros.familia ? rotuloFamilia(filtros.familia) : undefined
+  const marca = filtros.marca ? rotuloMarca(filtros.marca) : undefined
   const titulo =
-    familia && marcaUnica
-      ? `${rotuloFamilia(familia)} ${rotuloMarca(marcaUnica)}`
-      : familia
-        ? rotuloFamilia(familia)
-        : marcaUnica
-          ? `Equipamentos ${rotuloMarca(marcaUnica)}`
-          : "Equipamentos de climatização"
+    familia && marca
+      ? `${familia} ${marca}`
+      : (familia ?? (marca ? `Equipamentos ${marca}` : "Catálogo"))
 
   return (
-    <div className="max-w-2xl">
-      <p className="text-sm font-medium text-primary">Catálogo</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-        {titulo}
-      </h1>
-      <p className="mt-2 leading-relaxed text-pretty text-muted-foreground">
-        Escolha a família, refine por marca, tipo de unidade ou potência, ou
-        pesquise pela referência. Preços de tabela (PVP), sem IVA.
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      <div>
+        <p className="text-sm font-medium text-primary">Produtos</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+          {titulo}
+        </h1>
+      </div>
+      <p
+        className="text-sm text-muted-foreground tabular-nums"
+        aria-live="polite"
+      >
+        {aCarregar || total === undefined ? (
+          <span className="inline-block h-4 w-24 animate-pulse rounded bg-muted align-middle" />
+        ) : (
+          <>
+            {numero.format(total)} {total === 1 ? "produto" : "produtos"}
+            {filtros.q ? (
+              <>
+                {" "}
+                para{" "}
+                <span className="font-medium text-primary">“{filtros.q}”</span>
+              </>
+            ) : null}
+            <span className="hidden sm:inline"> · preços de tabela s/IVA</span>
+          </>
+        )}
       </p>
     </div>
   )
 }
 
-type Dados = {
-  entradas: Array<React.ComponentProps<typeof ProductCard>["entrada"]>
-  totalFamilias: number
-  numPaginas: number
-  pagina: number
+function Filtros({
+  filtros,
+  data,
+  onFamilia,
+  onMarca,
+}: {
+  filtros: FiltrosCatalogo
+  data: Lista | undefined
+  onFamilia: (familia: string | undefined) => void
+  onMarca: (marca: string | undefined) => void
+}) {
+  // Families keep their canonical order and brands stay alphabetical, so the
+  // chips never jump around as counts change. Options with no matches drop
+  // out, except the chosen one (it must stay to be un-chosen).
+  const familias = useMemo<Array<Opcao>>(() => {
+    const contagens = new Map(
+      (data?.familias ?? []).map((f) => [f.valor, f.contagem])
+    )
+    return FAMILIAS.filter(
+      (f) => contagens.has(f) || f === filtros.familia
+    ).map((f) => ({
+      valor: f,
+      rotulo: rotuloFamilia(f),
+      contagem: contagens.get(f) ?? 0,
+    }))
+  }, [data?.familias, filtros.familia])
+
+  const marcas = useMemo<Array<Opcao>>(() => {
+    const lista = (data?.marcas ?? []).map((m) => ({
+      valor: m.valor,
+      rotulo: rotuloMarca(m.valor),
+      contagem: m.contagem,
+    }))
+    if (filtros.marca && !lista.some((m) => m.valor === filtros.marca)) {
+      lista.push({
+        valor: filtros.marca,
+        rotulo: rotuloMarca(filtros.marca),
+        contagem: 0,
+      })
+    }
+    return lista.sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt"))
+  }, [data?.marcas, filtros.marca])
+
+  if (!data) {
+    return (
+      <div className="mt-4 flex flex-col gap-2.5">
+        <div className="h-8 w-full max-w-2xl animate-pulse rounded-full bg-muted" />
+        <div className="h-8 w-full max-w-md animate-pulse rounded-full bg-muted" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-2.5">
+      <FilterChips
+        rotulo="Família"
+        rotuloTodos="Todas"
+        opcoes={familias}
+        escolhida={filtros.familia}
+        onEscolher={onFamilia}
+      />
+      <FilterChips
+        rotulo="Marca"
+        rotuloTodos="Todas"
+        opcoes={marcas}
+        escolhida={filtros.marca}
+        onEscolher={onMarca}
+      />
+    </div>
+  )
 }
 
 function Resultados({
   data,
-  vista,
-  mostrarFamilia,
+  filtros,
   aCarregar,
   aAtualizar,
-  temFiltro,
+  temFiltros,
   onLimpar,
   onPagina,
 }: {
-  data: Dados | undefined
-  vista: "grelha" | "lista"
-  mostrarFamilia: boolean
+  data: Lista | undefined
+  filtros: FiltrosCatalogo
   aCarregar: boolean
   aAtualizar: boolean
-  temFiltro: boolean
+  temFiltros: boolean
   onLimpar: () => void
   onPagina: (pagina: number) => void
 }) {
   if (aCarregar || data === undefined) {
     return (
-      <Grelha vista={vista}>
-        {Array.from({ length: 9 }, (_, i) =>
-          vista === "grelha" ? (
-            <ProductCardSkeleton key={i} />
-          ) : (
-            <ProductRowSkeleton key={i} />
-          )
-        )}
+      <Grelha>
+        {Array.from({ length: 10 }, (_, i) => (
+          <ProductCardSkeleton key={i} />
+        ))}
       </Grelha>
     )
   }
 
   if (data.entradas.length === 0) {
-    return <SemResultados temFiltro={temFiltro} onLimpar={onLimpar} />
+    return <SemResultados temFiltros={temFiltros} onLimpar={onLimpar} />
   }
 
   return (
-    <ResultadosComPrecos
-      data={data}
-      vista={vista}
-      mostrarFamilia={mostrarFamilia}
-      aAtualizar={aAtualizar}
-      onPagina={onPagina}
-    />
-  )
-}
-
-function ResultadosComPrecos({
-  data,
-  vista,
-  mostrarFamilia,
-  aAtualizar,
-  onPagina,
-}: {
-  data: Dados
-  vista: "grelha" | "lista"
-  mostrarFamilia: boolean
-  aAtualizar: boolean
-  onPagina: (pagina: number) => void
-}) {
-  const overlay = useMapaDesdePorGrupo(data.entradas.map((e) => e.grupoModelo))
-
-  return (
     <>
-      <div className={cn(aAtualizar && "opacity-70 transition-opacity")}>
-        <Grelha vista={vista}>
-          {data.entradas.map((entrada) => {
-            const precoDesdeCents =
-              overlay?.get(entrada.grupoModelo) ?? entrada.precoDesdeCents
-            const entradaVista = { ...entrada, precoDesdeCents }
-            return vista === "grelha" ? (
-              <ProductCard
-                key={entrada.grupoModelo}
-                entrada={entradaVista}
-                mostrarFamilia={mostrarFamilia}
-              />
-            ) : (
-              <ProductRow key={entrada.grupoModelo} entrada={entradaVista} />
-            )
-          })}
-        </Grelha>
-      </div>
-
-      {data.numPaginas > 1 && (
-        <Paginacao
-          pagina={data.pagina}
-          numPaginas={data.numPaginas}
-          onPagina={onPagina}
+      <div
+        aria-busy={aAtualizar}
+        className={cn(
+          "transition-opacity duration-200",
+          aAtualizar && "pointer-events-none opacity-60"
+        )}
+      >
+        <GrelhaComPrecos
+          entradas={data.entradas}
+          mostrarFamilia={filtros.familia === undefined}
         />
-      )}
+      </div>
+      <Pagination
+        pagina={data.pagina}
+        numPaginas={data.numPaginas}
+        onPagina={onPagina}
+      />
+      <p className="mt-4 text-center text-xs text-muted-foreground tabular-nums">
+        {numero.format(data.pagina * POR_PAGINA + 1)}–
+        {numero.format(data.pagina * POR_PAGINA + data.entradas.length)} de{" "}
+        {numero.format(data.total)}
+      </p>
     </>
   )
 }
 
-function Grelha({
-  vista,
-  children,
+function GrelhaComPrecos({
+  entradas,
+  mostrarFamilia,
 }: {
-  vista: "grelha" | "lista"
-  children: React.ReactNode
+  entradas: Lista["entradas"]
+  mostrarFamilia: boolean
 }) {
+  // Approved installers get one extra query per page with their reseller
+  // "desde" prices; everyone else renders the PVP that came with the list.
+  const revenda = useMapaDesdePorGrupo(entradas.map((e) => e.grupoModelo))
   return (
-    <div
-      className={cn(
-        "mt-6",
-        vista === "grelha"
-          ? "grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
-          : "flex flex-col gap-3"
-      )}
-    >
+    <Grelha>
+      {entradas.map((entrada) => (
+        <ProductCard
+          key={entrada.grupoModelo}
+          entrada={entrada}
+          mostrarFamilia={mostrarFamilia}
+          precoRevendaCents={revenda?.get(entrada.grupoModelo)}
+        />
+      ))}
+    </Grelha>
+  )
+}
+
+function Grelha({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-5 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-4">
       {children}
     </div>
   )
 }
 
-/** Full-screen filter sheet for small screens. */
-function PainelMobile({
-  aberto,
-  total,
-  numFiltros,
-  onFechar,
-  onLimpar,
-  children,
-}: {
-  aberto: boolean
-  total: number | undefined
-  numFiltros: number
-  onFechar: () => void
-  onLimpar: () => void
-  children: React.ReactNode
-}) {
-  // Lock the page behind the sheet so scrolling the filter list does not scroll
-  // the results underneath.
-  useEffect(() => {
-    if (!aberto) return
-    const anterior = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      document.body.style.overflow = anterior
-    }
-  }, [aberto])
-
-  useEffect(() => {
-    if (!aberto) return
-    function fechar(e: KeyboardEvent) {
-      if (e.key === "Escape") onFechar()
-    }
-    window.addEventListener("keydown", fechar)
-    return () => window.removeEventListener("keydown", fechar)
-  }, [aberto, onFechar])
-
-  return (
-    <div
-      className={cn(
-        "fixed inset-0 z-[70] lg:hidden",
-        !aberto && "pointer-events-none"
-      )}
-      aria-hidden={!aberto}
-    >
-      <div
-        onClick={onFechar}
-        className={cn(
-          "absolute inset-0 bg-foreground/40 backdrop-blur-sm transition-opacity duration-300",
-          aberto ? "opacity-100" : "opacity-0"
-        )}
-      />
-      <aside
-        role="dialog"
-        aria-modal={aberto}
-        aria-label="Filtros"
-        className={cn(
-          "absolute inset-y-0 left-0 flex w-full max-w-sm flex-col bg-background shadow-2xl transition-transform duration-300 ease-out",
-          aberto ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <header className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-lg font-semibold tracking-tight">Filtros</h2>
-          <div className="flex items-center gap-1">
-            {numFiltros > 0 && (
-              <button
-                type="button"
-                onClick={onLimpar}
-                className="rounded-md px-2 py-1 text-sm font-medium text-primary transition-colors hover:bg-secondary"
-              >
-                Limpar
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onFechar}
-              aria-label="Fechar filtros"
-              className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-
-        <footer className="border-t px-5 py-4">
-          <Button className="w-full" size="lg" onClick={onFechar}>
-            {total === undefined
-              ? "Ver resultados"
-              : `Ver ${total} ${total === 1 ? "produto" : "produtos"}`}
-          </Button>
-        </footer>
-      </aside>
-    </div>
-  )
-}
-
-/**
- * Page numbers around the current one, with the first and last always
- * reachable: [1, …, 4, 5, 6, …, 37]. `null` marks an elision.
- */
-function paginasVisiveis(
-  pagina: number,
-  numPaginas: number
-): Array<number | null> {
-  if (numPaginas <= 7) {
-    return Array.from({ length: numPaginas }, (_, i) => i)
-  }
-  const perto = [pagina - 1, pagina, pagina + 1].filter(
-    (p) => p > 0 && p < numPaginas - 1
-  )
-  const paginas: Array<number | null> = [0]
-  if ((perto[0] ?? 1) > 1) paginas.push(null)
-  paginas.push(...perto)
-  if ((perto[perto.length - 1] ?? numPaginas - 2) < numPaginas - 2) {
-    paginas.push(null)
-  }
-  paginas.push(numPaginas - 1)
-  return paginas
-}
-
-function Paginacao({
-  pagina,
-  numPaginas,
-  onPagina,
-}: {
-  pagina: number
-  numPaginas: number
-  onPagina: (pagina: number) => void
-}) {
-  return (
-    <nav
-      aria-label="Paginação"
-      className="mt-10 flex items-center justify-between gap-3 border-t pt-6"
-    >
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={pagina <= 0}
-        onClick={() => onPagina(pagina - 1)}
-      >
-        <ChevronLeft data-icon="inline-start" />
-        <span className="hidden sm:inline">Anterior</span>
-      </Button>
-
-      <div className="flex items-center gap-1">
-        {paginasVisiveis(pagina, numPaginas).map((p, i) =>
-          p === null ? (
-            <span
-              key={`salto-${i}`}
-              className="px-1 text-sm text-muted-foreground"
-            >
-              …
-            </span>
-          ) : (
-            <button
-              key={p}
-              type="button"
-              onClick={() => onPagina(p)}
-              aria-current={p === pagina ? "page" : undefined}
-              className={cn(
-                "size-9 rounded-lg text-sm font-medium tabular-nums transition-colors",
-                p === pagina
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              {p + 1}
-            </button>
-          )
-        )}
-      </div>
-
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={pagina >= numPaginas - 1}
-        onClick={() => onPagina(pagina + 1)}
-      >
-        <span className="hidden sm:inline">Seguinte</span>
-        <ChevronRight data-icon="inline-end" />
-      </Button>
-    </nav>
-  )
-}
-
 function SemResultados({
-  temFiltro,
+  temFiltros,
   onLimpar,
 }: {
-  temFiltro: boolean
+  temFiltros: boolean
   onLimpar: () => void
 }) {
   return (
-    <div className="mt-16 flex flex-col items-center gap-4 text-center">
+    <div className="mt-12 flex flex-col items-center gap-3 text-center sm:mt-20">
+      <div className="flex size-12 items-center justify-center rounded-full bg-accent text-primary">
+        <SearchX className="size-5" />
+      </div>
       <p className="text-lg font-semibold">Nenhum produto encontrado</p>
-      <p className="max-w-md text-sm text-muted-foreground">
-        {temFiltro
-          ? "Os filtros atuais não devolvem resultados. Remova alguns filtros ou tente outro termo de pesquisa."
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {temFiltros
+          ? "Experimente outro termo ou remova a família ou a marca escolhida."
           : "O catálogo será publicado em breve. Contacte-nos para conhecer a oferta completa."}
       </p>
-      {temFiltro ? (
-        <Button variant="outline" onClick={onLimpar}>
+      {temFiltros ? (
+        <Button variant="outline" onClick={onLimpar} className="mt-1">
           Limpar filtros
         </Button>
       ) : (
-        <Button render={<Link to="/" />} nativeButton={false} variant="outline">
+        <Button
+          render={<Link to="/" />}
+          nativeButton={false}
+          variant="outline"
+          className="mt-1"
+        >
           Voltar ao início
         </Button>
       )}

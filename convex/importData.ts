@@ -4,6 +4,7 @@ import { produtoImportFields, upsertProdutoPorRef } from "./produtos";
 import { upsertPagina } from "./paginasCatalogo";
 import { definirImagensProduto } from "./imagens";
 import { estadoValidator } from "./schema";
+import { sincronizarGrupos } from "./lib/catalogoGrupos";
 
 // Bulk data import, driven by a trusted local script (no browser / no Clerk).
 //
@@ -46,10 +47,13 @@ export const importarProdutos = mutation({
     let criados = 0;
     let atualizados = 0;
     const erros: Array<{ ref: string; erro: string }> = [];
+    // Variants of one group arrive together, so syncing the catalog row once
+    // per group at the end is much cheaper than once per SKU.
+    const gruposTocados = new Set<string>();
 
     for (const produto of args.produtos) {
       try {
-        const r = await upsertProdutoPorRef(ctx, produto);
+        const r = await upsertProdutoPorRef(ctx, produto, gruposTocados);
         if (r.created) criados++;
         else atualizados++;
       } catch (e) {
@@ -59,6 +63,7 @@ export const importarProdutos = mutation({
         });
       }
     }
+    await sincronizarGrupos(ctx, gruposTocados);
 
     return { total: args.produtos.length, criados, atualizados, erros };
   },
@@ -98,6 +103,10 @@ export const removerAusentes = mutation({
       await ctx.db.delete(p._id);
       removidos++;
     }
+    await sincronizarGrupos(
+      ctx,
+      aRemover.map((p) => p.grupoModelo),
+    );
 
     // Only delete storage files no longer referenced by any remaining product.
     let ficheirosRemovidos = 0;
@@ -294,6 +303,10 @@ export const limparCatalogo = mutation({
         await ctx.db.delete(p._id);
         produtosApagados++;
       }
+      await sincronizarGrupos(
+        ctx,
+        produtos.map((p) => p.grupoModelo),
+      );
       // Only delete storage files no longer referenced by remaining products
       // (families share the same image ids across variants).
       const restantes = await ctx.db.query("produtos").collect();
