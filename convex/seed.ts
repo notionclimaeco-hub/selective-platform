@@ -160,6 +160,114 @@ export const seedCatalogoExemplo = internalMutation({
   },
 });
 
+// --- Payment test products ------------------------------------------------
+
+/** Provenance tag for the €0,05 test SKUs. Its own value so brand re-imports
+ * (which replace rows by `tabelaOrigem`) never touch them, and `removerProdutosTeste`
+ * can find them all. */
+const TABELA_TESTE = "teste-pagamentos";
+const PVP_TESTE_CENTS = 5;
+
+/**
+ * Brands to create a test product for. Fixed list rather than derived from
+ * `produtos` so the seed stays cheap and deterministic.
+ */
+const MARCAS_TESTE: ReadonlyArray<{ slug: string; nome: string }> = [
+  { slug: "daikin", nome: "Daikin" },
+  { slug: "hisense", nome: "Hisense" },
+  { slug: "midea", nome: "Midea" },
+  { slug: "mitsubishi", nome: "Mitsubishi Electric" },
+  { slug: "nipon", nome: "Nipon" },
+];
+
+function produtoTeste(marca: {
+  slug: string;
+  nome: string;
+}): WithoutSystemFields<Doc<"produtos">> {
+  const refMarca = marca.slug.toUpperCase();
+  return {
+    ref: `TESTE-PAG-${refMarca}`,
+    marca: marca.slug,
+    nome: `Artigo de teste de pagamento ${marca.nome}`,
+    nomeGrupo: `Artigo de teste de pagamento ${marca.nome}`,
+    familia: "acessorios-e-controlo",
+    componente: "acessorio",
+    grupoModelo: `${marca.slug}-teste-pagamento`,
+    atributos: [{ chave: "finalidade", valor: "Teste de pagamentos" }],
+    descricao:
+      "Artigo fictício de valor simbólico para testar o fluxo de pagamento e a emissão de faturas. Não corresponde a nenhum produto real.",
+    pvpCents: PVP_TESTE_CENTS,
+    ivaIncluido: false,
+    tabelaOrigem: TABELA_TESTE,
+    pdfPaginas: [],
+    imagens: [],
+    estado: "publicado",
+  };
+}
+
+/**
+ * Idempotent: one published €0,05 (VAT-excl) SKU per brand so payments and
+ * invoicing can be exercised end-to-end for real money at negligible cost.
+ * Upserts by `ref`. Undo with `seed:removerProdutosTeste`. Internal only.
+ */
+export const seedProdutosTeste = internalMutation({
+  args: {},
+  returns: v.object({
+    inseridos: v.number(),
+    atualizados: v.number(),
+    refs: v.array(v.string()),
+  }),
+  handler: async (ctx) => {
+    let inseridos = 0;
+    let atualizados = 0;
+    const docs = MARCAS_TESTE.map(produtoTeste);
+
+    for (const doc of docs) {
+      const existente = await ctx.db
+        .query("produtos")
+        .withIndex("by_ref", (q) => q.eq("ref", doc.ref))
+        .unique();
+      if (existente) {
+        await ctx.db.patch(existente._id, doc);
+        atualizados += 1;
+      } else {
+        await ctx.db.insert("produtos", doc);
+        inseridos += 1;
+      }
+    }
+    await sincronizarGrupos(
+      ctx,
+      docs.map((d) => d.grupoModelo),
+    );
+
+    return { inseridos, atualizados, refs: docs.map((d) => d.ref) };
+  },
+});
+
+/**
+ * Removes every SKU seeded by `seedProdutosTeste` (all rows with
+ * `tabelaOrigem = "teste-pagamentos"`) and drops their catalog groups.
+ * Orders that already reference them keep their own line snapshots.
+ */
+export const removerProdutosTeste = internalMutation({
+  args: {},
+  returns: v.object({ removidos: v.number() }),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("produtos")
+      .withIndex("by_tabela", (q) => q.eq("tabelaOrigem", TABELA_TESTE))
+      .take(100);
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+    await sincronizarGrupos(
+      ctx,
+      rows.map((r) => r.grupoModelo),
+    );
+    return { removidos: rows.length };
+  },
+});
+
 const TIERS_SEED = [
   {
     slug: "base",
