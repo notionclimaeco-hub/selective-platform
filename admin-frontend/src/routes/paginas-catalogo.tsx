@@ -4,6 +4,7 @@ import { useState } from "react"
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/paginas-catalogo")({
   component: PaginasCatalogo,
@@ -138,16 +139,17 @@ function PaginasCatalogo() {
           <h2 className="font-medium">Resultado</h2>
           <ul className="flex flex-col gap-1">
             {resultados.map((r, i) => (
-              <li key={i} className="flex gap-2">
+              <li key={i} className="flex min-w-0 gap-2">
                 <span
-                  className={
-                    r.estado === "ok" ? "text-green-600" : "text-red-600"
-                  }
+                  className={cn(
+                    "shrink-0",
+                    r.estado === "ok" ? "text-green-600" : "text-red-600",
+                  )}
                 >
                   {r.estado === "ok" ? "OK" : "ERRO"}
                 </span>
-                <span className="text-muted-foreground">
-                  {r.ficheiro}
+                <span className="min-w-0 break-words text-muted-foreground">
+                  <span className="break-all">{r.ficheiro}</span>
                   {r.pagina !== undefined ? ` · página ${r.pagina}` : ""} —{" "}
                   {r.mensagem}
                 </span>

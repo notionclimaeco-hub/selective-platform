@@ -97,20 +97,21 @@ function Tiers() {
         </p>
       )}
       <div className="overflow-x-auto rounded-2xl border bg-card">
-        <table className="w-full min-w-[32rem] text-left text-sm">
+        {/* Three narrow columns: no min-width so it fits a 320px phone. */}
+        <table className="w-full text-left text-sm">
           <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Nome</th>
-              <th className="px-4 py-2.5 font-medium">Limiar</th>
-              <th className="px-4 py-2.5 font-medium">Activo</th>
+              <th className="px-3 py-2.5 font-medium sm:px-4">Nome</th>
+              <th className="px-3 py-2.5 font-medium sm:px-4">Limiar</th>
+              <th className="px-3 py-2.5 font-medium sm:px-4">Activo</th>
             </tr>
           </thead>
           <tbody>
             {(tiers ?? []).map((tier) => (
               <tr key={tier._id} className="border-b last:border-0">
-                <td className="px-4 py-2">
+                <td className="px-3 py-2 sm:px-4">
                   <input
-                    className={inputCls}
+                    className={cn(inputCls, "w-full min-w-24")}
                     defaultValue={tier.nome}
                     onBlur={(e) => {
                       const next = e.target.value.trim()
@@ -120,9 +121,10 @@ function Tiers() {
                     }}
                   />
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-3 py-2 sm:px-4">
                   <input
-                    className={cn(inputCls, "w-36")}
+                    className={cn(inputCls, "w-20 sm:w-36")}
+                    inputMode="decimal"
                     defaultValue={(tier.limiarCents / 100).toString()}
                     disabled={tier.slug === "base"}
                     title={
@@ -140,7 +142,7 @@ function Tiers() {
                     }}
                   />
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-3 py-2 sm:px-4">
                   <input
                     type="checkbox"
                     checked={tier.ativa}
@@ -160,10 +162,10 @@ function Tiers() {
         onSubmit={(e) => void adicionar(e)}
         className="flex flex-wrap items-end gap-2"
       >
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:flex-none">
           <span className="text-muted-foreground">Novo tier</span>
           <input
-            className={inputCls}
+            className={cn(inputCls, "w-full min-w-0 sm:w-48")}
             placeholder="Nome"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
@@ -241,13 +243,20 @@ function Matriz() {
           {erro}
         </p>
       )}
+      {/* One column per tier: this grid is legitimately wider than a phone,
+          so it scrolls inside this wrapper rather than stretching the page. */}
       <div className="overflow-x-auto rounded-2xl border bg-card">
-        <table className="w-full min-w-[40rem] text-left text-sm">
+        <table className="w-full text-left text-sm">
           <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Marca</th>
+              <th className="px-4 py-2.5 font-medium whitespace-nowrap">
+                Marca
+              </th>
               {data.tiers.map((tier) => (
-                <th key={tier._id} className="px-4 py-2.5 font-medium">
+                <th
+                  key={tier._id}
+                  className="px-4 py-2.5 font-medium whitespace-nowrap"
+                >
                   {tier.nome}
                   {!tier.ativa && (
                     <span className="ml-1 font-normal normal-case">
@@ -261,7 +270,9 @@ function Matriz() {
           <tbody>
             {data.marcas.map((marca) => (
               <tr key={marca.slug} className="border-b last:border-0">
-                <td className="px-4 py-2 font-medium">{marca.nome}</td>
+                <td className="px-4 py-2 font-medium whitespace-nowrap">
+                  {marca.nome}
+                </td>
                 {data.tiers.map((tier) => {
                   const key = `${marca.slug}:${tier._id}`
                   return (

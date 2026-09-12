@@ -42,10 +42,14 @@ export function ConfirmDialog({
         onClick={aProcessar ? undefined : onCancelar}
       />
       <div className="relative w-full max-w-sm rounded-xl border bg-background p-5 shadow-xl">
-        <h2 className="font-medium">{titulo}</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">{descricao}</p>
-        {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
-        <div className="mt-5 flex items-center justify-end gap-2">
+        <h2 className="font-medium break-words">{titulo}</h2>
+        <p className="mt-1.5 text-sm break-words text-muted-foreground">
+          {descricao}
+        </p>
+        {erro && (
+          <p className="mt-3 text-sm break-words text-destructive">{erro}</p>
+        )}
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
           <Button variant="outline" onClick={onCancelar} disabled={aProcessar}>
             Cancelar
           </Button>

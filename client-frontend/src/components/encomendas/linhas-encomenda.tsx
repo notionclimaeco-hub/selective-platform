@@ -100,13 +100,13 @@ function Linha({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "leading-snug font-medium",
+            "leading-snug font-medium break-words",
             retirada && "text-muted-foreground line-through"
           )}
         >
           {linha.nome}
         </p>
-        <p className="mt-0.5 text-sm text-muted-foreground">
+        <p className="mt-0.5 text-sm break-all text-muted-foreground">
           {rotuloMarca(linha.marca)} · {linha.ref}
         </p>
         {mostrarEstado && linha.estadoLinha && !progresso && (

@@ -120,7 +120,7 @@ function Pagamento({ pagamento }: { pagamento: Vista }) {
           </p>
         </div>
 
-        <aside className="order-1 flex flex-col gap-4 lg:sticky lg:top-24 lg:order-2">
+        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:order-2">
           {pagavel ? (
             <PagarPorBanco
               revolutToken={pagamento.revolutToken!}
@@ -262,10 +262,10 @@ function PagarPorBanco({
           {eurExato.format(totalCents / 100)}
         </p>
         {expiraEm && (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-800 ring-1 ring-orange-600/20 ring-inset">
-            <Clock className="size-3.5" />
-            Válido até {formatarDataEncomenda(expiraEm)} ·{" "}
-            {prazoRelativo(expiraEm, agora)}
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-xl bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-800 ring-1 ring-orange-600/20 ring-inset">
+            <Clock className="size-3.5 shrink-0" />
+            <span>Válido até {formatarDataEncomenda(expiraEm)}</span>
+            <span>· {prazoRelativo(expiraEm, agora)}</span>
           </p>
         )}
 

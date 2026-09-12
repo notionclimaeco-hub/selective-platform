@@ -195,10 +195,14 @@ export function ImageManager({
 
       <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
         <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <h2 className="font-medium">Gerir imagens</h2>
-            <p className="text-sm text-muted-foreground">{alvo.nome}</p>
-            <p className="text-xs text-muted-foreground">Ref.: {alvo.ref}</p>
+            <p className="text-sm break-words text-muted-foreground">
+              {alvo.nome}
+            </p>
+            <p className="text-xs break-all text-muted-foreground">
+              Ref.: {alvo.ref}
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -267,7 +271,7 @@ export function ImageManager({
                     items={itens.map((i) => i.ficheiro)}
                     strategy={rectSortingStrategy}
                   >
-                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-3 sm:grid-cols-4">
                       {itens.map((item, i) => (
                         <SortableImage
                           key={item.ficheiro}
@@ -289,12 +293,14 @@ export function ImageManager({
           )}
         </div>
 
-        <footer className="flex items-center justify-between gap-4 border-t px-5 py-4">
+        {/* Stacks on phones: the checkbox label is too long to share a row
+            with two buttons at 320–390px. */}
+        <footer className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           {alvo.temGrupo ? (
-            <label className="inline-flex items-center gap-2 text-sm">
+            <label className="flex min-w-0 items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                className="size-4"
+                className="size-4 shrink-0"
                 checked={aplicarAoGrupo}
                 disabled={ocupado}
                 onChange={(e) => setAplicarAoGrupo(e.target.checked)}
@@ -302,9 +308,9 @@ export function ImageManager({
               Aplicar a todas as variantes do grupo
             </label>
           ) : (
-            <span />
+            <span className="hidden sm:block" />
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <Button variant="outline" onClick={onClose} disabled={ocupado}>
               Cancelar
             </Button>

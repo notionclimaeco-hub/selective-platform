@@ -140,4 +140,10 @@
   html {
     @apply scroll-smooth font-sans;
     }
+  /* Safety net against side-scrolling on phones: `clip` (not `hidden`) so the
+   * root stays a non-scroll-container and `position: sticky` keeps working. */
+  html,
+  body {
+    overflow-x: clip;
+  }
 }

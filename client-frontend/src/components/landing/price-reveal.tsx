@@ -31,7 +31,7 @@ export function PriceReveal() {
 function PalcoComDados() {
   // Same arguments as the showcase below, so both share one cached query.
   const { data } = useSuspenseQuery(
-    convexQuery(api.produtos.listarCatalogo, { pagina: 0, porPagina: 8 })
+    convexQuery(api.catalogo.listar, { pagina: 0, porPagina: 8 })
   )
   const comFoto = data.entradas.filter((p) => p.capaUrl)
   const produtos = (comFoto.length >= 3 ? comFoto : data.entradas).slice(0, 3)
@@ -77,10 +77,7 @@ function Palco({ produtos }: { produtos: Array<CatalogProduct> | null }) {
                 ALTURA,
                 fase >= 3 && "opacity-0"
               )}
-              style={{
-                left: `${i * PASSO.x}rem`,
-                top: `${i * PASSO.y}rem`,
-              }}
+              style={passo(i)}
             >
               {i === lista.length - 1 && (
                 <Lock className="size-5 text-foreground/25" />
@@ -114,9 +111,15 @@ function Palco({ produtos }: { produtos: Array<CatalogProduct> | null }) {
 
 // Card geometry and the diagonal offset between fanned cards. The stack box
 // is sized to the card plus two offsets so nothing overflows or reflows.
+// The horizontal step lives in `--passo-x` (set on `Pilha`) so it can tighten
+// on 320px phones: 10rem card + 2 × 4rem = 18rem fits inside `px-4`.
 const LARGURA = "w-40 sm:w-44"
 const ALTURA = "h-[13.5rem] sm:h-[14.5rem]"
-const PASSO = { x: 5.5, y: 2.25 } // rem
+const PASSO = { x: "var(--passo-x)", y: "2.25rem" }
+const passo = (indice: number) => ({
+  left: `calc(${indice} * ${PASSO.x})`,
+  top: `calc(${indice} * ${PASSO.y})`,
+})
 
 function Pilha({
   legenda,
@@ -130,7 +133,7 @@ function Pilha({
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
       {/* Card size + two diagonal offsets (see LARGURA/ALTURA/PASSO). */}
-      <div className="relative h-[18rem] w-[21rem] sm:h-[19rem] sm:w-[22rem]">
+      <div className="relative h-[18rem] w-[18rem] [--passo-x:4rem] min-[360px]:w-[21rem] min-[360px]:[--passo-x:5.5rem] sm:h-[19rem] sm:w-[22rem]">
         {children}
       </div>
       <p className="text-xs font-medium text-muted-foreground">{legenda}</p>
@@ -167,8 +170,7 @@ function Cartao({
           "-translate-y-6 opacity-0 lg:translate-x-[-3rem] lg:translate-y-0"
       )}
       style={{
-        left: `${indice * PASSO.x}rem`,
-        top: `${indice * PASSO.y}rem`,
+        ...passo(indice),
         zIndex: indice + 1,
         transitionDelay: visivel && revendedor ? `${indice * 160}ms` : "0ms",
       }}

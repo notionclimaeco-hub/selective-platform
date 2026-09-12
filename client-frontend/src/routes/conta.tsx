@@ -123,8 +123,8 @@ function Orfao({ orgId }: { orgId: string }) {
         </a>
       }
     >
-      A organização Clerk ({orgId}) não tem um registo correspondente. Contacte
-      o escritório.
+      A organização Clerk (<span className="break-all">{orgId}</span>) não tem
+      um registo correspondente. Contacte o escritório.
     </Aviso>
   )
 }

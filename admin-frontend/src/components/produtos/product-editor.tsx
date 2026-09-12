@@ -149,13 +149,15 @@ export function ProductEditor({
 
       <div className="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
         <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <h2 className="font-medium">Editar produto</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm break-words text-muted-foreground">
               {produto ? rotuloMarca(produto.marca) : ""}
               {produto?.grupoModelo ? ` · ${produto.grupoModelo}` : ""}
             </p>
-            <p className="text-xs text-muted-foreground">Ref.: {refProduto}</p>
+            <p className="text-xs break-all text-muted-foreground">
+              Ref.: {refProduto}
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -255,8 +257,10 @@ export function ProductEditor({
                 <div className="flex flex-col gap-2">
                   {form.atributos.map((atributo, idx) => (
                     <div key={idx} className="flex items-center gap-2">
+                      {/* `min-w-0` lets inputs shrink below their intrinsic
+                          width so the row fits a phone-sized dialog. */}
                       <input
-                        className={inputCls}
+                        className={`${inputCls} min-w-0 flex-1`}
                         value={atributo.chave}
                         onChange={(e) =>
                           setAtributo(idx, { chave: e.target.value })
@@ -264,9 +268,9 @@ export function ProductEditor({
                         placeholder="chave"
                         aria-label={`Chave do atributo ${idx + 1}`}
                       />
-                      <span className="text-muted-foreground">=</span>
+                      <span className="shrink-0 text-muted-foreground">=</span>
                       <input
-                        className={inputCls}
+                        className={`${inputCls} min-w-0 flex-1`}
                         value={atributo.valor}
                         onChange={(e) =>
                           setAtributo(idx, { valor: e.target.value })

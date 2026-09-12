@@ -147,12 +147,26 @@
   html {
     @apply scroll-smooth font-sans;
   }
+  /* Safety net against side-scrolling on phones: `clip` (not `hidden`) so the
+   * root stays a non-scroll-container and `position: sticky` keeps working. */
+  html,
+  body {
+    overflow-x: clip;
+  }
   h1,
   h2,
   h3,
   h4 {
     @apply font-semibold tracking-tight text-balance;
   }
+}
+
+/* Horizontal chip rows on phones scroll without showing a scrollbar. */
+.sem-scrollbar {
+  scrollbar-width: none;
+}
+.sem-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ---------------------------------------------------------------------------

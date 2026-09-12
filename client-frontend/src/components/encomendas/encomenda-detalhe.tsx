@@ -86,7 +86,7 @@ export function EncomendaDetalhe({
           <LinhasEncomenda linhas={encomenda.linhas} totais={encomenda} />
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
+        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
           <section className="rounded-xl border bg-card p-5">
             <h2 className="text-sm font-semibold">Resumo</h2>
             <dl className="mt-3 space-y-2 text-sm">
