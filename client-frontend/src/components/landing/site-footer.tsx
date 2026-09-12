@@ -1,45 +1,9 @@
 import { Link } from "@tanstack/react-router"
 import { Mail, MapPin, Phone } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-
 export function SiteFooter() {
   return (
     <footer id="contactos" className="scroll-mt-20">
-      {/* CTA band */}
-      <div className="bg-primary">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-center">
-          <div className="max-w-xl">
-            <h2 className="text-balance text-2xl font-semibold tracking-tight text-primary-foreground sm:text-3xl">
-              Vamos falar sobre o seu próximo projeto?
-            </h2>
-            <p className="mt-2 text-pretty text-primary-foreground/80">
-              Peça acesso à área de cliente ou fale diretamente com a nossa
-              equipa comercial.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              render={<Link to="/entrar" />}
-              nativeButton={false}
-              variant="secondary"
-              size="lg"
-              className="px-6"
-            >
-              Área de Cliente
-            </Button>
-            <Button
-              render={<a href="mailto:geral@climaeco.pt" />}
-              nativeButton={false}
-              size="lg"
-              className="border border-primary-foreground/30 bg-transparent px-6 text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              Contacte-nos
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Footer body */}
       <div className="border-t bg-background">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">

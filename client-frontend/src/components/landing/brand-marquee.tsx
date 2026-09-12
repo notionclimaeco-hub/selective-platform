@@ -84,7 +84,7 @@ function BrandLogo({ marca }: { marca: Marca }) {
       <img
         src={marca.logo}
         alt={marca.nome}
-        loading="lazy"
+        // Eager: a lazily-loaded image would decode on first hover and flash.
         className="absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-300 group-hover/logo:opacity-100"
       />
     </div>
@@ -96,17 +96,14 @@ export function BrandMarquee() {
   const itens = [...MARCAS, ...MARCAS]
 
   return (
-    <section
-      id="marcas"
-      className="scroll-mt-20 border-y bg-secondary/60 py-16 md:py-20"
-    >
+    <section id="marcas" className="scroll-mt-20 border-b py-12 md:py-14">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="text-center text-sm font-medium tracking-[0.2em] text-muted-foreground uppercase">
-          Parceiro oficial
+        <p className="text-center text-sm font-medium text-muted-foreground">
+          Distribuidor oficial das marcas líderes
         </p>
       </div>
 
-      <div className="marquee relative mt-10 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+      <div className="marquee relative mt-8 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
         <div className="marquee-track flex w-max items-center">
           {itens.map((marca, i) => {
             const duplicado = i >= MARCAS.length
@@ -123,7 +120,13 @@ export function BrandMarquee() {
                   // The second copy exists only to make the marquee loop
                   // seamlessly, so keep it out of the tab order.
                   tabIndex={duplicado ? -1 : undefined}
-                  className="flex items-center justify-center rounded-lg px-3 py-2 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className={cn(
+                    "flex items-center justify-center rounded-lg px-3 py-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    // Masked logos cross-fade to full color on hover; darkening
+                    // the mask at the same time reads as a black flash, so only
+                    // the plain wordmark gets the hover tint.
+                    !marca.logo && "transition-colors hover:text-foreground"
+                  )}
                 >
                   <BrandLogo marca={marca} />
                 </Link>

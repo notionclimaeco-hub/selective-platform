@@ -1,5 +1,9 @@
 /**
  * One-shot data migrations. Run via `npx convex run migrations:…` (or MCP).
+ *
+ * These write `produtos` directly without refreshing the denormalised
+ * `catalogoGrupos` listing. After running any of them, rebuild it with
+ * `npx convex run catalogo:reconstruir`.
  */
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";

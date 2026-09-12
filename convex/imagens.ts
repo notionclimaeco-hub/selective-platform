@@ -3,6 +3,7 @@ import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireStaff } from "./lib/auth";
+import { sincronizarGrupo } from "./lib/catalogoGrupos";
 
 /**
  * Staff-only image management for products.
@@ -74,6 +75,10 @@ export async function definirImagensProduto(
     if (igual) continue;
     await ctx.db.patch(alvo._id, { imagens: novas });
     produtosAtualizados++;
+  }
+  // The listing's cover (and "has photo" weight) come from these images.
+  if (produtosAtualizados > 0) {
+    await sincronizarGrupo(ctx, produto.grupoModelo);
   }
 
   // Orphan cleanup. Images can be shared across products (even outside the

@@ -32,7 +32,7 @@ export function ListaEncomendas({
   agora: number
 }) {
   const aPagar = encomendas.filter(
-    (e) => e.estado === "aguardando_pagamento" && e.pagamentoToken,
+    (e) => e.estado === "aguardando_pagamento" && e.pagamentoToken
   )
   const emCurso = encomendas.filter((e) => encomendaEmCurso(e.estado))
   const historico = encomendas.filter((e) => !encomendaEmCurso(e.estado))
@@ -42,7 +42,7 @@ export function ListaEncomendas({
       {aPagar.length > 0 && (
         <section
           aria-labelledby="accao-necessaria"
-          className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5 shadow-sm"
+          className="rounded-xl border border-orange-200 bg-orange-50/60 p-5"
         >
           <h2
             id="accao-necessaria"
@@ -86,9 +86,7 @@ export function ListaEncomendas({
         </section>
       )}
 
-      {emCurso.length > 0 && (
-        <Grupo titulo="Em curso" encomendas={emCurso} />
-      )}
+      {emCurso.length > 0 && <Grupo titulo="Em curso" encomendas={emCurso} />}
       {historico.length > 0 && (
         <Grupo titulo="Histórico" encomendas={historico} />
       )}
@@ -105,13 +103,13 @@ function Grupo({
 }) {
   return (
     <section>
-      <h2 className="mb-3 text-xs font-semibold tracking-[0.15em] text-muted-foreground uppercase">
+      <h2 className="mb-3 text-sm font-medium text-muted-foreground">
         {titulo}
         <span className="ml-2 font-normal tracking-normal normal-case">
           {encomendas.length}
         </span>
       </h2>
-      <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <ul className="divide-y overflow-hidden rounded-xl border bg-card">
         {encomendas.map((e) => (
           <li key={e._id}>
             <LinhaEncomenda encomenda={e} />
@@ -134,7 +132,9 @@ function LinhaEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
     >
       <div className="col-start-1 row-start-1 sm:col-auto sm:row-auto">
         <p className="font-semibold">ENC-{e.numero}</p>
-        <p className="text-xs text-muted-foreground">{formatarData(e.placedAt)}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatarData(e.placedAt)}
+        </p>
       </div>
 
       <div className="col-span-2 flex items-center gap-3 sm:col-span-1">

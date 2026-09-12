@@ -417,7 +417,7 @@ function Paginacao({
 }) {
   if (numPaginas <= 1) return null
   return (
-    <div className="flex items-center justify-between gap-2 pt-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
       <Button
         variant="outline"
         size="sm"
@@ -427,7 +427,8 @@ function Paginacao({
         <ChevronLeft data-icon="inline-start" />
         Anterior
       </Button>
-      <span className="text-xs text-muted-foreground">
+      {/* On phones the counter drops to its own line under the buttons. */}
+      <span className="order-last w-full text-center text-xs text-muted-foreground sm:order-none sm:w-auto">
         Página {pagina + 1} de {numPaginas}
       </span>
       <Button
@@ -490,12 +491,15 @@ function EntradaRow({
       <li className="rounded-xl border bg-card">
         <div className="flex flex-wrap items-center gap-4 p-3">
           <Thumb url={entrada.capaUrl} />
-          <div className="min-w-0 flex-1">
+          {/* A width floor (not `min-w-0`) so on phones the action cluster
+              wraps under the text instead of squeezing the name to nothing. */}
+          <div className="min-w-44 flex-1">
             <p className="truncate font-medium">{entrada.nome}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs break-words text-muted-foreground">
               {rotuloMarca(entrada.marca)}
               {entrada.gama ? ` · ${entrada.gama}` : ""} ·{" "}
-              {rotuloFamilia(entrada.familia)} · {entrada.ref}
+              {rotuloFamilia(entrada.familia)} ·{" "}
+              <span className="break-all">{entrada.ref}</span>
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium">
@@ -561,7 +565,7 @@ function EntradaRow({
         <button
           type="button"
           onClick={() => setAberto((v) => !v)}
-          className="flex min-w-0 flex-1 items-center gap-4 text-left"
+          className="flex min-w-44 flex-1 items-center gap-4 text-left"
           aria-expanded={aberto}
           aria-label={aberto ? "Fechar variantes" : "Abrir variantes"}
         >
@@ -683,10 +687,12 @@ function VarianteRow({
   const nome = rotuloVariante(variante, grupo)
   return (
     <li className="flex flex-wrap items-center gap-3 py-2 pl-6 pr-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-40 flex-1">
         <p className="truncate text-sm">{nome}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">{variante.ref}</span>
+          <span className="text-xs break-all text-muted-foreground">
+            {variante.ref}
+          </span>
           <span className="text-xs font-medium">
             {eur.format(variante.pvpCents / 100)}
           </span>

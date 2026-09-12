@@ -9,6 +9,7 @@
  */
 
 import type * as admin_health from "../admin/health.js";
+import type * as catalogo from "../catalogo.js";
 import type * as comercial from "../comercial.js";
 import type * as crons from "../crons.js";
 import type * as empresas from "../empresas.js";
@@ -19,6 +20,7 @@ import type * as imagens from "../imagens.js";
 import type * as importData from "../importData.js";
 import type * as lib_aprovacao from "../lib/aprovacao.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_catalogoGrupos from "../lib/catalogoGrupos.js";
 import type * as lib_clerkOrganizations from "../lib/clerkOrganizations.js";
 import type * as lib_encomendaEstados from "../lib/encomendaEstados.js";
 import type * as lib_nif from "../lib/nif.js";
@@ -53,6 +55,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "admin/health": typeof admin_health;
+  catalogo: typeof catalogo;
   comercial: typeof comercial;
   crons: typeof crons;
   empresas: typeof empresas;
@@ -63,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   importData: typeof importData;
   "lib/aprovacao": typeof lib_aprovacao;
   "lib/auth": typeof lib_auth;
+  "lib/catalogoGrupos": typeof lib_catalogoGrupos;
   "lib/clerkOrganizations": typeof lib_clerkOrganizations;
   "lib/encomendaEstados": typeof lib_encomendaEstados;
   "lib/nif": typeof lib_nif;

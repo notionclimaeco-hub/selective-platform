@@ -59,7 +59,7 @@ export function EncomendaDetalhe({
         descricao={`Submetida em ${formatarDataEncomenda(encomenda.placedAt)}`}
       />
 
-      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+      <section className="rounded-xl border bg-card p-5 sm:p-6">
         <LinhaDoTempo passos={passos} />
         <p className="mt-5 border-t pt-4 text-sm text-muted-foreground">
           {cancelada && encomenda.cancelReason
@@ -86,8 +86,8 @@ export function EncomendaDetalhe({
           <LinhasEncomenda linhas={encomenda.linhas} totais={encomenda} />
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
-          <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
+          <section className="rounded-xl border bg-card p-5">
             <h2 className="text-sm font-semibold">Resumo</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <Item rotulo="Total c/IVA" valor={eurExato.format(total / 100)} />
@@ -95,7 +95,7 @@ export function EncomendaDetalhe({
                 rotulo="Referências"
                 valor={String(
                   encomenda.linhas.filter((l) => l.estadoLinha !== "retirada")
-                    .length,
+                    .length
                 )}
               />
               <Item rotulo="Preços" valor="Congelados ao submeter" />
@@ -103,9 +103,11 @@ export function EncomendaDetalhe({
             </dl>
           </section>
 
-          <section className="rounded-2xl border bg-card p-5 shadow-sm">
+          <section className="rounded-xl border bg-card p-5">
             <h2 className="text-sm font-semibold">
-              {cancelada ? "Dúvidas sobre esta encomenda?" : "Precisa de alterar algo?"}
+              {cancelada
+                ? "Dúvidas sobre esta encomenda?"
+                : "Precisa de alterar algo?"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {cancelada
@@ -121,7 +123,11 @@ export function EncomendaDetalhe({
           </section>
 
           {podeCancelarEncomenda(encomenda.estado) && (
-            <Cancelar onCancelar={onCancelar} aCancelar={aCancelar} erro={erro} />
+            <Cancelar
+              onCancelar={onCancelar}
+              aCancelar={aCancelar}
+              erro={erro}
+            />
           )}
 
           {cancelada && (
@@ -176,7 +182,7 @@ function Cancelar({
   }
 
   return (
-    <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
+    <section className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
       <h2 className="text-sm font-semibold">Cancelar esta encomenda?</h2>
       <p className="mt-1.5 text-sm text-muted-foreground">
         Os preços congelados perdem-se e terá de submeter uma nova encomenda a

@@ -54,20 +54,20 @@ export function SortableImage({
       <button
         type="button"
         aria-label="Arrastar para reordenar"
-        className="absolute right-1.5 top-1.5 flex size-7 cursor-grab items-center justify-center rounded-md bg-background/80 text-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+        className="absolute right-1.5 top-1.5 flex size-7 cursor-grab items-center justify-center rounded-md bg-background/80 text-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="size-4" />
       </button>
 
-      {/* Bottom actions */}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+      {/* Bottom actions — always visible on touch screens (no hover there). */}
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100">
         {!isCapa ? (
           <button
             type="button"
             onClick={onDefinirCapa}
-            className="rounded-md bg-background/85 px-2 py-1 text-xs font-medium text-foreground backdrop-blur hover:bg-background"
+            className="min-w-0 truncate rounded-md bg-background/85 px-2 py-1 text-xs font-medium text-foreground backdrop-blur hover:bg-background"
           >
             Definir capa
           </button>

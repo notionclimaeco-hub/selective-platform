@@ -1,63 +1,77 @@
 import { Link } from "@tanstack/react-router"
-import { BadgeCheck, ChevronRight } from "lucide-react"
+import { ArrowRight, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { PriceReveal } from "./price-reveal"
 
+/**
+ * Centered hero on plain white. Copy fades up in a stagger on load; below it,
+ * a fanned stack of real catalog cards at list price, a sign-in node and the
+ * same cards at reseller price play out as the stage scrolls into view.
+ */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden">
-      {/* Soft brand-green washes; decorative only. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-accent/80 via-background to-background"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 right-[-10%] size-[480px] rounded-full bg-brand/15 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-56 left-[-12%] size-[480px] rounded-full bg-primary/10 blur-3xl"
-      />
+    <section className="relative overflow-hidden border-b">
+      <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pt-16 text-center sm:px-6 md:pt-24">
+        <Link
+          to="/produtos"
+          style={{ "--delay": "0ms" } as React.CSSProperties}
+          className="animate-rise group inline-flex items-center gap-1.5 rounded-full border bg-background py-1 pr-2 pl-3 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+        >
+          <span className="size-1.5 rounded-full bg-brand" aria-hidden />
+          Top 5% PME Portugal · Certificação CERTIF
+          <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </Link>
 
-      <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-8 px-4 py-20 sm:px-6 md:py-28">
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-sm font-medium text-primary">
-          <BadgeCheck className="size-4" />
-          Mais de 20 anos de experiência em climatização
-        </span>
-
-        <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-          Distribuição seletiva de{" "}
-          <span className="text-primary">climatização</span> para profissionais
+        <h1
+          style={{ "--delay": "80ms" } as React.CSSProperties}
+          className="animate-rise mt-6 text-4xl font-semibold tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl md:leading-[1.02]"
+        >
+          Distribuição seletiva de climatização para profissionais.
         </h1>
 
-        <p className="max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
+        <p
+          style={{ "--delay": "160ms" } as React.CSSProperties}
+          className="animate-rise mt-5 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg"
+        >
           Ar condicionado, bombas de calor, ventiloconvetores e ventilação das
-          marcas líderes do mercado. Parceiro de confiança de instaladores e
-          projetistas em Portugal, com apoio técnico especializado em cada
-          projeto.
+          marcas líderes. Preços de tabela para todos; preços de distribuidor
+          para empresas instaladoras registadas.
         </p>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div
+          style={{ "--delay": "240ms" } as React.CSSProperties}
+          className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-3"
+        >
+          <Button
+            render={<Link to="/registo" />}
+            nativeButton={false}
+            variant="outline"
+            size="lg"
+          >
+            Registar empresa
+          </Button>
           <Button
             render={<Link to="/produtos" />}
             nativeButton={false}
             size="lg"
-            className="px-6"
           >
-            Ver produtos
-            <ChevronRight data-icon="inline-end" />
-          </Button>
-          <Button
-            render={<a href="#contactos" />}
-            nativeButton={false}
-            variant="outline"
-            size="lg"
-            className="px-6"
-          >
-            Contacte-nos
+            Ver catálogo
+            <ArrowRight data-icon="inline-end" />
           </Button>
         </div>
+      </div>
+
+      <div
+        style={{ "--delay": "420ms" } as React.CSSProperties}
+        className="animate-rise relative mx-auto mt-12 max-w-6xl px-4 pb-16 sm:px-6 md:mt-20 md:pb-24"
+      >
+        {/* Soft tinted glow that grounds the cards against the white page. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-[34rem] bg-[radial-gradient(ellipse_60%_55%_at_50%_45%,color-mix(in_oklch,var(--primary),transparent_88%),transparent)]"
+        />
+        <PriceReveal />
       </div>
     </section>
   )

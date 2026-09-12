@@ -138,33 +138,6 @@ export function rotuloTipoUnidade(valor: string): string {
   return TIPO_UNIDADE_LABELS[valor] ?? deslug(valor)
 }
 
-// The facet dimensions the catalog page renders, in sidebar order. `rotulo`
-// titles the section, `rotuloValor` labels each option.
-export const DIMENSOES = [
-  { chave: "familia", rotulo: "Família", rotuloValor: rotuloFamilia },
-  { chave: "marca", rotulo: "Marca", rotuloValor: rotuloMarca },
-  {
-    chave: "tipoUnidade",
-    rotulo: "Tipo de unidade",
-    rotuloValor: rotuloTipoUnidade,
-  },
-  { chave: "componente", rotulo: "Componente", rotuloValor: rotuloComponente },
-  { chave: "sistema", rotulo: "Sistema", rotuloValor: rotuloSistema },
-  { chave: "segmento", rotulo: "Segmento", rotuloValor: rotuloSegmento },
-  {
-    chave: "classeEnergetica",
-    rotulo: "Classe energética",
-    rotuloValor: (v: string) => v,
-  },
-  {
-    chave: "refrigerante",
-    rotulo: "Refrigerante",
-    rotuloValor: (v: string) => v,
-  },
-] as const
-
-export type DimensaoChave = (typeof DIMENSOES)[number]["chave"]
-
 export const ORDENACOES = [
   { valor: "relevancia", rotulo: "Mais relevantes" },
   { valor: "preco-asc", rotulo: "Preço: menor primeiro" },

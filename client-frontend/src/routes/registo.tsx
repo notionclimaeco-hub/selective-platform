@@ -19,15 +19,13 @@ function RegistoPage() {
     <div className="flex min-h-svh flex-col">
       <SiteHeader />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-12 sm:px-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-          Área de Cliente
-        </p>
+        <p className="text-sm font-medium text-primary">Área de Cliente</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">
           Registar empresa
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Crie a conta da pessoa de contacto e, em seguida, o perfil da
-          empresa. A aprovação é feita pela nossa equipa comercial.
+          Crie a conta da pessoa de contacto e, em seguida, o perfil da empresa.
+          A aprovação é feita pela nossa equipa comercial.
         </p>
         <Show when="signed-out">
           <div className="mt-8 flex flex-col items-center">
@@ -65,9 +63,7 @@ function FormularioEmpresa() {
   const [aEnviar, setAEnviar] = useState(false)
 
   if (vista === undefined) {
-    return (
-      <p className="mt-8 text-sm text-muted-foreground">A carregar…</p>
-    )
+    return <p className="mt-8 text-sm text-muted-foreground">A carregar…</p>
   }
   if (vista?.kind === "empresa" || vista?.kind === "sem-empresa") {
     return <Navigate to="/conta" />
@@ -107,7 +103,10 @@ function FormularioEmpresa() {
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="mt-8 flex flex-col gap-4">
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      className="mt-8 flex flex-col gap-4"
+    >
       {erro && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {erro}

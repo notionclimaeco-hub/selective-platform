@@ -26,7 +26,9 @@ export function OrcamentoDrawer() {
 
   return (
     <div
-      className={`fixed inset-0 z-[60] ${aberto ? "" : "pointer-events-none"}`}
+      // `overflow-hidden` keeps the off-screen (translated) panel from ever
+      // being reachable by a horizontal pan on mobile browsers.
+      className={`fixed inset-0 z-[60] overflow-hidden ${aberto ? "" : "pointer-events-none"}`}
       aria-hidden={!aberto}
     >
       <div
@@ -318,7 +320,7 @@ function LinhaOrcamento({
             >
               {item.nome}
             </Link>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs break-all text-muted-foreground">
               {rotuloMarca(item.marca)}
               {item.variante ? ` · ${item.variante}` : ""} · {item.ref}
             </p>

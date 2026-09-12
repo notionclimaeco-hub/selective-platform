@@ -60,7 +60,7 @@ function PagamentoPage() {
 
 function LinkInvalido() {
   return (
-    <section className="mx-auto w-full max-w-xl rounded-2xl border bg-card p-6 shadow-sm">
+    <section className="mx-auto w-full max-w-xl rounded-xl border bg-card p-6">
       <h1 className="text-lg font-semibold tracking-tight">
         Link de pagamento inválido
       </h1>
@@ -90,13 +90,15 @@ function Pagamento({ pagamento }: { pagamento: Vista }) {
   return (
     <>
       <div>
-        <p className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
           <ShieldCheck className="size-3.5" /> Pagamento seguro
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           Encomenda ENC-{pagamento.numero}
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">{pagamento.empresa}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {pagamento.empresa}
+        </p>
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -118,7 +120,7 @@ function Pagamento({ pagamento }: { pagamento: Vista }) {
           </p>
         </div>
 
-        <aside className="order-1 flex flex-col gap-4 lg:order-2 lg:sticky lg:top-24">
+        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:order-2">
           {pagavel ? (
             <PagarPorBanco
               revolutToken={pagamento.revolutToken!}
@@ -144,7 +146,7 @@ function Pagamento({ pagamento }: { pagamento: Vista }) {
 function EstadoNaoPagavel({ pagamento: p }: { pagamento: Vista }) {
   const { icon: Icon, tom, titulo, texto } = textoEstado(p)
   return (
-    <section className={cn("rounded-2xl border p-6 shadow-sm", tom)}>
+    <section className={cn("rounded-xl border p-6", tom)}>
       <Icon className="size-8" />
       <h2 className="mt-3 text-lg font-semibold tracking-tight text-foreground">
         {titulo}
@@ -253,16 +255,17 @@ function PagarPorBanco({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-primary/30 bg-card shadow-md">
+    <section className="overflow-hidden rounded-xl border bg-card">
       <div className="p-6">
         <p className="text-sm text-muted-foreground">Total a pagar (c/IVA)</p>
         <p className="mt-1 text-3xl font-semibold tracking-tight text-primary tabular-nums">
           {eurExato.format(totalCents / 100)}
         </p>
         {expiraEm && (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-800 ring-1 ring-orange-600/20 ring-inset">
-            <Clock className="size-3.5" />
-            Válido até {formatarDataEncomenda(expiraEm)} · {prazoRelativo(expiraEm, agora)}
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-xl bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-800 ring-1 ring-orange-600/20 ring-inset">
+            <Clock className="size-3.5 shrink-0" />
+            <span>Válido até {formatarDataEncomenda(expiraEm)}</span>
+            <span>· {prazoRelativo(expiraEm, agora)}</span>
           </p>
         )}
 
@@ -326,8 +329,8 @@ function Esqueleto() {
     <div className="flex flex-col gap-6" aria-busy>
       <div className="h-16 w-64 animate-pulse rounded-xl bg-secondary/60" />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="h-72 animate-pulse rounded-2xl border bg-secondary/60" />
-        <div className="h-64 animate-pulse rounded-2xl border bg-secondary/60" />
+        <div className="h-72 animate-pulse rounded-xl border bg-secondary/60" />
+        <div className="h-64 animate-pulse rounded-xl border bg-secondary/60" />
       </div>
     </div>
   )

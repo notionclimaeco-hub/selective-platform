@@ -2,9 +2,10 @@ import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { WithoutSystemFields } from "convex/server";
 import type { Doc } from "./_generated/dataModel";
+import { sincronizarGrupos } from "./lib/catalogoGrupos";
 
 // Example catalog rows for eyeballing the grouped listing. All are inserted as
-// "publicado" so `listarCatalogo` / `obterGrupo` return them immediately.
+// "publicado" so `catalogo.listar` / `obterGrupo` return them immediately.
 //
 // - One product page: a Mitsubishi MSZ-AP split with 3 capacity variants
 //   sharing grupoModelo "mitsubishi-msz-ap". Keys that vary across variants
@@ -150,6 +151,10 @@ export const seedCatalogoExemplo = internalMutation({
         inseridos += 1;
       }
     }
+    await sincronizarGrupos(
+      ctx,
+      EXEMPLOS.map((e) => e.grupoModelo),
+    );
 
     return { inseridos, atualizados };
   },

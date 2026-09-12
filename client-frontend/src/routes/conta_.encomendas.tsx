@@ -26,7 +26,11 @@ function EncomendasPage() {
         titulo="Encomendas"
         descricao="Acompanhe cada encomenda desde a receção até ao levantamento no armazém."
         acoes={
-          <Button render={<Link to="/produtos" />} nativeButton={false} variant="outline">
+          <Button
+            render={<Link to="/produtos" />}
+            nativeButton={false}
+            variant="outline"
+          >
             Ver catálogo
           </Button>
         }
@@ -47,7 +51,7 @@ function Lista() {
   const { results, status, loadMore } = usePaginatedQuery(
     api.encomendas.minhas,
     aprovada && orgActiva ? {} : "skip",
-    { initialNumItems: 20 },
+    { initialNumItems: 20 }
   )
 
   if (vista === undefined) return <Esqueleto />
@@ -81,7 +85,11 @@ function Lista() {
       <Aviso
         titulo="Empresa em aprovação"
         accao={
-          <Button render={<Link to="/conta" />} nativeButton={false} variant="outline">
+          <Button
+            render={<Link to="/conta" />}
+            nativeButton={false}
+            variant="outline"
+          >
             Ver estado do pedido
           </Button>
         }
@@ -112,7 +120,7 @@ function Lista() {
 
 function SemEncomendas() {
   return (
-    <section className="flex flex-col items-center gap-4 rounded-2xl border border-dashed bg-card px-6 py-14 text-center">
+    <section className="flex flex-col items-center gap-4 rounded-xl border border-dashed bg-card px-6 py-14 text-center">
       <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-primary">
         <PackageOpen className="size-6" />
       </span>
@@ -135,7 +143,10 @@ function Esqueleto() {
   return (
     <div className="flex flex-col gap-3" aria-busy>
       {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} className="h-[4.5rem] animate-pulse rounded-2xl border bg-secondary/60" />
+        <div
+          key={i}
+          className="h-[4.5rem] animate-pulse rounded-xl border bg-secondary/60"
+        />
       ))}
     </div>
   )
