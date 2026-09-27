@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Show, useUser } from "@clerk/tanstack-react-start"
+import { Show } from "@clerk/tanstack-react-start"
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router"
 
 import { caminhoDeEntrada } from "@/lib/auth-gate"
@@ -24,7 +24,6 @@ export const Route = createFileRoute("/bem-vindo")({
 function BemVindoPage() {
   const { para } = Route.useSearch()
   const navigate = useNavigate()
-  const { user } = useUser()
   const [saida, setSaida] = useState(false)
 
   useEffect(() => {
@@ -48,25 +47,16 @@ function BemVindoPage() {
     }
   }, [navigate, para])
 
-  const nome = user?.firstName?.trim()
-
   return (
     <div
       className="fundo-auth flex min-h-svh flex-col items-center justify-center px-6 transition-opacity duration-300"
       style={{ opacity: saida ? 0 : 1 }}
-      aria-live="polite"
     >
       <Show when="signed-out">
         <Navigate to="/entrar" />
       </Show>
       <div className="flex flex-col items-center">
         <Clima />
-        <p
-          className="animate-rise mt-6 text-center text-lg font-medium tracking-tight text-foreground"
-          style={{ "--delay": "1400ms" } as React.CSSProperties}
-        >
-          {nome ? `Bem-vindo, ${nome}.` : "Bem-vindo."}
-        </p>
         <div
           className="animate-rise mt-8 h-px w-40 overflow-hidden rounded-full bg-border"
           style={{ "--delay": "300ms" } as React.CSSProperties}
