@@ -23,6 +23,11 @@ export default defineConfig(({ mode }) => {
     envDir: "..",
     resolve: { tsconfigPaths: true },
     server: {
+      // Listen on every interface and accept Tailscale MagicDNS hostnames so
+      // the dev servers can be opened from a phone on the tailnet
+      // (http://<tailscale-ip>:<port> or http://<machine>.<tailnet>.ts.net:<port>).
+      host: true,
+      allowedHosts: [".ts.net"],
       // Allow importing the shared Convex backend that lives one level up.
       fs: { allow: [".."] },
     },
