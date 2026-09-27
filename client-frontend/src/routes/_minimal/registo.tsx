@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
-import { Show, SignUp, useClerk } from "@clerk/tanstack-react-start"
+import { Show, SignUp, useClerk, useUser } from "@clerk/tanstack-react-start"
 import { createFileRoute, Navigate } from "@tanstack/react-router"
 import { useAction, useQuery } from "convex/react"
 import { Check } from "lucide-react"
@@ -174,6 +174,7 @@ function FormularioEmpresa({
   onEnviado: (nomeLegal: string) => void
 }) {
   const { setActive } = useClerk()
+  const { user } = useUser()
   const registar = useAction(api.empresasActions.registar)
   const [erro, setErro] = useState<string | null>(null)
   const [nifErro, setNifErro] = useState<string | null>(null)
@@ -256,12 +257,17 @@ function FormularioEmpresa({
         autoComplete="street-address"
         required
       />
+      {/* Billing contact of the company (invoices, payment links), stored on
+          the company and shown to staff. Usually the registrant's own address,
+          so it starts as the account email and stays editable. */}
       <Campo
         nome="email"
-        label="Email da empresa"
+        label="Email de faturação"
+        dica="Para faturas e links de pagamento."
         type="email"
         autoComplete="email"
         inputMode="email"
+        defaultValue={user?.primaryEmailAddress?.emailAddress ?? ""}
         required
       />
       <Campo
@@ -289,15 +295,20 @@ function Campo({
   nome,
   label,
   opcional,
+  dica,
   erro,
   ...props
 }: Omit<React.ComponentProps<typeof Input>, "name" | "id"> & {
   nome: string
   label: string
   opcional?: boolean
+  dica?: string
   erro?: string | null
 }) {
   const id = `registo-${nome}`
+  const descritoPor = [erro && `${id}-erro`, dica && `${id}-dica`]
+    .filter(Boolean)
+    .join(" ")
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium">
@@ -312,13 +323,19 @@ function Campo({
         id={id}
         name={nome}
         aria-invalid={erro ? true : undefined}
-        aria-describedby={erro ? `${id}-erro` : undefined}
+        aria-describedby={descritoPor || undefined}
         {...props}
       />
-      {erro && (
+      {erro ? (
         <p id={`${id}-erro`} className="text-xs text-destructive">
           {erro}
         </p>
+      ) : (
+        dica && (
+          <p id={`${id}-dica`} className="text-xs text-muted-foreground">
+            {dica}
+          </p>
+        )
       )}
     </div>
   )
