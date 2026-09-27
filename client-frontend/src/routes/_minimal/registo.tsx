@@ -20,6 +20,13 @@ import {
   comRegresso,
   rotuloDeRegresso,
 } from "@/lib/auth-gate"
+import {
+  comporMorada,
+  erroDoCampo,
+  formatarCodigoPostal,
+  normalizarTelefone,
+} from "@/lib/registo-validacao"
+import type { CampoEmpresa, ValoresEmpresa } from "@/lib/registo-validacao"
 import { cn } from "@/lib/utils"
 
 /**
@@ -177,34 +184,66 @@ function FormularioEmpresa({
   const { user } = useUser()
   const registar = useAction(api.empresasActions.registar)
   const [erro, setErro] = useState<string | null>(null)
-  const [nifErro, setNifErro] = useState<string | null>(null)
+  const [erros, setErros] = useState<Partial<Record<CampoEmpresa, string>>>({})
   const [aEnviar, setAEnviar] = useState(false)
 
-  function validarCampoNif(valor: string): boolean {
-    const ok = valor.trim() === "" || validarNif(valor)
-    setNifErro(ok ? null : "NIF inválido. Confirme os 9 dígitos.")
-    return ok
+  function erroDe(campo: CampoEmpresa, valor: string): string | null {
+    if (campo === "nif") {
+      if (valor.trim() === "") return "Campo obrigatório."
+      return validarNif(valor) ? null : "NIF inválido. Confirme os 9 dígitos."
+    }
+    return erroDoCampo(campo, valor)
+  }
+
+  /** Validate one field and store its message (null clears it). */
+  function validar(campo: CampoEmpresa, valor: string): boolean {
+    const mensagem = erroDe(campo, valor)
+    setErros((e) => ({ ...e, [campo]: mensagem ?? undefined }))
+    return mensagem === null
+  }
+
+  /** Blur validates; once a field is flagged, typing re-validates live. */
+  function eventos(campo: CampoEmpresa) {
+    return {
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) =>
+        validar(campo, e.currentTarget.value),
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (erros[campo]) validar(campo, e.currentTarget.value)
+      },
+    }
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setErro(null)
-    const data = new FormData(e.currentTarget)
-    const nif = normalizarNif(String(data.get("nif") ?? ""))
-    if (!validarNif(nif)) {
-      setNifErro("NIF inválido. Confirme os 9 dígitos.")
+    const form = e.currentTarget
+    const data = new FormData(form)
+    const valores = Object.fromEntries(
+      CAMPOS.map((c) => [c, String(data.get(c) ?? "")])
+    ) as ValoresEmpresa
+
+    const novosErros: Partial<Record<CampoEmpresa, string>> = {}
+    for (const campo of CAMPOS) {
+      const mensagem = erroDe(campo, valores[campo])
+      if (mensagem) novosErros[campo] = mensagem
+    }
+    setErros(novosErros)
+    const primeiro = CAMPOS.find((c) => novosErros[c])
+    if (primeiro) {
+      form.querySelector<HTMLInputElement>(`#registo-${primeiro}`)?.focus()
       return
     }
-    const nomeLegal = String(data.get("nomeLegal") ?? "").trim()
-    const certif = String(data.get("certifNumero") ?? "").trim()
+
+    const nomeLegal = valores.nomeLegal.trim()
+    const certif = valores.certifNumero.trim()
     setAEnviar(true)
     try {
       const resultado = await registar({
         nomeLegal,
-        nif,
-        morada: String(data.get("morada") ?? ""),
-        email: String(data.get("email") ?? ""),
-        telefone: String(data.get("telefone") ?? ""),
+        nif: normalizarNif(valores.nif),
+        morada: comporMorada(valores),
+        email: valores.email.trim(),
+        telefone: normalizarTelefone(valores.telefone),
         certifNumero: certif === "" ? undefined : certif,
       })
       try {
@@ -221,7 +260,11 @@ function FormularioEmpresa({
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-4">
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      className="flex flex-col gap-4"
+      noValidate
+    >
       <TituloAuth titulo="Dados da empresa" />
       {erro && (
         <p
@@ -235,7 +278,8 @@ function FormularioEmpresa({
         nome="nomeLegal"
         label="Nome legal"
         autoComplete="organization"
-        required
+        erro={erros.nomeLegal}
+        {...eventos("nomeLegal")}
       />
       <Campo
         nome="nif"
@@ -244,19 +288,52 @@ function FormularioEmpresa({
         inputMode="numeric"
         autoComplete="off"
         maxLength={11}
-        required
-        erro={nifErro}
-        onBlur={(e) => validarCampoNif(e.currentTarget.value)}
-        onChange={(e) => {
-          if (nifErro) validarCampoNif(e.currentTarget.value)
-        }}
+        erro={erros.nif}
+        {...eventos("nif")}
       />
       <Campo
-        nome="morada"
-        label="Morada"
-        autoComplete="street-address"
-        required
+        nome="rua"
+        label="Rua"
+        autoComplete="address-line1"
+        erro={erros.rua}
+        {...eventos("rua")}
       />
+      <Campo
+        nome="numero"
+        label="Número, lote ou andar"
+        placeholder="9, Loja 3"
+        autoComplete="address-line2"
+        erro={erros.numero}
+        {...eventos("numero")}
+      />
+      <div className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)] gap-3">
+        <Campo
+          nome="codigoPostal"
+          label="Código postal"
+          placeholder="2605-652"
+          inputMode="numeric"
+          autoComplete="postal-code"
+          maxLength={8}
+          erro={erros.codigoPostal}
+          onBlur={(e) => validar("codigoPostal", e.currentTarget.value)}
+          onChange={(e) => {
+            // Insert the hyphen for the user: "2605652" → "2605-652".
+            const formatado = formatarCodigoPostal(e.currentTarget.value)
+            if (formatado !== e.currentTarget.value) {
+              e.currentTarget.value = formatado
+            }
+            if (erros.codigoPostal) validar("codigoPostal", formatado)
+          }}
+        />
+        <Campo
+          nome="localidade"
+          label="Localidade"
+          placeholder="Belas"
+          autoComplete="address-level2"
+          erro={erros.localidade}
+          {...eventos("localidade")}
+        />
+      </div>
       {/* Billing contact of the company (invoices, payment links), stored on
           the company and shown to staff. Usually the registrant's own address,
           so it starts as the account email and stays editable. */}
@@ -268,15 +345,18 @@ function FormularioEmpresa({
         autoComplete="email"
         inputMode="email"
         defaultValue={user?.primaryEmailAddress?.emailAddress ?? ""}
-        required
+        erro={erros.email}
+        {...eventos("email")}
       />
       <Campo
         nome="telefone"
         label="Telefone"
+        placeholder="912 345 678"
         type="tel"
         autoComplete="tel"
         inputMode="tel"
-        required
+        erro={erros.telefone}
+        {...eventos("telefone")}
       />
       <Campo nome="certifNumero" label="N.º CERTIF" opcional />
       <Button
@@ -291,6 +371,18 @@ function FormularioEmpresa({
   )
 }
 
+const CAMPOS: CampoEmpresa[] = [
+  "nomeLegal",
+  "nif",
+  "rua",
+  "numero",
+  "codigoPostal",
+  "localidade",
+  "email",
+  "telefone",
+  "certifNumero",
+]
+
 function Campo({
   nome,
   label,
@@ -299,7 +391,7 @@ function Campo({
   erro,
   ...props
 }: Omit<React.ComponentProps<typeof Input>, "name" | "id"> & {
-  nome: string
+  nome: CampoEmpresa
   label: string
   opcional?: boolean
   dica?: string
@@ -310,7 +402,7 @@ function Campo({
     .filter(Boolean)
     .join(" ")
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium">
         {label}
         {opcional && (
