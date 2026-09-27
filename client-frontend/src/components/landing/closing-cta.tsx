@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { ArrowRight } from "lucide-react"
 
+import { MAILTO_CONTACTO } from "@/components/shell/nav"
 import { Button } from "@/components/ui/button"
 import { Reveal } from "./reveal"
 
@@ -19,9 +20,8 @@ export function ClosingCta() {
           <span className="text-muted-foreground">ao preço certo.</span>
         </h2>
         <p className="mt-3 max-w-lg text-sm leading-relaxed text-pretty text-muted-foreground sm:text-base">
-          Registe a sua empresa em poucos minutos. Aprovamos o acesso e passa a
-          encomendar com preços de distribuidor, stock confirmado e levantamento
-          no nosso armazém.
+          Registe a sua empresa e passe a comprar com preços de distribuidor,
+          stock confirmado e levantamento no nosso armazém.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Button
@@ -33,22 +33,22 @@ export function ClosingCta() {
             <ArrowRight data-icon="inline-end" />
           </Button>
           <Button
-            render={<a href="mailto:geral@climaeco.pt" />}
+            render={<Link to="/entrar" />}
             nativeButton={false}
             variant="outline"
             size="lg"
           >
-            Falar com a equipa
+            Entrar
           </Button>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Já tem conta?{" "}
-          <Link
-            to="/entrar"
+        <p className="mt-5 text-sm text-muted-foreground">
+          Tem questões?{" "}
+          <a
+            href={MAILTO_CONTACTO}
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
-            Entrar na área de cliente
-          </Link>
+            Contacte-nos.
+          </a>
         </p>
       </Reveal>
     </section>

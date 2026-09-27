@@ -266,9 +266,8 @@
   will-change: transform;
 }
 
-/* The logos link to each brand's catalog, so stop the belt while the pointer
- * (or keyboard focus) is on it — otherwise the target moves as you click. */
-.marquee:hover .marquee-track,
+/* The belt keeps rolling under the pointer; it only pauses for keyboard
+ * focus, so a tabbed-to logo stays put while it is activated. */
 .marquee:focus-within .marquee-track {
   animation-play-state: paused;
 }
@@ -276,5 +275,48 @@
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
     animation: none;
+  }
+}
+
+/* Landing product deck: a hand of cards. Each card carries `--t` (signed
+ * offset from the centre card) and `--abs` (its magnitude). Closed, the cards
+ * sit on one another with a hint of rotation; once the deck is in view they
+ * fan out, outer cards a beat later. Hover lifts a card out of the fan. */
+.baralho-carta {
+  --passo-x: 2.75rem;
+  --rot: 5deg;
+  --lift: 0px;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform-origin: 50% 120%;
+  transform: translateX(-50%) rotate(calc(var(--t) * 1.5deg));
+  transition:
+    transform 0.9s cubic-bezier(0.22, 0.61, 0.36, 1),
+    border-color 0.2s ease;
+  transition-delay: calc(var(--abs) * 70ms), 0ms;
+  will-change: transform;
+}
+.baralho[data-on="true"] .baralho-carta {
+  transform: translateX(calc(-50% + var(--t) * var(--passo-x)))
+    translateY(var(--lift)) rotate(calc(var(--t) * var(--rot)));
+}
+.baralho[data-on="true"] .baralho-carta:hover,
+.baralho[data-on="true"] .baralho-carta:focus-visible {
+  --lift: -0.75rem;
+  transition-delay: 0ms;
+  z-index: 10;
+}
+@media (min-width: 640px) {
+  .baralho-carta {
+    --passo-x: 8.5rem;
+    --rot: 6deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .baralho-carta {
+    transition: none;
+    transform: translateX(calc(-50% + var(--t) * var(--passo-x)))
+      translateY(var(--lift)) rotate(calc(var(--t) * var(--rot)));
   }
 }

@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Link } from "@tanstack/react-router"
-import { ArrowRight } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   VinhetaEncomenda,
@@ -18,19 +15,19 @@ const PASSOS = [
   {
     titulo: "Registe a sua empresa",
     texto:
-      "Crie a conta da empresa instaladora ou projetista. Validamos os dados e aprovamos o acesso aos preços de distribuidor.",
+      "Crie a conta da sua empresa instaladora ou gabinete de projeto. Validamos os dados e aprovamos o acesso aos preços de distribuidor.",
     Vinheta: VinhetaRegisto,
   },
   {
-    titulo: "Escolha os equipamentos ao seu preço",
+    titulo: "Monte a lista de equipamentos da obra",
     texto:
-      "Com sessão iniciada, o catálogo mostra os seus preços de distribuidor. Junte os equipamentos à encomenda com um clique.",
+      "Com sessão iniciada, o catálogo mostra os preços de distribuidor da sua empresa. Junte unidades interiores, exteriores e acessórios à encomenda, referência a referência.",
     Vinheta: VinhetaPrecos,
   },
   {
     titulo: "Submeta a encomenda",
     texto:
-      "Reveja as linhas e submeta. Os preços ficam congelados enquanto tratamos do resto.",
+      "Reveja as linhas e submeta. Os preços ficam congelados enquanto tratamos do resto, para orçamentar a obra sem surpresas.",
     Vinheta: VinhetaEncomenda,
   },
   {
@@ -40,15 +37,15 @@ const PASSOS = [
     Vinheta: VinhetaStock,
   },
   {
-    titulo: "Paga em segurança",
+    titulo: "Pague em segurança",
     texto:
-      "Recebe um link de pagamento por transferência bancária, válido 7 dias. A fatura-recibo é emitida assim que o pagamento entra.",
+      "Recebe um link de pagamento por transferência bancária, válido 7 dias. A fatura é emitida assim que o pagamento entra.",
     Vinheta: VinhetaPagamento,
   },
   {
     titulo: "Levante no nosso armazém",
     texto:
-      "Avisamos quando os equipamentos estão disponíveis para levantamento. Acompanha tudo, unidade a unidade, na sua encomenda.",
+      "Avisamos quando os equipamentos chegam. Levante à medida que a obra avança e acompanhe tudo, unidade a unidade, na sua encomenda.",
     Vinheta: VinhetaLevantamento,
   },
 ]
@@ -92,7 +89,7 @@ export function FlowSteps() {
           <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
             Do registo ao levantamento.{" "}
             <span className="text-muted-foreground">
-              Seis passos, tudo acompanhado na área de cliente.
+              Seis passos, pensados para quem gere obras e prazos.
             </span>
           </h2>
         </Reveal>
@@ -156,20 +153,6 @@ export function FlowSteps() {
             ))}
           </ol>
         </div>
-
-        <Reveal className="mt-14 flex flex-wrap gap-3 lg:mt-4">
-          <Button render={<Link to="/registo" />} nativeButton={false}>
-            Registar empresa
-            <ArrowRight data-icon="inline-end" />
-          </Button>
-          <Button
-            render={<Link to="/produtos" />}
-            nativeButton={false}
-            variant="outline"
-          >
-            Explorar o catálogo
-          </Button>
-        </Reveal>
       </div>
     </section>
   )
