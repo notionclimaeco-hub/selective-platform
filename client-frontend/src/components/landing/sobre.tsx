@@ -1,15 +1,15 @@
-import { ArrowUpRight, Download, FileText, MapPin } from "lucide-react"
+import { ArrowUpRight, MapPin } from "lucide-react"
 
 import { MAPS_ARMAZEM, MORADA_ARMAZEM } from "@/components/shell/nav"
 
 import { cn } from "@/lib/utils"
-import { LogoMascara, MARCAS } from "./brand-marquee"
 import { CountUp, Etiqueta, Reveal, useInView } from "./reveal"
 
 /**
- * About block in the page's own language: a short intro, then a bento of
- * hairline tiles, each with a small illustration built from the same tokens
- * and reveal motion as the vignettes and the deck. The full story lives on
+ * About block in the page's own language: a short intro, then three hairline
+ * tiles (years, PME distinction, and the warehouse on a real map across the
+ * full width), each with an illustration built from the same tokens and
+ * reveal motion as the vignettes and the deck. The full story lives on
  * /sobre; this only says who is behind the prices.
  */
 export function Sobre() {
@@ -39,32 +39,12 @@ export function Sobre() {
           </Tile>
           <Tile
             atraso={80}
-            titulo="Cinco marcas em distribuição oficial"
-            texto="Mitsubishi Electric, Daikin, Nipon, Hisense e Midea, com garantia de fabricante."
-          >
-            <Marcas />
-          </Tile>
-          <Tile
-            atraso={160}
-            titulo="Documentação técnica em cada modelo"
-            texto="Fichas técnicas e páginas de catálogo prontas a anexar às suas propostas."
-          >
-            <Documentos />
-          </Tile>
-          <Tile
-            atraso={240}
-            titulo="Levantamento no nosso armazém"
-            texto="Stock confirmado junto dos fornecedores e pronto a levantar em Belas, Sintra."
-          >
-            <Armazem />
-          </Tile>
-          <Tile
-            atraso={320}
             titulo="Top 5% PME Portugal"
             texto="Distinguidos entre as melhores PME do país no ranking Scoring 2024."
           >
             <Distincao />
           </Tile>
+          <Armazem />
         </div>
       </div>
     </section>
@@ -143,85 +123,84 @@ function Anos() {
   )
 }
 
-/** The five partner logos in the page's single tone. */
-function Marcas() {
-  return (
-    <div className="grid w-full grid-cols-3 items-center gap-x-4 gap-y-3 text-muted-foreground/70">
-      {MARCAS.map((marca) => (
-        <div
-          key={marca.nome}
-          className="flex h-6 items-center justify-center"
-          aria-label={marca.nome}
-        >
-          {marca.logo ? (
-            <LogoMascara src={marca.logo} className="h-full w-full max-w-24" />
-          ) : (
-            <span className="text-base font-semibold tracking-tight italic">
-              nipon
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** Two document rows, revealed one after the other. */
-function Documentos() {
-  const { ref, visivel } = useInView<HTMLDivElement>()
-  const linhas = ["Ficha técnica", "Página de catálogo"]
-  return (
-    <div ref={ref} aria-hidden className="w-full max-w-xs space-y-2">
-      {linhas.map((nome, i) => (
-        <div
-          key={nome}
-          className="surge flex items-center gap-3 rounded-lg border bg-background px-3 py-2"
-          data-on={visivel}
-          style={{ transitionDelay: `${i * 220}ms` }}
-        >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-muted text-primary">
-            <FileText className="size-3.5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-medium">{nome}</span>
-            <span className="block text-[10px] text-muted-foreground">
-              PDF · do fabricante
-            </span>
-          </span>
-          <Download className="size-3.5 text-muted-foreground" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** A stylised map: thin guides, one pin, the address; opens the real pin. */
+/**
+ * Full-width warehouse tile: a static map of Belas (OpenStreetMap tiles,
+ * rendered once by scripts/dev/osm-static-map.mjs and toned to the page)
+ * with our pin and the address on top. The map opens the Google Maps pin.
+ */
 function Armazem() {
   const { ref, visivel } = useInView<HTMLDivElement>()
   return (
-    <div ref={ref} className="size-full">
-      <a
-        href={MAPS_ARMAZEM}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`Abrir o armazém no Google Maps: ${MORADA_ARMAZEM.rua}, ${MORADA_ARMAZEM.localidade}`}
-        className="group/mapa relative flex size-full flex-col items-center justify-center bg-[linear-gradient(to_right,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px)] bg-[size:2.5rem_2.5rem] bg-center focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
-      >
-        <span
-          className="surge flex flex-col items-center"
-          data-on={visivel}
-          style={{ transitionDelay: "150ms" }}
+    <Reveal
+      atraso={160}
+      className="flex flex-col overflow-hidden rounded-xl border bg-card sm:col-span-2 lg:col-span-3"
+    >
+      <div ref={ref} className="relative h-64 border-b sm:h-72 lg:h-80">
+        <a
+          href={MAPS_ARMAZEM}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Abrir o armazém no Google Maps: ${MORADA_ARMAZEM.rua}, ${MORADA_ARMAZEM.localidade}`}
+          className="group/mapa absolute inset-0 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
         >
-          <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/15 transition-transform group-hover/mapa:-translate-y-0.5">
-            <MapPin className="size-4" />
+          <img
+            src="/mapa-armazem.jpg"
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 size-full object-cover opacity-70 grayscale transition-opacity duration-500 group-hover/mapa:opacity-90"
+          />
+          {/* Soft vignette so the pin and label read over any street density. */}
+          <span
+            aria-hidden
+            className="absolute inset-0 bg-[radial-gradient(ellipse_45%_60%_at_50%_50%,transparent,color-mix(in_oklch,var(--card),transparent_45%))]"
+          />
+          <span
+            className="surge relative flex flex-col items-center"
+            data-on={visivel}
+            style={{ transitionDelay: "150ms" }}
+          >
+            <span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/20 transition-transform group-hover/mapa:-translate-y-0.5">
+              <MapPin className="size-4.5" />
+            </span>
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-2xl border bg-background py-1.5 pr-2.5 pl-3 text-xs font-medium shadow-xs transition-colors group-hover/mapa:border-foreground/25 sm:rounded-full">
+              {/* Two lines on phones, one line from `sm` up. */}
+              <span className="flex flex-col items-center gap-0.5 text-center leading-tight sm:flex-row sm:gap-1">
+                <span>{MORADA_ARMAZEM.rua}</span>
+                <span aria-hidden className="hidden sm:inline">·</span>
+                <span>{MORADA_ARMAZEM.localidade}</span>
+              </span>
+              <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground" />
+            </span>
           </span>
-          <span className="mt-2 inline-flex items-center gap-1 rounded-full border bg-background py-1 pr-2 pl-2.5 text-[11px] font-medium transition-colors group-hover/mapa:border-foreground/25">
-            {MORADA_ARMAZEM.rua} · {MORADA_ARMAZEM.localidade}
-            <ArrowUpRight className="size-3 text-muted-foreground" />
-          </span>
-        </span>
-      </a>
-    </div>
+        </a>
+        <a
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute right-2 bottom-1.5 rounded bg-background/80 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+        >
+          © OpenStreetMap
+        </a>
+      </div>
+      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">Levantamento no nosso armazém</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            Stock confirmado junto dos fornecedores e pronto a levantar em
+            Belas, Sintra.
+          </p>
+        </div>
+        <a
+          href={MAPS_ARMAZEM}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Abrir no Google Maps
+          <ArrowUpRight className="size-3.5 text-muted-foreground" />
+        </a>
+      </div>
+    </Reveal>
   )
 }
 
