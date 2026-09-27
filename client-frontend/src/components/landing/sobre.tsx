@@ -140,7 +140,7 @@ function Armazem() {
           href={MAPS_ARMAZEM}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Abrir o armazém no Google Maps: ${MORADA_ARMAZEM.rua}, ${MORADA_ARMAZEM.localidade}`}
+          aria-label={`Abrir o armazém no Google Maps: ${MORADA_ARMAZEM.rua}, ${MORADA_ARMAZEM.loja}, ${MORADA_ARMAZEM.localidade}`}
           className="group/mapa absolute inset-0 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
         >
           <img
@@ -165,8 +165,12 @@ function Armazem() {
             <span className="mt-2 inline-flex items-center gap-1.5 rounded-2xl border bg-background py-1.5 pr-2.5 pl-3 text-xs font-medium shadow-xs transition-colors group-hover/mapa:border-foreground/25 sm:rounded-full">
               {/* Two lines on phones, one line from `sm` up. */}
               <span className="flex flex-col items-center gap-0.5 text-center leading-tight sm:flex-row sm:gap-1">
-                <span>{MORADA_ARMAZEM.rua}</span>
-                <span aria-hidden className="hidden sm:inline">·</span>
+                <span>
+                  {MORADA_ARMAZEM.rua}, {MORADA_ARMAZEM.loja}
+                </span>
+                <span aria-hidden className="hidden sm:inline">
+                  ·
+                </span>
                 <span>{MORADA_ARMAZEM.localidade}</span>
               </span>
               <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground" />
@@ -184,7 +188,9 @@ function Armazem() {
       </div>
       <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-sm font-semibold">Levantamento no nosso armazém</h3>
+          <h3 className="text-sm font-semibold">
+            Levantamento no nosso armazém
+          </h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
             Stock confirmado junto dos fornecedores e pronto a levantar em
             Belas, Sintra.

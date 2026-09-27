@@ -14,7 +14,8 @@ export const MAILTO_CONTACTO = `mailto:${EMAIL_CONTACTO}`
 export const LIVRO_RECLAMACOES = "https://www.livroreclamacoes.pt/"
 // Warehouse (levantamento) address and its Google Maps pin.
 export const MORADA_ARMAZEM = {
-  rua: "Rua Dona Dulce de Aragão 9, Loja 3",
+  rua: "Rua Dona Dulce de Aragão 9",
+  loja: "Loja 3",
   localidade: "2605-652 Belas",
 }
 export const MAPS_ARMAZEM = "https://maps.app.goo.gl/RAV5jSFXStWP6k8H8"

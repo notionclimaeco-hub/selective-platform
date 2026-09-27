@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Link } from "@tanstack/react-router"
-import { ArrowRight } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   VinhetaEncomenda,
@@ -156,20 +153,6 @@ export function FlowSteps() {
             ))}
           </ol>
         </div>
-
-        <Reveal className="mt-14 flex flex-wrap gap-3 lg:mt-4">
-          <Button render={<Link to="/registo" />} nativeButton={false}>
-            Registar empresa
-            <ArrowRight data-icon="inline-end" />
-          </Button>
-          <Button
-            render={<Link to="/produtos" />}
-            nativeButton={false}
-            variant="outline"
-          >
-            Explorar o catálogo
-          </Button>
-        </Reveal>
       </div>
     </section>
   )

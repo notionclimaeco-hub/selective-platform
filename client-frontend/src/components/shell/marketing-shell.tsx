@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { ExternalLink, MapPin, Menu } from "lucide-react"
+import { ExternalLink, Menu } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
 import { Button } from "@/components/ui/button"
@@ -176,40 +176,77 @@ function MenuMovel() {
 const LIGACAO_RODAPE =
   "text-sm text-muted-foreground transition-colors hover:text-foreground"
 
+/** One footer column: a small heading and a stack of links. */
+function ColunaRodape({
+  titulo,
+  children,
+}: {
+  titulo: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs font-semibold tracking-wide text-foreground uppercase">
+        {titulo}
+      </p>
+      <div className="flex flex-col gap-2.5">{children}</div>
+    </div>
+  )
+}
+
 function RodapeMarketing() {
   return (
     <footer id="contactos" className="mt-auto border-t">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex flex-col gap-3">
-          <Wordmark className="h-7 self-start" />
-          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Distribuição de equipamentos de climatização para empresas
-            instaladoras.
-          </p>
-        </div>
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-14">
+        <div className="grid gap-10 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] md:gap-8">
+          {/* Brand */}
+          <div className="flex max-w-xs flex-col gap-4">
+            <Wordmark className="h-7 self-start" />
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Distribuição seletiva de climatização para empresas instaladoras e
+              gabinetes de projeto.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 md:gap-12">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold">Contactos</p>
+          <ColunaRodape titulo="Navegação">
+            <Link to="/produtos" className={LIGACAO_RODAPE}>
+              Produtos
+            </Link>
+            <a href="/sobre" className={LIGACAO_RODAPE}>
+              Sobre
+            </a>
+            <Link to="/registo" className={LIGACAO_RODAPE}>
+              Registar empresa
+            </Link>
+            <Link to="/entrar" className={LIGACAO_RODAPE}>
+              Entrar
+            </Link>
+          </ColunaRodape>
+
+          <ColunaRodape titulo="Contactos">
             <a href={MAILTO_GERAL} className={LIGACAO_RODAPE}>
               {EMAIL_GERAL}
             </a>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {MORADA_ARMAZEM.rua}
+              <br />
+              {MORADA_ARMAZEM.loja} · {MORADA_ARMAZEM.localidade}
+            </p>
             <a
               href={MAPS_ARMAZEM}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(LIGACAO_RODAPE, "inline-flex items-start gap-1.5")}
+              className={cn(
+                LIGACAO_RODAPE,
+                "inline-flex items-center gap-1 font-medium text-foreground"
+              )}
             >
-              <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              <span>
-                {MORADA_ARMAZEM.rua}
-                <br />
-                {MORADA_ARMAZEM.localidade}
-              </span>
+              Ver no mapa
+              <ExternalLink className="size-3" aria-hidden />
             </a>
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold">Legal</p>
+          </ColunaRodape>
+
+          <ColunaRodape titulo="Legal">
             {LINKS_LEGAIS.map((l) => (
               <a key={l.href} href={l.href} className={LIGACAO_RODAPE}>
                 {l.label}
@@ -224,13 +261,15 @@ function RodapeMarketing() {
               Livro de Reclamações
               <ExternalLink className="size-3" aria-hidden />
             </a>
-          </div>
+          </ColunaRodape>
         </div>
-      </div>
-      <div className="border-t">
-        <p className="mx-auto max-w-6xl px-4 py-4 text-xs text-muted-foreground sm:px-6">
-          © {new Date().getFullYear()} Climaeco. Todos os direitos reservados.
-        </p>
+
+        <div className="mt-10 flex flex-col gap-2 border-t pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:mt-12">
+          <p>
+            © {new Date().getFullYear()} Climaeco. Todos os direitos reservados.
+          </p>
+          <p>Belas, Sintra · Portugal</p>
+        </div>
       </div>
     </footer>
   )
