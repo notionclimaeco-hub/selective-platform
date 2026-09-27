@@ -107,6 +107,8 @@ const EMBUTIDO: NonNullable<Appearance["elements"]> = {
   socialButtonsBlockButton: { ...CAMPO, fontWeight: 500 },
   alternativeMethodsBlockButton: CAMPO,
   identityPreview: { justifyContent: "center" },
+  // No "Último uso" marker next to the method used last time.
+  lastAuthenticationStrategyBadge: { display: "none" },
   // "Ainda não tem conta? Registar empresa" sits inside the card, then the
   // Clerk badge, small.
   // Clerk pads every footer child 16px 32px, which leaves the "Ainda não tem
@@ -177,7 +179,7 @@ export const clerkLocalization: Localization = {
     ...ptPT.signIn,
     start: {
       ...ptPT.signIn?.start,
-      title: "Entrar",
+      title: "Bem-vindo",
       subtitle: "",
       actionText: "Ainda não tem conta?",
       actionLink: "Registar empresa",
