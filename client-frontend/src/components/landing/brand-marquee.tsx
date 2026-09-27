@@ -96,21 +96,21 @@ export function BrandMarquee() {
   const itens = [...MARCAS, ...MARCAS]
 
   return (
-    <section id="marcas" className="scroll-mt-20 border-b py-12 md:py-14">
+    <section id="marcas" className="scroll-mt-20 border-b py-10 md:py-12">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="text-center text-sm font-medium text-muted-foreground">
-          Distribuidor oficial das marcas líderes
+          Distribuidor oficial das marcas que especifica nos seus projetos
         </p>
       </div>
 
-      <div className="marquee relative mt-8 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+      <div className="marquee relative mt-6 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
         <div className="marquee-track flex w-max items-center">
           {itens.map((marca, i) => {
             const duplicado = i >= MARCAS.length
             return (
               <div
                 key={`${marca.nome}-${i}`}
-                className="flex w-56 shrink-0 items-center justify-center px-4 text-muted-foreground/70 sm:w-64"
+                className="flex w-40 shrink-0 items-center justify-center px-2 text-muted-foreground/70 sm:w-64 sm:px-4"
                 aria-hidden={duplicado}
               >
                 <Link
@@ -121,7 +121,9 @@ export function BrandMarquee() {
                   // seamlessly, so keep it out of the tab order.
                   tabIndex={duplicado ? -1 : undefined}
                   className={cn(
-                    "flex items-center justify-center rounded-lg px-3 py-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    // Logos keep their desktop geometry and scale down on
+                    // phones, where the belt shows about two and a half.
+                    "flex scale-75 items-center justify-center rounded-lg px-3 py-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none sm:scale-100",
                     // Masked logos cross-fade to full color on hover; darkening
                     // the mask at the same time reads as a black flash, so only
                     // the plain wordmark gets the hover tint.

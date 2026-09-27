@@ -5,6 +5,10 @@
 //
 //   node scripts/dev/screenshots.mjs --port 3001 --out .context/shots /,/produtos
 //   node scripts/dev/screenshots.mjs --port 3001 --signed-in /inicio,/empresa
+//   node scripts/dev/screenshots.mjs --port 3001 --full-page /
+//
+// `--full-page` scrolls to the bottom first (so scroll-reveal sections have
+// played) and captures the whole document instead of the first viewport.
 //
 // `--signed-in` signs a Clerk dev-instance test user in through the Backend API
 // (needs CLERK_SECRET_KEY in the root .env): it creates
@@ -24,6 +28,7 @@ const flag = (name, fallback) => {
 const port = flag("--port", process.env.CLIENT_PORT ?? "3001")
 const out = flag("--out", ".context/shots")
 const prefix = flag("--prefix", args.includes("--signed-in") ? "in" : "out")
+const fullPage = args.includes("--full-page")
 const FLAGS_WITH_VALUE = new Set(["--port", "--out", "--prefix"])
 const positional = args.filter(
   (a, i) => !a.startsWith("--") && !FLAGS_WITH_VALUE.has(args[i - 1] ?? "")
@@ -91,8 +96,21 @@ for (const [name, viewport] of [
   for (const path of paths) {
     await page.goto(base + path, { waitUntil: "networkidle" })
     await page.waitForTimeout(600)
+    if (fullPage) {
+      // Step through the page so every IntersectionObserver-driven reveal
+      // fires, then wait for the last transitions to settle.
+      await page.evaluate(async () => {
+        const passo = window.innerHeight / 2
+        for (let y = 0; y < document.documentElement.scrollHeight; y += passo) {
+          window.scrollTo(0, y)
+          await new Promise((r) => setTimeout(r, 200))
+        }
+        window.scrollTo(0, 0)
+      })
+      await page.waitForTimeout(1500)
+    }
     const slug = path === "/" ? "landing" : path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")
-    await page.screenshot({ path: `${out}/${prefix}-${slug}-${name}.png` })
+    await page.screenshot({ path: `${out}/${prefix}-${slug}-${name}.png`, fullPage })
     const [scroll, client] = await page.evaluate(() => [
       document.documentElement.scrollWidth,
       document.documentElement.clientWidth,

@@ -8,6 +8,9 @@ import {
 
 export const EMAIL_GERAL = "geral@climaeco.pt"
 export const MAILTO_GERAL = `mailto:${EMAIL_GERAL}`
+// Provisional inbox for landing-page enquiries; expected to change.
+export const EMAIL_CONTACTO = "selectivedistribui@gmail.com"
+export const MAILTO_CONTACTO = `mailto:${EMAIL_CONTACTO}`
 export const LIVRO_RECLAMACOES = "https://www.livroreclamacoes.pt/"
 
 /** The five environment destinations, in sidebar / tab-bar order. */

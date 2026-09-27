@@ -128,7 +128,7 @@ export function VinhetaRegisto() {
         <div className="mx-auto max-w-sm">
           <p className="text-sm font-semibold">Registar empresa</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Conta reservada a empresas instaladoras e projetistas.
+            Conta reservada a empresas instaladoras e gabinetes de projeto.
           </p>
           <div className="mt-4 grid gap-3">
             <Campo rotulo="Nome da empresa" valor={EMPRESA} />
@@ -501,8 +501,7 @@ export function VinhetaPagamento() {
             </Botao>
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Link de pagamento válido 7 dias. Fatura-recibo emitida após o
-            pagamento.
+            Link de pagamento válido 7 dias. Fatura emitida após o pagamento.
           </p>
         </div>
       </Janela>

@@ -13,15 +13,15 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden border-b">
       <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pt-16 text-center sm:px-6 md:pt-24">
-        <Link
-          to="/produtos"
+        <a
+          href="#marcas"
           style={{ "--delay": "0ms" } as React.CSSProperties}
           className="animate-rise group inline-flex items-center gap-1.5 rounded-full border bg-background py-1 pr-2 pl-3 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
         >
           <span className="size-1.5 rounded-full bg-brand" aria-hidden />
-          Top 5% PME Portugal · Certificação CERTIF
+          Distribuidor oficial de cinco marcas líderes
           <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        </a>
 
         <h1
           style={{ "--delay": "80ms" } as React.CSSProperties}
@@ -34,9 +34,10 @@ export function Hero() {
           style={{ "--delay": "160ms" } as React.CSSProperties}
           className="animate-rise mt-5 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg"
         >
-          Ar condicionado, bombas de calor, ventiloconvetores e ventilação das
-          marcas líderes. Preços de tabela para todos; preços de distribuidor
-          para empresas instaladoras registadas.
+          Ar condicionado, bombas de calor, ventiloconvetores e ventilação para
+          empresas instaladoras, gabinetes de projeto e obras de grande
+          dimensão. Catálogo público a preço de tabela; preços de distribuidor
+          para empresas aprovadas.
         </p>
 
         <div
