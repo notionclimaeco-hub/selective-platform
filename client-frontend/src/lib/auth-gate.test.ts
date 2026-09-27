@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { caminhoSeguroDeRegresso, clientAuthRedirect } from "./auth-gate"
+import {
+  caminhoSeguroDeRegresso,
+  clientAuthRedirect,
+  comRegresso,
+  rotuloDeRegresso,
+} from "./auth-gate"
 
 describe("caminhoSeguroDeRegresso", () => {
   it("allows only environment paths", () => {
@@ -16,6 +21,33 @@ describe("caminhoSeguroDeRegresso", () => {
     expect(caminhoSeguroDeRegresso("/produtos")).toBeUndefined()
     expect(caminhoSeguroDeRegresso("//evil")).toBeUndefined()
     expect(caminhoSeguroDeRegresso("https://evil.example")).toBeUndefined()
+  })
+})
+
+describe("comRegresso", () => {
+  it("carries the return path as a query string", () => {
+    expect(comRegresso("/registo", "/orcamento")).toBe(
+      "/registo?return=%2Forcamento"
+    )
+    expect(comRegresso("/entrar", "/encomendas/j57abc123")).toBe(
+      "/entrar?return=%2Fencomendas%2Fj57abc123"
+    )
+  })
+
+  it("leaves the path alone without a return", () => {
+    expect(comRegresso("/entrar", undefined)).toBe("/entrar")
+  })
+})
+
+describe("rotuloDeRegresso", () => {
+  it("names the destination", () => {
+    expect(rotuloDeRegresso("/orcamento")).toBe("Voltar ao orçamento")
+    expect(rotuloDeRegresso("/empresa")).toBe("Ver a empresa")
+    expect(rotuloDeRegresso("/encomendas")).toBe("Voltar às encomendas")
+    expect(rotuloDeRegresso("/encomendas/j57abc123")).toBe(
+      "Voltar às encomendas"
+    )
+    expect(rotuloDeRegresso("/inicio")).toBe("Ir para o início")
   })
 })
 

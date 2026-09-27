@@ -7,6 +7,24 @@ export function caminhoSeguroDeRegresso(raw: unknown): string | undefined {
   return undefined
 }
 
+/** `/entrar` or `/registo` with the `?return=` carried along, when there is one. */
+export function comRegresso(
+  caminho: "/entrar" | "/registo",
+  regresso: string | undefined
+): string {
+  return regresso === undefined
+    ? caminho
+    : `${caminho}?return=${encodeURIComponent(regresso)}`
+}
+
+/** Button label for going back to a safe return path after signing in or registering. */
+export function rotuloDeRegresso(regresso: string): string {
+  if (regresso === "/orcamento") return "Voltar ao orçamento"
+  if (regresso === "/empresa") return "Ver a empresa"
+  if (regresso.startsWith("/encomendas")) return "Voltar às encomendas"
+  return "Ir para o início"
+}
+
 /**
  * Pages that need a session. `/orcamento` is deliberately absent: anyone builds
  * the quote list; only submitting it prompts for sign-in.

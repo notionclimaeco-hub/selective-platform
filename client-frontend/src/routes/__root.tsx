@@ -11,7 +11,6 @@ import type { ConvexReactClient } from "convex/react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start"
 import { auth } from "@clerk/tanstack-react-start/server"
-import { ptPT } from "@clerk/localizations"
 import { createServerFn } from "@tanstack/react-start"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
@@ -21,6 +20,7 @@ import { OrcamentoDrawer } from "@/components/orcamento/orcamento-drawer"
 import { ShellByAuth } from "@/components/shell/shell-by-auth"
 import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
 import { clientAuthRedirect } from "@/lib/auth-gate"
+import { clerkAppearance, clerkLocalization } from "@/lib/clerk-ui"
 import { fetchConvexClerkToken } from "@/lib/convex-clerk-token"
 
 import appCss from "../styles.css?url"
@@ -102,22 +102,8 @@ function RootComponent() {
       signInUrl="/entrar"
       signUpUrl="/registo"
       signInFallbackRedirectUrl="/inicio"
-      localization={ptPT}
-      appearance={{
-        variables: {
-          colorPrimary: "#2f6b3f",
-          colorForeground: "#1f2023",
-          colorMutedForeground: "#6b6e76",
-          colorNeutral: "#1f2023",
-          borderRadius: "0.625rem",
-          fontFamily: '"Inter Variable", sans-serif',
-          fontSize: "0.875rem",
-        },
-        elements: {
-          cardBox: "shadow-none border border-border",
-          formButtonPrimary: "shadow-none",
-        },
-      }}
+      localization={clerkLocalization}
+      appearance={clerkAppearance}
     >
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         <RootDocument>
