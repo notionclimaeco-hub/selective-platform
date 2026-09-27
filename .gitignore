@@ -20,3 +20,6 @@ node_modules
 # Local product-image workspace (crawl, process, upload state). Never commit.
 # Brand logos stay in images/logos/; live catalog images live in Convex Storage.
 product-scaffold/
+
+# Conductor machine-local overrides (shared config is .conductor/settings.toml)
+.conductor/settings.local.toml

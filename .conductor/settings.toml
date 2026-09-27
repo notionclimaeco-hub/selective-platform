@@ -1,0 +1,42 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+# Conductor config for selective-platform (shared Convex backend + admin-frontend + client-frontend).
+#
+# Ports: every local workspace gets CONDUCTOR_PORT..CONDUCTOR_PORT+9, so each workspace's
+# dev servers get their own pair and parallel workspaces never collide:
+#   admin-frontend  -> $CONDUCTOR_PORT
+#   client-frontend -> $CONDUCTOR_PORT + 1
+# The scripts live in scripts/dev/ so they can also be run outside Conductor
+# (`pnpm setup:workspace`, `pnpm dev:frontends`).
+
+[scripts]
+setup = "bash scripts/dev/setup.sh"
+# Frontends use per-workspace ports, so many workspaces can run at once.
+run_mode = "concurrent"
+
+# Default: both frontends in one process group. Prints the two URLs first.
+[scripts.run.frontends]
+command = "bash scripts/dev/frontends.sh"
+default = true
+icon = "play"
+available_in = [ "local" ]
+
+[scripts.run.admin]
+command = "echo \"==> admin-frontend : http://localhost:$CONDUCTOR_PORT\"; pnpm --dir admin-frontend exec vite dev --port \"$CONDUCTOR_PORT\" --strictPort"
+icon = "shield"
+available_in = [ "local" ]
+
+[scripts.run.client]
+command = "echo \"==> client-frontend : http://localhost:$((CONDUCTOR_PORT + 1))\"; pnpm --dir client-frontend exec vite dev --port \"$((CONDUCTOR_PORT + 1))\" --strictPort"
+icon = "globe"
+available_in = [ "local" ]
+
+# Convex function sync + dashboard. This pushes to your single Convex dev
+# deployment, so run it from ONE workspace at a time.
+[scripts.run.backend]
+command = "pnpm dev:backend"
+icon = "database"
+
+[scripts.run.test]
+command = "pnpm test"
+icon = "test-tube"
