@@ -221,9 +221,7 @@ function FormularioEmpresa({
 
   return (
     <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-4">
-      <TituloAuth titulo="Dados da empresa">
-        Passo 2 de 2: a equipa comercial analisa o pedido e avisa por email.
-      </TituloAuth>
+      <TituloAuth titulo="Dados da empresa" />
       {erro && (
         <p
           role="alert"
@@ -351,10 +349,8 @@ function Concluido({
         Empresa em aprovação
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Recebemos o pedido de{" "}
-        <span className="text-foreground">{nomeLegal}</span> e a nossa equipa
-        comercial vai analisá-lo. Avisamos por email. Até lá, o catálogo mostra
-        o PVP e pode ir preparando a sua lista de orçamento.
+        Pedido de <span className="text-foreground">{nomeLegal}</span> recebido.
+        Avisamos por email quando estiver aprovado.
       </p>
       <div className="mt-6 flex w-full flex-col gap-2">
         <Button size="lg" render={<a href="/produtos" />} nativeButton={false}>

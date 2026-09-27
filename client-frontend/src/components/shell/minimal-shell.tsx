@@ -11,18 +11,14 @@ const LINKS_RODAPE = LINKS_LEGAIS.filter(
  * Chrome for the focused pages (Entrar, Registo, payment link), in the shape
  * modern sign-in pages share (T3 Chat, Linear, Resend, Cal.com; see
  * `docs/research/login-page-patterns.md`): no top bar, a tinted page, the
- * mark in a small tile above the content, and only the legal links below.
+ * wordmark above the content, and only the legal links below.
  */
 export function MinimalShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="fundo-auth flex min-h-svh flex-col">
       <div className="flex justify-center pt-10 sm:pt-16">
-        <Link
-          to="/"
-          aria-label="Início"
-          className="flex size-12 items-center justify-center rounded-xl border bg-card shadow-xs transition-colors hover:border-[color-mix(in_oklch,var(--border),var(--foreground)_15%)]"
-        >
-          <Wordmark variant="mark" className="h-7" />
+        <Link to="/" aria-label="Início">
+          <Wordmark className="h-8" />
         </Link>
       </div>
       <main className="flex flex-1 flex-col">{children}</main>

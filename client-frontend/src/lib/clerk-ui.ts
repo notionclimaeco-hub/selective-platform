@@ -88,7 +88,19 @@ const EMBUTIDO: NonNullable<Appearance["elements"]> = {
     letterSpacing: "-0.025em",
   },
   headerSubtitle: { color: "var(--muted-foreground)", fontSize: "0.875rem" },
-  formFieldLabel: { fontWeight: 500, fontSize: "0.875rem" },
+  // Placeholder-only fields, Attio-style: the label stays for screen readers.
+  formFieldLabel: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    border: 0,
+  },
+  formFieldLabelRow: { "&&": { marginBottom: 0 } },
   formFieldInput: CAMPO,
   otpCodeFieldInput: { boxShadow: "none", borderColor: "var(--input)" },
   formButtonPrimary: BOTAO_PRIMARIO,
@@ -154,9 +166,10 @@ export const clerkAppearance: Appearance = {
 }
 
 /**
- * pt-PT strings with the sign-in and sign-up openers reworded for Climaeco
- * Pro: Clerk's defaults name the Clerk application, which is not a customer-
- * facing name. Every other step keeps Clerk's translation.
+ * pt-PT strings with the openers cut to the bone (Attio-style: a title, a
+ * field, a button): Clerk's defaults name the Clerk application and add a
+ * welcome line. Placeholders double as labels. Every other step keeps
+ * Clerk's translation.
  */
 export const clerkLocalization: Localization = {
   ...ptPT,
@@ -164,8 +177,8 @@ export const clerkLocalization: Localization = {
     ...ptPT.signIn,
     start: {
       ...ptPT.signIn?.start,
-      title: "Entrar no Climaeco Pro",
-      subtitle: "Bem-vindo de volta. Inicie sessão para continuar.",
+      title: "Entrar",
+      subtitle: "",
       actionText: "Ainda não tem conta?",
       actionLink: "Registar empresa",
     },
@@ -175,9 +188,15 @@ export const clerkLocalization: Localization = {
     start: {
       ...ptPT.signUp?.start,
       title: "Criar conta",
-      subtitle: "Passo 1 de 2: a conta da pessoa de contacto.",
+      subtitle: "",
       actionText: "Já tem conta?",
       actionLink: "Entrar",
     },
   },
+  formFieldInputPlaceholder__emailAddress: "Email",
+  formFieldInputPlaceholder__emailAddress_username:
+    "Email ou nome de utilizador",
+  formFieldInputPlaceholder__username: "Nome de utilizador",
+  formFieldInputPlaceholder__password: "Palavra-passe",
+  formFieldInputPlaceholder__signUpPassword: "Palavra-passe",
 }
