@@ -11,8 +11,6 @@ import { ArrowLeft, Check, ChevronRight, Download, Plus } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
 import { Markdown } from "@/components/produto/markdown"
 import { ProductGallery } from "@/components/produto/product-gallery"
 import {
@@ -21,20 +19,14 @@ import {
   rotuloChave,
   rotuloValor,
   rotuloVariante,
-  type Atributo,
-  type Variante,
 } from "@/components/produto/variant-table"
+import type { Atributo, Variante } from "@/components/produto/variant-table"
 import { QuantityStepper } from "@/components/orcamento/quantity-stepper"
 import { useOrcamento } from "@/components/orcamento/orcamento-store"
-import {
-  eurExato,
-  rotuloFamilia,
-  rotuloMarca,
-  type Familia,
-} from "@/lib/catalogo"
+import { eurExato, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 
-export const Route = createFileRoute("/produto/$ref")({
+export const Route = createFileRoute("/_shell/produto/$ref")({
   component: ProdutoPage,
 })
 
@@ -47,17 +39,13 @@ function ProdutoPage() {
   )
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="flex-1">
-        {base === null ? (
-          <ProdutoNaoEncontrado />
-        ) : (
-          <ProdutoConteudo base={base} routeRef={ref} />
-        )}
-      </main>
-      <SiteFooter />
-    </div>
+    <>
+      {base === null ? (
+        <ProdutoNaoEncontrado />
+      ) : (
+        <ProdutoConteudo base={base} routeRef={ref} />
+      )}
+    </>
   )
 }
 
@@ -139,12 +127,12 @@ function ProdutoLayout({
   // Shared attributes render as spec chips in the buy box; the keys that vary
   // across the group become columns of the variant table below.
   const especificacoes = temVariantes
-    ? atributosComuns(variantes!)
+    ? atributosComuns(variantes)
     : ativo.atributos
   const varianteAtiva = variantes?.find((v) => v.ref === ativo.ref)
   const varianteLabel =
     temVariantes && varianteAtiva
-      ? rotuloVariante(varianteAtiva, variantes!)
+      ? rotuloVariante(varianteAtiva, variantes)
       : ""
 
   return (
@@ -226,7 +214,7 @@ function ProdutoLayout({
               </p>
               <div className="mt-2.5">
                 <VariantTable
-                  variantes={variantes!}
+                  variantes={variantes}
                   selectedRef={selectedRef}
                   onSelect={onSelect}
                   precosRevenda={overlay}
@@ -262,7 +250,7 @@ function Breadcrumb({ familia, nome }: { familia: string; nome: string }) {
       <ChevronRight className="size-3.5" />
       <Link
         to="/produtos"
-        search={{ familia: familia as Familia }}
+        search={{ familia: familia }}
         className="transition-colors hover:text-foreground"
       >
         {rotuloFamilia(familia)}

@@ -11,7 +11,8 @@ import { useEmpresaActiva } from "@/lib/empresa-activa"
 import { mensagemErroSubmeter } from "@/lib/encomendas"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 import { QuantityStepper } from "./quantity-stepper"
-import { useOrcamento, type ItemOrcamento } from "./orcamento-store"
+import { useOrcamento } from "./orcamento-store"
+import type { ItemOrcamento } from "./orcamento-store"
 
 export function OrcamentoDrawer() {
   const { aberto, fechar, itens, totalItens, totalCents, limpar } =
@@ -20,7 +21,7 @@ export function OrcamentoDrawer() {
   const totalVista = overlay
     ? itens.reduce(
         (acc, i) => acc + (overlay.get(i.ref) ?? i.pvpCents) * i.quantidade,
-        0,
+        0
       )
     : totalCents
 
@@ -175,7 +176,7 @@ function CtaLista({
     return (
       <>
         <Button
-          render={<Link to={kind === "sem-org" ? "/registo" : "/conta"} />}
+          render={<Link to={kind === "sem-org" ? "/registo" : "/empresa"} />}
           nativeButton={false}
           size="lg"
           className="w-full"
@@ -251,7 +252,7 @@ function SubmeterEncomenda({
       limpar()
       onFechar()
       await navigate({
-        to: "/conta/encomendas/$id",
+        to: "/encomendas/$id",
         params: { id: encomendaId },
       })
     } catch (error) {
@@ -282,7 +283,7 @@ function SubmeterEncomenda({
           Os preços de revenda ficam congelados. O escritório confirma stock e
           depois envia o pedido de pagamento. Acompanhe em{" "}
           <Link
-            to="/conta/encomendas"
+            to="/encomendas"
             onClick={onFechar}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
@@ -316,7 +317,7 @@ function LinhaOrcamento({
               to="/produto/$ref"
               params={{ ref: item.ref }}
               onClick={fechar}
-              className="line-clamp-2 text-sm font-semibold leading-snug transition-colors hover:text-primary"
+              className="line-clamp-2 text-sm leading-snug font-semibold transition-colors hover:text-primary"
             >
               {item.nome}
             </Link>

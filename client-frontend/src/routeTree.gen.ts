@@ -9,19 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as MinimalRouteImport } from './routes/_minimal'
+import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as ContaRouteImport } from './routes/conta'
-import { Route as EntrarRouteImport } from './routes/entrar'
-import { Route as ProdutosRouteImport } from './routes/produtos'
-import { Route as RegistoRouteImport } from './routes/registo'
+import { Route as MinimalEntrarRouteImport } from './routes/_minimal/entrar'
+import { Route as MinimalRegistoRouteImport } from './routes/_minimal/registo'
+import { Route as ShellIndexRouteImport } from './routes/_shell/index'
+import { Route as ShellEmpresaRouteImport } from './routes/_shell/empresa'
+import { Route as ShellEncomendasRouteImport } from './routes/_shell/encomendas'
+import { Route as ShellInicioRouteImport } from './routes/_shell/inicio'
+import { Route as ShellOrcamentoRouteImport } from './routes/_shell/orcamento'
+import { Route as ShellProdutosRouteImport } from './routes/_shell/produtos'
 import { Route as ContaEncomendasRouteImport } from './routes/conta_.encomendas'
-import { Route as PagamentoTokenRouteImport } from './routes/pagamento.$token'
-import { Route as ProdutoRefRouteImport } from './routes/produto.$ref'
+import { Route as MinimalPagamentoTokenRouteImport } from './routes/_minimal/pagamento.$token'
+import { Route as ShellEncomendasIdRouteImport } from './routes/_shell/encomendas_.$id'
+import { Route as ShellProdutoRefRouteImport } from './routes/_shell/produto.$ref'
 import { Route as ContaEncomendasIdRouteImport } from './routes/conta_.encomendas_.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const MinimalRoute = MinimalRouteImport.update({
+  id: '/_minimal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContaRoute = ContaRouteImport.update({
@@ -29,35 +39,65 @@ const ContaRoute = ContaRouteImport.update({
   path: '/conta',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EntrarRoute = EntrarRouteImport.update({
+const MinimalEntrarRoute = MinimalEntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => MinimalRoute,
 } as any)
-const ProdutosRoute = ProdutosRouteImport.update({
-  id: '/produtos',
-  path: '/produtos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegistoRoute = RegistoRouteImport.update({
+const MinimalRegistoRoute = MinimalRegistoRouteImport.update({
   id: '/registo',
   path: '/registo',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => MinimalRoute,
+} as any)
+const ShellIndexRoute = ShellIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellEmpresaRoute = ShellEmpresaRouteImport.update({
+  id: '/empresa',
+  path: '/empresa',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellEncomendasRoute = ShellEncomendasRouteImport.update({
+  id: '/encomendas',
+  path: '/encomendas',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellInicioRoute = ShellInicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellOrcamentoRoute = ShellOrcamentoRouteImport.update({
+  id: '/orcamento',
+  path: '/orcamento',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProdutosRoute = ShellProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
+  getParentRoute: () => ShellRoute,
 } as any)
 const ContaEncomendasRoute = ContaEncomendasRouteImport.update({
   id: '/conta_/encomendas',
   path: '/conta/encomendas',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PagamentoTokenRoute = PagamentoTokenRouteImport.update({
+const MinimalPagamentoTokenRoute = MinimalPagamentoTokenRouteImport.update({
   id: '/pagamento/$token',
   path: '/pagamento/$token',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => MinimalRoute,
 } as any)
-const ProdutoRefRoute = ProdutoRefRouteImport.update({
+const ShellEncomendasIdRoute = ShellEncomendasIdRouteImport.update({
+  id: '/encomendas_/$id',
+  path: '/encomendas/$id',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProdutoRefRoute = ShellProdutoRefRouteImport.update({
   id: '/produto/$ref',
   path: '/produto/$ref',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ShellRoute,
 } as any)
 const ContaEncomendasIdRoute = ContaEncomendasIdRouteImport.update({
   id: '/conta_/encomendas_/$id',
@@ -66,37 +106,54 @@ const ContaEncomendasIdRoute = ContaEncomendasIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof ShellIndexRoute
   '/conta': typeof ContaRoute
-  '/entrar': typeof EntrarRoute
-  '/produtos': typeof ProdutosRoute
-  '/registo': typeof RegistoRoute
+  '/entrar': typeof MinimalEntrarRoute
+  '/registo': typeof MinimalRegistoRoute
+  '/empresa': typeof ShellEmpresaRoute
+  '/encomendas': typeof ShellEncomendasRoute
+  '/inicio': typeof ShellInicioRoute
+  '/orcamento': typeof ShellOrcamentoRoute
+  '/produtos': typeof ShellProdutosRoute
   '/conta/encomendas': typeof ContaEncomendasRoute
-  '/pagamento/$token': typeof PagamentoTokenRoute
-  '/produto/$ref': typeof ProdutoRefRoute
+  '/pagamento/$token': typeof MinimalPagamentoTokenRoute
+  '/encomendas/$id': typeof ShellEncomendasIdRoute
+  '/produto/$ref': typeof ShellProdutoRefRoute
   '/conta/encomendas/$id': typeof ContaEncomendasIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof ShellIndexRoute
   '/conta': typeof ContaRoute
-  '/entrar': typeof EntrarRoute
-  '/produtos': typeof ProdutosRoute
-  '/registo': typeof RegistoRoute
+  '/entrar': typeof MinimalEntrarRoute
+  '/registo': typeof MinimalRegistoRoute
+  '/empresa': typeof ShellEmpresaRoute
+  '/encomendas': typeof ShellEncomendasRoute
+  '/inicio': typeof ShellInicioRoute
+  '/orcamento': typeof ShellOrcamentoRoute
+  '/produtos': typeof ShellProdutosRoute
   '/conta/encomendas': typeof ContaEncomendasRoute
-  '/pagamento/$token': typeof PagamentoTokenRoute
-  '/produto/$ref': typeof ProdutoRefRoute
+  '/pagamento/$token': typeof MinimalPagamentoTokenRoute
+  '/encomendas/$id': typeof ShellEncomendasIdRoute
+  '/produto/$ref': typeof ShellProdutoRefRoute
   '/conta/encomendas/$id': typeof ContaEncomendasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_minimal': typeof MinimalRouteWithChildren
+  '/_shell': typeof ShellRouteWithChildren
   '/conta': typeof ContaRoute
-  '/entrar': typeof EntrarRoute
-  '/produtos': typeof ProdutosRoute
-  '/registo': typeof RegistoRoute
+  '/_minimal/entrar': typeof MinimalEntrarRoute
+  '/_minimal/registo': typeof MinimalRegistoRoute
+  '/_shell/empresa': typeof ShellEmpresaRoute
+  '/_shell/encomendas': typeof ShellEncomendasRoute
+  '/_shell/inicio': typeof ShellInicioRoute
+  '/_shell/orcamento': typeof ShellOrcamentoRoute
+  '/_shell/produtos': typeof ShellProdutosRoute
   '/conta_/encomendas': typeof ContaEncomendasRoute
-  '/pagamento/$token': typeof PagamentoTokenRoute
-  '/produto/$ref': typeof ProdutoRefRoute
+  '/_shell/': typeof ShellIndexRoute
+  '/_minimal/pagamento/$token': typeof MinimalPagamentoTokenRoute
+  '/_shell/encomendas_/$id': typeof ShellEncomendasIdRoute
+  '/_shell/produto/$ref': typeof ShellProdutoRefRoute
   '/conta_/encomendas_/$id': typeof ContaEncomendasIdRoute
 }
 export interface FileRouteTypes {
@@ -105,10 +162,15 @@ export interface FileRouteTypes {
     | '/'
     | '/conta'
     | '/entrar'
-    | '/produtos'
     | '/registo'
+    | '/empresa'
+    | '/encomendas'
+    | '/inicio'
+    | '/orcamento'
+    | '/produtos'
     | '/conta/encomendas'
     | '/pagamento/$token'
+    | '/encomendas/$id'
     | '/produto/$ref'
     | '/conta/encomendas/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -116,44 +178,59 @@ export interface FileRouteTypes {
     | '/'
     | '/conta'
     | '/entrar'
-    | '/produtos'
     | '/registo'
+    | '/empresa'
+    | '/encomendas'
+    | '/inicio'
+    | '/orcamento'
+    | '/produtos'
     | '/conta/encomendas'
     | '/pagamento/$token'
+    | '/encomendas/$id'
     | '/produto/$ref'
     | '/conta/encomendas/$id'
   id:
     | '__root__'
-    | '/'
+    | '/_minimal'
+    | '/_shell'
     | '/conta'
-    | '/entrar'
-    | '/produtos'
-    | '/registo'
+    | '/_minimal/entrar'
+    | '/_minimal/registo'
+    | '/_shell/empresa'
+    | '/_shell/encomendas'
+    | '/_shell/inicio'
+    | '/_shell/orcamento'
+    | '/_shell/produtos'
     | '/conta_/encomendas'
-    | '/pagamento/$token'
-    | '/produto/$ref'
+    | '/_shell/'
+    | '/_minimal/pagamento/$token'
+    | '/_shell/encomendas_/$id'
+    | '/_shell/produto/$ref'
     | '/conta_/encomendas_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  MinimalRoute: typeof MinimalRouteWithChildren
+  ShellRoute: typeof ShellRouteWithChildren
   ContaRoute: typeof ContaRoute
-  EntrarRoute: typeof EntrarRoute
-  ProdutosRoute: typeof ProdutosRoute
-  RegistoRoute: typeof RegistoRoute
   ContaEncomendasRoute: typeof ContaEncomendasRoute
-  PagamentoTokenRoute: typeof PagamentoTokenRoute
-  ProdutoRefRoute: typeof ProdutoRefRoute
   ContaEncomendasIdRoute: typeof ContaEncomendasIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_minimal': {
+      id: '/_minimal'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof MinimalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conta': {
@@ -163,26 +240,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/entrar': {
-      id: '/entrar'
+    '/_minimal/entrar': {
+      id: '/_minimal/entrar'
       path: '/entrar'
       fullPath: '/entrar'
-      preLoaderRoute: typeof EntrarRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof MinimalEntrarRouteImport
+      parentRoute: typeof MinimalRoute
     }
-    '/produtos': {
-      id: '/produtos'
-      path: '/produtos'
-      fullPath: '/produtos'
-      preLoaderRoute: typeof ProdutosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/registo': {
-      id: '/registo'
+    '/_minimal/registo': {
+      id: '/_minimal/registo'
       path: '/registo'
       fullPath: '/registo'
-      preLoaderRoute: typeof RegistoRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof MinimalRegistoRouteImport
+      parentRoute: typeof MinimalRoute
+    }
+    '/_shell/': {
+      id: '/_shell/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ShellIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/empresa': {
+      id: '/_shell/empresa'
+      path: '/empresa'
+      fullPath: '/empresa'
+      preLoaderRoute: typeof ShellEmpresaRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/encomendas': {
+      id: '/_shell/encomendas'
+      path: '/encomendas'
+      fullPath: '/encomendas'
+      preLoaderRoute: typeof ShellEncomendasRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/inicio': {
+      id: '/_shell/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof ShellInicioRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/orcamento': {
+      id: '/_shell/orcamento'
+      path: '/orcamento'
+      fullPath: '/orcamento'
+      preLoaderRoute: typeof ShellOrcamentoRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/produtos': {
+      id: '/_shell/produtos'
+      path: '/produtos'
+      fullPath: '/produtos'
+      preLoaderRoute: typeof ShellProdutosRouteImport
+      parentRoute: typeof ShellRoute
     }
     '/conta_/encomendas': {
       id: '/conta_/encomendas'
@@ -191,19 +303,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContaEncomendasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/pagamento/$token': {
-      id: '/pagamento/$token'
+    '/_minimal/pagamento/$token': {
+      id: '/_minimal/pagamento/$token'
       path: '/pagamento/$token'
       fullPath: '/pagamento/$token'
-      preLoaderRoute: typeof PagamentoTokenRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof MinimalPagamentoTokenRouteImport
+      parentRoute: typeof MinimalRoute
     }
-    '/produto/$ref': {
-      id: '/produto/$ref'
+    '/_shell/encomendas_/$id': {
+      id: '/_shell/encomendas_/$id'
+      path: '/encomendas/$id'
+      fullPath: '/encomendas/$id'
+      preLoaderRoute: typeof ShellEncomendasIdRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/produto/$ref': {
+      id: '/_shell/produto/$ref'
       path: '/produto/$ref'
       fullPath: '/produto/$ref'
-      preLoaderRoute: typeof ProdutoRefRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ShellProdutoRefRouteImport
+      parentRoute: typeof ShellRoute
     }
     '/conta_/encomendas_/$id': {
       id: '/conta_/encomendas_/$id'
@@ -215,15 +334,50 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MinimalRouteChildren {
+  MinimalEntrarRoute: typeof MinimalEntrarRoute
+  MinimalRegistoRoute: typeof MinimalRegistoRoute
+  MinimalPagamentoTokenRoute: typeof MinimalPagamentoTokenRoute
+}
+
+const MinimalRouteChildren: MinimalRouteChildren = {
+  MinimalEntrarRoute: MinimalEntrarRoute,
+  MinimalRegistoRoute: MinimalRegistoRoute,
+  MinimalPagamentoTokenRoute: MinimalPagamentoTokenRoute,
+}
+
+const MinimalRouteWithChildren =
+  MinimalRoute._addFileChildren(MinimalRouteChildren)
+
+interface ShellRouteChildren {
+  ShellEmpresaRoute: typeof ShellEmpresaRoute
+  ShellEncomendasRoute: typeof ShellEncomendasRoute
+  ShellInicioRoute: typeof ShellInicioRoute
+  ShellOrcamentoRoute: typeof ShellOrcamentoRoute
+  ShellProdutosRoute: typeof ShellProdutosRoute
+  ShellIndexRoute: typeof ShellIndexRoute
+  ShellEncomendasIdRoute: typeof ShellEncomendasIdRoute
+  ShellProdutoRefRoute: typeof ShellProdutoRefRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellEmpresaRoute: ShellEmpresaRoute,
+  ShellEncomendasRoute: ShellEncomendasRoute,
+  ShellInicioRoute: ShellInicioRoute,
+  ShellOrcamentoRoute: ShellOrcamentoRoute,
+  ShellProdutosRoute: ShellProdutosRoute,
+  ShellIndexRoute: ShellIndexRoute,
+  ShellEncomendasIdRoute: ShellEncomendasIdRoute,
+  ShellProdutoRefRoute: ShellProdutoRefRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  MinimalRoute: MinimalRouteWithChildren,
+  ShellRoute: ShellRouteWithChildren,
   ContaRoute: ContaRoute,
-  EntrarRoute: EntrarRoute,
-  ProdutosRoute: ProdutosRoute,
-  RegistoRoute: RegistoRoute,
   ContaEncomendasRoute: ContaEncomendasRoute,
-  PagamentoTokenRoute: PagamentoTokenRoute,
-  ProdutoRefRoute: ProdutoRefRoute,
   ContaEncomendasIdRoute: ContaEncomendasIdRoute,
 }
 export const routeTree = rootRouteImport

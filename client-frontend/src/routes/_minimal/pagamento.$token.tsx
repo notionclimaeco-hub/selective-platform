@@ -14,8 +14,6 @@ import {
 
 import { api } from "@convex/_generated/api"
 import { LinhasEncomenda } from "@/components/encomendas/linhas-encomenda"
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
 import { eurExato } from "@/lib/catalogo"
 import {
@@ -31,7 +29,7 @@ import { cn } from "@/lib/utils"
  * update this page; the order becomes `paga` from the signed webhook, which
  * this reactive query then reflects.
  */
-export const Route = createFileRoute("/pagamento/$token")({
+export const Route = createFileRoute("/_minimal/pagamento/$token")({
   component: PagamentoPage,
 })
 
@@ -42,18 +40,14 @@ function PagamentoPage() {
   const pagamento = useQuery(api.pagamentos.porToken, { token })
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
-        {pagamento === undefined ? (
-          <Esqueleto />
-        ) : pagamento === null ? (
-          <LinkInvalido />
-        ) : (
-          <Pagamento pagamento={pagamento} />
-        )}
-      </main>
-      <SiteFooter />
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10">
+      {pagamento === undefined ? (
+        <Esqueleto />
+      ) : pagamento === null ? (
+        <LinkInvalido />
+      ) : (
+        <Pagamento pagamento={pagamento} />
+      )}
     </div>
   )
 }
@@ -69,7 +63,7 @@ function LinkInvalido() {
         área de cliente ou contacte-nos.
       </p>
       <Button
-        render={<Link to="/conta/encomendas" />}
+        render={<Link to="/encomendas" />}
         nativeButton={false}
         variant="outline"
         className="mt-4"
@@ -132,7 +126,7 @@ function Pagamento({ pagamento }: { pagamento: Vista }) {
             <EstadoNaoPagavel pagamento={pagamento} />
           )}
           <Link
-            to="/conta/encomendas"
+            to="/encomendas"
             className="text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Ver todas as encomendas na área de cliente

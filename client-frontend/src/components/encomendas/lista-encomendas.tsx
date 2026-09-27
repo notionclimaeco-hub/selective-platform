@@ -126,7 +126,7 @@ function LinhaEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
 
   return (
     <Link
-      to="/conta/encomendas/$id"
+      to="/encomendas/$id"
       params={{ id: e._id }}
       className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-secondary/40 sm:grid-cols-[6.5rem_minmax(0,1fr)_10.5rem_6.5rem_1rem] sm:px-5"
     >

@@ -1,13 +1,23 @@
-// Client-area paths allowed as a post-login return (open-redirect guard).
-const REGRESSO_SEGURO = /^\/conta(?:\/encomendas(?:\/[a-z0-9]+)?)?$/
+// Environment paths allowed as a post-login return (open-redirect guard).
+const REGRESSO_SEGURO =
+  /^\/(?:inicio|empresa|orcamento|encomendas(?:\/[a-z0-9]+)?)$/
 
 export function caminhoSeguroDeRegresso(raw: unknown): string | undefined {
   if (typeof raw === "string" && REGRESSO_SEGURO.test(raw)) return raw
   return undefined
 }
 
-export function isContaPath(pathname: string): boolean {
-  return pathname === "/conta" || pathname.startsWith("/conta/")
+/**
+ * Pages that need a session. `/orcamento` is deliberately absent: anyone builds
+ * the quote list; only submitting it prompts for sign-in.
+ */
+export function isAreaPrivada(pathname: string): boolean {
+  return (
+    pathname === "/inicio" ||
+    pathname === "/empresa" ||
+    pathname === "/encomendas" ||
+    pathname.startsWith("/encomendas/")
+  )
 }
 
 export function isEntrarPath(pathname: string): boolean {
@@ -20,27 +30,29 @@ export function isRegistoPath(pathname: string): boolean {
 
 export type ClientAuthRedirect =
   | { to: "/entrar"; search: { return: string } }
-  | { to: "/conta" }
+  | { to: "/inicio" }
+  | { to: "/empresa" }
   | null
 
 /**
- * Public catalog stays public. Only the client-area routes are gated:
- * signed-out `/conta*` → `/entrar`; signed-in `/entrar` → `/conta`;
- * signed-in with an org on `/registo` → `/conta` (#2 + #3).
+ * Public pages stay public. Only the environment is gated:
+ * signed-out on `/inicio`, `/encomendas*`, `/empresa` → `/entrar?return=…`;
+ * signed-in on `/entrar` → `/inicio`;
+ * signed-in with an org on `/registo` → `/empresa` (nothing left to register).
  */
 export function clientAuthRedirect(
   userId: string | null | undefined,
   orgId: string | null | undefined,
-  pathname: string,
+  pathname: string
 ): ClientAuthRedirect {
-  if (isContaPath(pathname) && !userId) {
+  if (isAreaPrivada(pathname) && !userId) {
     return { to: "/entrar", search: { return: pathname } }
   }
   if (isEntrarPath(pathname) && userId) {
-    return { to: "/conta" }
+    return { to: "/inicio" }
   }
   if (isRegistoPath(pathname) && userId && orgId) {
-    return { to: "/conta" }
+    return { to: "/empresa" }
   }
   return null
 }

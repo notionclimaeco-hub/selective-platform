@@ -18,6 +18,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools"
 import type { ReactNode } from "react"
 
 import { OrcamentoDrawer } from "@/components/orcamento/orcamento-drawer"
+import { ShellByAuth } from "@/components/shell/shell-by-auth"
 import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
 import { clientAuthRedirect } from "@/lib/auth-gate"
 import { fetchConvexClerkToken } from "@/lib/convex-clerk-token"
@@ -45,21 +46,23 @@ export const Route = createRootRouteWithContext<{
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Clima Eco Selective — Distribuição de climatização" },
+      { name: "theme-color", content: "#ffffff" },
+      { title: "Climaeco Pro — Climatização para empresas instaladoras" },
       {
         name: "description",
         content:
-          "Distribuidor de equipamentos de climatização com mais de 20 anos de experiência. Ar condicionado, bombas de calor, ventiloconvetores e VMC das principais marcas.",
+          "Distribuidor de equipamentos de climatização para empresas instaladoras. Ar condicionado, bombas de calor, ventiloconvetores e VMC das principais marcas, com preços de revenda.",
       },
       {
         property: "og:title",
-        content: "Clima Eco Selective — Distribuição de climatização",
+        content: "Climaeco Pro — Climatização para empresas instaladoras",
       },
-      { property: "og:image", content: "/logo-climaeco.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "alternate icon", href: "/favicon.ico" },
+      { rel: "manifest", href: "/manifest.json" },
     ],
   }),
   beforeLoad: async ({ context, location }) => {
@@ -76,10 +79,17 @@ export const Route = createRootRouteWithContext<{
     return { userId, token, orgId }
   },
   notFoundComponent: () => (
-    <main className="container mx-auto p-4 pt-16">
-      <h1>404</h1>
-      <p>The requested page could not be found.</p>
-    </main>
+    <ShellByAuth>
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-16 sm:px-6">
+        <p className="text-sm font-medium text-primary">404</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+          Página não encontrada
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          O endereço não existe ou foi movido.
+        </p>
+      </div>
+    </ShellByAuth>
   ),
   component: RootComponent,
 })
@@ -91,7 +101,7 @@ function RootComponent() {
     <ClerkProvider
       signInUrl="/entrar"
       signUpUrl="/registo"
-      signInFallbackRedirectUrl="/conta"
+      signInFallbackRedirectUrl="/inicio"
       localization={ptPT}
       appearance={{
         variables: {
