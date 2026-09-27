@@ -2,18 +2,17 @@ import { useEffect, useState } from "react"
 import { Show, useUser } from "@clerk/tanstack-react-start"
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router"
 
-import { Wordmark } from "@/components/brand/wordmark"
 import { caminhoDeEntrada } from "@/lib/auth-gate"
 
 /** How long the animation plays before the destination opens. */
-const DURACAO_MS = 1600
+const DURACAO_MS = 2300
 const DURACAO_REDUZIDA_MS = 350
 
 /**
- * Welcome interstitial after signing in or registering: a beat with the brand
- * before the environment appears. `?para=` is the destination, restricted to
- * the environment and the catalog (`caminhoDeEntrada`). Standalone page, no
- * shell. Reduced-motion users see a static frame for a moment instead.
+ * Welcome interstitial after signing in or registering: a beat with what we
+ * sell before the environment appears. `?para=` is the destination, restricted
+ * to the environment and the catalog (`caminhoDeEntrada`). Standalone page, no
+ * shell. Reduced-motion users see the finished frame for a moment instead.
  */
 export const Route = createFileRoute("/bem-vindo")({
   validateSearch: (search: Record<string, unknown>): { para: string } => ({
@@ -60,17 +59,17 @@ function BemVindoPage() {
       <Show when="signed-out">
         <Navigate to="/entrar" />
       </Show>
-      <div className="entrada-marca flex flex-col items-center">
-        <Wordmark className="h-12 sm:h-14" />
+      <div className="flex flex-col items-center">
+        <Clima />
         <p
           className="animate-rise mt-6 text-center text-lg font-medium tracking-tight text-foreground"
-          style={{ "--delay": "350ms" } as React.CSSProperties}
+          style={{ "--delay": "1400ms" } as React.CSSProperties}
         >
           {nome ? `Bem-vindo, ${nome}.` : "Bem-vindo."}
         </p>
         <div
           className="animate-rise mt-8 h-px w-40 overflow-hidden rounded-full bg-border"
-          style={{ "--delay": "350ms" } as React.CSSProperties}
+          style={{ "--delay": "300ms" } as React.CSSProperties}
           role="progressbar"
           aria-label="A abrir a sua área"
         >
@@ -78,5 +77,98 @@ function BemVindoPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * The leaf from the mark draws itself and fills, then the three things an
+ * installer buys from us appear around it, each drawn as a line: a snowflake
+ * (cooling), a sun (heating) and waves (water). Every path carries
+ * `pathLength=1` so one dash rule animates them all; timing lives in
+ * `styles.css` under "Welcome interstitial".
+ */
+function Clima() {
+  return (
+    <svg
+      viewBox="0 0 160 120"
+      className="clima h-[120px] w-[160px] sm:h-[144px] sm:w-[192px]"
+      role="img"
+      aria-label="Climatização: frio, calor e água"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Leaf: outline draws, then the fill fades in. */}
+      <g transform="translate(55 30) scale(1.55)">
+        <path
+          className="clima-folha-preencher"
+          d="M3 33C3 15 15 3 33 3c0 18-12 30-30 30Z"
+          fill="var(--brand)"
+          stroke="none"
+        />
+        <path
+          className="clima-traco clima-folha"
+          d="M3 33C3 15 15 3 33 3c0 18-12 30-30 30Z"
+          pathLength={1}
+          stroke="var(--primary)"
+          strokeWidth={1.6}
+        />
+        <path
+          className="clima-traco clima-nervura"
+          d="M7 29C12.5 22 19.5 14.5 29 7"
+          pathLength={1}
+          stroke="var(--primary)"
+          strokeWidth={1.8}
+        />
+      </g>
+
+      {/* Snowflake (cooling), left. */}
+      <g
+        className="clima-glifo clima-frio"
+        stroke="var(--primary)"
+        strokeWidth={2}
+      >
+        <path className="clima-traco" pathLength={1} d="M26 46v28" />
+        <path className="clima-traco" pathLength={1} d="M13.9 53l24.2 14" />
+        <path className="clima-traco" pathLength={1} d="M13.9 67l24.2-14" />
+        <path
+          className="clima-traco"
+          pathLength={1}
+          d="M22 50l4-4 4 4M22 70l4 4 4-4"
+        />
+      </g>
+
+      {/* Sun (heating), right: disc then eight rays. */}
+      <g
+        className="clima-glifo clima-calor"
+        stroke="var(--primary)"
+        strokeWidth={2}
+      >
+        <circle className="clima-traco" pathLength={1} cx={134} cy={60} r={7} />
+        <path
+          className="clima-traco"
+          pathLength={1}
+          d="M134 46v-4M134 78v-4M120 60h-4M152 60h-4M124.1 50.1l-2.8-2.8M146.7 72.7l-2.8-2.8M124.1 69.9l-2.8 2.8M146.7 47.3l-2.8 2.8"
+        />
+      </g>
+
+      {/* Waves (water), below. */}
+      <g
+        className="clima-glifo clima-agua"
+        stroke="var(--primary)"
+        strokeWidth={2}
+      >
+        <path
+          className="clima-traco"
+          pathLength={1}
+          d="M56 100c6-6 12-6 18 0s12 6 18 0 12-6 18 0"
+        />
+        <path
+          className="clima-traco"
+          pathLength={1}
+          d="M62 110c6-6 12-6 18 0s12 6 18 0"
+        />
+      </g>
+    </svg>
   )
 }
