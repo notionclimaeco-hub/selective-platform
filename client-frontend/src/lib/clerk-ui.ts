@@ -68,12 +68,15 @@ const BOTAO_PRIMARIO = {
  */
 const EMBUTIDO: NonNullable<Appearance["elements"]> = {
   rootBox: { width: "100%" },
+  // Clerk's cardBox clips its overflow, which cuts the side edges of the
+  // inputs' box-shadow border and focus ring; keep it visible.
   cardBox: {
     width: "100%",
     maxWidth: "none",
     boxShadow: "none",
     border: "none",
     borderRadius: 0,
+    "&&": { overflow: "visible" },
   },
   card: { padding: 0, boxShadow: "none", border: "none", gap: "1.5rem" },
   // Clerk's header is the card title: it changes per step (code, password).
