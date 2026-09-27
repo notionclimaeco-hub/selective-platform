@@ -1,7 +1,7 @@
 import { useState } from "react"
 import type { FormEvent } from "react"
 import { Show, SignUp, useClerk } from "@clerk/tanstack-react-start"
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router"
+import { createFileRoute, Navigate } from "@tanstack/react-router"
 import { useAction, useQuery } from "convex/react"
 import { Check } from "lucide-react"
 
@@ -9,9 +9,8 @@ import { api } from "@convex/_generated/api"
 import { normalizarNif, validarNif } from "@convex/lib/nif"
 import {
   CartaoAuth,
-  LIGACAO_AUTH,
-  LinhaAuth,
   PaginaAuth,
+  TituloAuth,
 } from "@/components/auth/cartao-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,8 +41,8 @@ function RegistoPage() {
   return (
     <PaginaAuth>
       <Show when="signed-out">
+        <Passos passo={1} />
         <CartaoAuth>
-          <Passos passo={1} />
           <SignUp
             routing="hash"
             signInUrl={comRegresso("/entrar", regresso)}
@@ -51,16 +50,6 @@ function RegistoPage() {
             forceRedirectUrl={comRegresso("/registo", regresso)}
           />
         </CartaoAuth>
-        <LinhaAuth>
-          Já tem conta?{" "}
-          <Link
-            to="/entrar"
-            search={regresso ? { return: regresso } : {}}
-            className={LIGACAO_AUTH}
-          >
-            Entrar
-          </Link>
-        </LinhaAuth>
       </Show>
       <Show when="signed-in">
         <PassoEmpresa regresso={regresso} />
@@ -75,12 +64,15 @@ function RegistoPage() {
 
 const PASSOS = ["Conta", "Empresa"] as const
 
-/** `passo` is the active step; 3 means both are done (confirmation). */
+/**
+ * `passo` is the active step; 3 means both are done (confirmation). Sits
+ * between the mark and the card, so the card starts with the step's title.
+ */
 function Passos({ passo }: { passo: 1 | 2 | 3 }) {
   return (
     <ol
       aria-label="Passos do registo"
-      className="mb-6 flex items-center gap-3 text-sm"
+      className="mb-5 flex items-center justify-center gap-2.5 text-sm"
     >
       {PASSOS.map((label, i) => {
         const numero = i + 1
@@ -92,7 +84,7 @@ function Passos({ passo }: { passo: 1 | 2 | 3 }) {
               <span
                 aria-hidden
                 className={cn(
-                  "h-px flex-1",
+                  "h-px w-8",
                   estado === "seguinte" ? "bg-border" : "bg-primary"
                 )}
               />
@@ -110,7 +102,7 @@ function Passos({ passo }: { passo: 1 | 2 | 3 }) {
                 className={cn(
                   "flex size-6 items-center justify-center rounded-full text-xs font-semibold",
                   estado === "seguinte"
-                    ? "border border-input"
+                    ? "border border-input bg-card"
                     : "bg-primary text-primary-foreground"
                 )}
               >
@@ -140,33 +132,39 @@ function PassoEmpresa({ regresso }: { regresso: string | undefined }) {
 
   if (enviado !== null) {
     return (
-      <CartaoAuth>
+      <>
         <Passos passo={3} />
-        <Concluido nomeLegal={enviado} regresso={regresso} />
-      </CartaoAuth>
+        <CartaoAuth>
+          <Concluido nomeLegal={enviado} regresso={regresso} />
+        </CartaoAuth>
+      </>
     )
   }
   if (vista === undefined || vista === null) {
     return (
-      <CartaoAuth>
+      <>
         <Passos passo={2} />
-        <div className="flex flex-col gap-4" aria-busy>
-          <Skeleton className="h-6 w-2/3" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      </CartaoAuth>
+        <CartaoAuth>
+          <div className="flex flex-col gap-4" aria-busy>
+            <Skeleton className="h-6 w-2/3" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </CartaoAuth>
+      </>
     )
   }
   if (vista.kind === "empresa" || vista.kind === "sem-empresa") {
     return <Navigate to="/empresa" />
   }
   return (
-    <CartaoAuth>
+    <>
       <Passos passo={2} />
-      <FormularioEmpresa onEnviado={setEnviado} />
-    </CartaoAuth>
+      <CartaoAuth>
+        <FormularioEmpresa onEnviado={setEnviado} />
+      </CartaoAuth>
+    </>
   )
 }
 
@@ -222,19 +220,10 @@ function FormularioEmpresa({
   }
 
   return (
-    <form
-      onSubmit={(e) => void onSubmit(e)}
-      className="flex flex-col gap-4"
-      noValidate={false}
-    >
-      <div className="text-center">
-        <h1 className="text-xl font-semibold tracking-tight">
-          Dados da empresa
-        </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          A nossa equipa comercial analisa o pedido e avisa por email.
-        </p>
-      </div>
+    <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-4">
+      <TituloAuth titulo="Dados da empresa">
+        Passo 2 de 2: a equipa comercial analisa o pedido e avisa por email.
+      </TituloAuth>
       {erro && (
         <p
           role="alert"
@@ -358,7 +347,7 @@ function Concluido({
       <span className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
         <Check className="size-6" strokeWidth={2.5} />
       </span>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight">
+      <h1 className="mt-4 text-2xl font-semibold tracking-tight">
         Empresa em aprovação
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">

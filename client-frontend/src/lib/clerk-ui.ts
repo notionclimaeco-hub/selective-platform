@@ -76,25 +76,48 @@ const EMBUTIDO: NonNullable<Appearance["elements"]> = {
     borderRadius: 0,
   },
   card: { padding: 0, boxShadow: "none", border: "none", gap: "1.5rem" },
+  // Clerk's header is the card title: it changes per step (code, password).
+  header: { gap: "0.375rem" },
   headerTitle: {
-    fontSize: "1.25rem",
+    fontSize: "1.5rem",
+    lineHeight: "2rem",
     fontWeight: 600,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.025em",
   },
-  headerSubtitle: { color: "var(--muted-foreground)" },
-  footer: {
-    background: "none",
-    padding: 0,
-    marginTop: "0.25rem",
-  },
-  // The page renders its own "Ainda não tem conta?" line under the card.
-  footerAction: { display: "none" },
+  headerSubtitle: { color: "var(--muted-foreground)", fontSize: "0.875rem" },
+  formFieldLabel: { fontWeight: 500, fontSize: "0.875rem" },
   formFieldInput: CAMPO,
   otpCodeFieldInput: { boxShadow: "none", borderColor: "var(--input)" },
   formButtonPrimary: BOTAO_PRIMARIO,
   socialButtonsBlockButton: { ...CAMPO, fontWeight: 500 },
   alternativeMethodsBlockButton: CAMPO,
   identityPreview: { justifyContent: "center" },
+  // "Ainda não tem conta? Registar empresa" sits inside the card, then the
+  // Clerk badge, small.
+  // Clerk pads every footer child 16px 32px, which leaves the "Ainda não tem
+  // conta?" line too narrow on phones and wraps it; zero it and centre.
+  footer: {
+    background: "none",
+    padding: 0,
+    marginTop: 0,
+    gap: "0.5rem",
+    "& > *": { padding: 0 },
+  },
+  footerAction: {
+    "&&": { justifyContent: "center", gap: "0.25rem", padding: "0.5rem 0 0" },
+  },
+  footerActionText: {
+    color: "var(--muted-foreground)",
+    fontSize: "0.875rem",
+    whiteSpace: "nowrap",
+  },
+  footerActionLink: {
+    color: "var(--primary)",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    "&:hover": { color: "var(--primary)", textDecoration: "underline" },
+  },
 }
 
 export const clerkAppearance: Appearance = {
@@ -138,8 +161,10 @@ export const clerkLocalization: Localization = {
     ...ptPT.signIn,
     start: {
       ...ptPT.signIn?.start,
-      title: "Entrar",
-      subtitle: "Aceda à área da sua empresa instaladora.",
+      title: "Entrar no Climaeco Pro",
+      subtitle: "Bem-vindo de volta. Inicie sessão para continuar.",
+      actionText: "Ainda não tem conta?",
+      actionLink: "Registar empresa",
     },
   },
   signUp: {
@@ -147,7 +172,9 @@ export const clerkLocalization: Localization = {
     start: {
       ...ptPT.signUp?.start,
       title: "Criar conta",
-      subtitle: "A conta da pessoa de contacto. A empresa vem a seguir.",
+      subtitle: "Passo 1 de 2: a conta da pessoa de contacto.",
+      actionText: "Já tem conta?",
+      actionLink: "Entrar",
     },
   },
 }

@@ -320,3 +320,14 @@
       translateY(var(--lift)) rotate(calc(var(--t) * var(--rot)));
   }
 }
+
+/* Focused pages (Entrar, Registo, payment): a faintly tinted page with a soft
+ * lime glow at the top, so the white card reads as the one object on it. */
+.fundo-auth {
+  background-color: oklch(0.982 0.005 132);
+  background-image: radial-gradient(
+    70% 45% at 50% -5%,
+    color-mix(in oklch, var(--accent), transparent 25%),
+    transparent 70%
+  );
+}
