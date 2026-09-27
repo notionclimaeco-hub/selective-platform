@@ -539,7 +539,7 @@ export function VinhetaLevantamento() {
             </p>
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium">
               <MapPin className="size-3.5 text-primary" /> Armazém Clima Eco ·
-              Lisboa
+              Belas
             </p>
           </div>
         </div>

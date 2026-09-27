@@ -1,4 +1,6 @@
-import { Download, FileText, MapPin } from "lucide-react"
+import { ArrowUpRight, Download, FileText, MapPin } from "lucide-react"
+
+import { MAPS_ARMAZEM, MORADA_ARMAZEM } from "@/components/shell/nav"
 
 import { cn } from "@/lib/utils"
 import { LogoMascara, MARCAS } from "./brand-marquee"
@@ -52,7 +54,7 @@ export function Sobre() {
           <Tile
             atraso={240}
             titulo="Levantamento no nosso armazém"
-            texto="Stock confirmado junto dos fornecedores e pronto a levantar."
+            texto="Stock confirmado junto dos fornecedores e pronto a levantar em Belas, Sintra."
           >
             <Armazem />
           </Tile>
@@ -193,27 +195,32 @@ function Documentos() {
   )
 }
 
-/** A stylised map: thin guides, one pin, one label. */
+/** A stylised map: thin guides, one pin, the address; opens the real pin. */
 function Armazem() {
   const { ref, visivel } = useInView<HTMLDivElement>()
   return (
-    <div
-      ref={ref}
-      aria-hidden
-      className="relative flex size-full items-center justify-center bg-[linear-gradient(to_right,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px)] bg-[size:2.5rem_2.5rem] bg-center"
-    >
-      <span
-        className="surge flex flex-col items-center"
-        data-on={visivel}
-        style={{ transitionDelay: "150ms" }}
+    <div ref={ref} className="size-full">
+      <a
+        href={MAPS_ARMAZEM}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Abrir o armazém no Google Maps: ${MORADA_ARMAZEM.rua}, ${MORADA_ARMAZEM.localidade}`}
+        className="group/mapa relative flex size-full flex-col items-center justify-center bg-[linear-gradient(to_right,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px)] bg-[size:2.5rem_2.5rem] bg-center focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
       >
-        <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/15">
-          <MapPin className="size-4" />
+        <span
+          className="surge flex flex-col items-center"
+          data-on={visivel}
+          style={{ transitionDelay: "150ms" }}
+        >
+          <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/15 transition-transform group-hover/mapa:-translate-y-0.5">
+            <MapPin className="size-4" />
+          </span>
+          <span className="mt-2 inline-flex items-center gap-1 rounded-full border bg-background py-1 pr-2 pl-2.5 text-[11px] font-medium transition-colors group-hover/mapa:border-foreground/25">
+            {MORADA_ARMAZEM.rua} · {MORADA_ARMAZEM.localidade}
+            <ArrowUpRight className="size-3 text-muted-foreground" />
+          </span>
         </span>
-        <span className="mt-2 rounded-full border bg-background px-2.5 py-1 text-[11px] font-medium">
-          Armazém Clima Eco
-        </span>
-      </span>
+      </a>
     </div>
   )
 }

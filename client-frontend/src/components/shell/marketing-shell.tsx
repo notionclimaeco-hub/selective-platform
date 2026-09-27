@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { ExternalLink, Menu } from "lucide-react"
+import { ExternalLink, MapPin, Menu } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,8 @@ import {
   LINKS_LEGAIS,
   LIVRO_RECLAMACOES,
   MAILTO_GERAL,
+  MAPS_ARMAZEM,
+  MORADA_ARMAZEM,
   NAV_MARKETING,
 } from "./nav"
 
@@ -191,6 +193,19 @@ function RodapeMarketing() {
             <p className="text-sm font-semibold">Contactos</p>
             <a href={MAILTO_GERAL} className={LIGACAO_RODAPE}>
               {EMAIL_GERAL}
+            </a>
+            <a
+              href={MAPS_ARMAZEM}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(LIGACAO_RODAPE, "inline-flex items-start gap-1.5")}
+            >
+              <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>
+                {MORADA_ARMAZEM.rua}
+                <br />
+                {MORADA_ARMAZEM.localidade}
+              </span>
             </a>
           </div>
           <div className="flex flex-col gap-2">
