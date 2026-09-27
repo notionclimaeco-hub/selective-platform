@@ -24,7 +24,7 @@ import {
 
 /**
  * Chrome for signed-out visitors: a slim 56px bar (wordmark, Produtos, Sobre,
- * Entrar, Registar empresa) and a compact footer with the contact
+ * Registar empresa, Entrar as the primary) and a compact footer with the contact
  * and legal links. On phones the nav collapses into a hamburger sheet.
  */
 export function MarketingShell({ children }: { children: React.ReactNode }) {
@@ -56,19 +56,19 @@ function BarraMarketing() {
 
         <div className="ml-auto flex items-center gap-2">
           <Button
-            render={<Link to="/entrar" />}
-            nativeButton={false}
-            variant="outline"
-            className="hidden sm:inline-flex"
-          >
-            Entrar
-          </Button>
-          <Button
             render={<Link to="/registo" />}
             nativeButton={false}
+            variant="outline"
             className="hidden md:inline-flex"
           >
             Registar empresa
+          </Button>
+          <Button
+            render={<Link to="/entrar" />}
+            nativeButton={false}
+            className="hidden sm:inline-flex"
+          >
+            Entrar
           </Button>
           <MenuMovel />
         </div>
@@ -152,20 +152,16 @@ function MenuMovel() {
           </Link>
         </nav>
         <div className="mt-auto flex flex-col gap-2 border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-          <Button
-            render={<Link to="/registo" />}
-            nativeButton={false}
-            size="lg"
-          >
-            Registar empresa
+          <Button render={<Link to="/entrar" />} nativeButton={false} size="lg">
+            Entrar
           </Button>
           <Button
-            render={<Link to="/entrar" />}
+            render={<Link to="/registo" />}
             nativeButton={false}
             variant="outline"
             size="lg"
           >
-            Entrar
+            Registar empresa
           </Button>
         </div>
       </SheetContent>

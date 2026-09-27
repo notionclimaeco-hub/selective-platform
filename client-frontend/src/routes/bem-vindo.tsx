@@ -57,14 +57,6 @@ function BemVindoPage() {
       </Show>
       <div className="flex flex-col items-center">
         <Clima />
-        <div
-          className="animate-rise mt-8 h-px w-40 overflow-hidden rounded-full bg-border"
-          style={{ "--delay": "300ms" } as React.CSSProperties}
-          role="progressbar"
-          aria-label="A abrir a sua área"
-        >
-          <div className="entrada-barra h-full w-full bg-primary" />
-        </div>
       </div>
     </div>
   )
@@ -112,19 +104,22 @@ function Clima() {
         />
       </g>
 
-      {/* Snowflake (cooling), left. */}
+      {/* Snowflake (cooling), left: three arms through the centre, then a
+          pair of branch ticks near each of the six tips. */}
       <g
         className="clima-glifo clima-frio"
         stroke="var(--primary)"
         strokeWidth={2}
       >
-        <path className="clima-traco" pathLength={1} d="M26 46v28" />
-        <path className="clima-traco" pathLength={1} d="M13.9 53l24.2 14" />
-        <path className="clima-traco" pathLength={1} d="M13.9 67l24.2-14" />
         <path
           className="clima-traco"
           pathLength={1}
-          d="M22 50l4-4 4 4M22 70l4 4 4-4"
+          d="M26.0 74.0L26.0 46.0 M13.9 67.0L38.1 53.0 M13.9 53.0L38.1 67.0"
+        />
+        <path
+          className="clima-traco"
+          pathLength={1}
+          d="M26.0 69.5l-3.5 2.0 M26.0 69.5l3.5 2.0 M17.8 64.8l-3.5 -2.0 M17.8 64.8l-0.0 4.0 M17.8 55.2l-0.0 -4.0 M17.8 55.2l-3.5 2.0 M26.0 50.5l3.5 -2.0 M26.0 50.5l-3.5 -2.0 M34.2 55.2l3.5 2.0 M34.2 55.2l-0.0 -4.0 M34.2 64.8l0.0 4.0 M34.2 64.8l3.5 -2.0"
         />
       </g>
 

@@ -334,8 +334,7 @@
 
 /* ---------------------------------------------------------------------------
  * Welcome interstitial (/bem-vindo): the leaf draws and fills, then the
- * cooling / heating / water glyphs draw around it in turn; a hairline fills
- * while the destination loads. Paths use pathLength="1" so a single dash rule
+ * cooling / heating / water glyphs draw around it in turn. Paths use pathLength="1" so a single dash rule
  * draws any of them.
  * ------------------------------------------------------------------------- */
 /* Round caps would show a dot at the start of an undrawn path, so a path
@@ -359,14 +358,6 @@
   }
   to {
     opacity: 1;
-  }
-}
-@keyframes barra-preencher {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
   }
 }
 .clima-traco {
@@ -399,14 +390,9 @@
   --delay: 1300ms;
   animation-duration: 0.45s;
 }
-.entrada-barra {
-  transform-origin: left;
-  animation: barra-preencher 1.7s cubic-bezier(0.4, 0, 0.2, 1) 0.35s both;
-}
 @media (prefers-reduced-motion: reduce) {
   .clima-traco,
-  .clima-folha-preencher,
-  .entrada-barra {
+  .clima-folha-preencher {
     animation: none;
     stroke-dashoffset: 0;
     opacity: 1;
