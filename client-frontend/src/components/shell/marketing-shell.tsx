@@ -3,7 +3,6 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { ExternalLink, Menu } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
-import { QuoteTrigger } from "@/components/orcamento/quote-trigger"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -23,7 +22,7 @@ import {
 
 /**
  * Chrome for signed-out visitors: a slim 56px bar (wordmark, Produtos, Sobre,
- * quote list, Entrar, Registar empresa) and a compact footer with the contact
+ * Entrar, Registar empresa) and a compact footer with the contact
  * and legal links. On phones the nav collapses into a hamburger sheet.
  */
 export function MarketingShell({ children }: { children: React.ReactNode }) {
@@ -54,7 +53,6 @@ function BarraMarketing() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <QuoteTrigger />
           <Button
             render={<Link to="/entrar" />}
             nativeButton={false}
