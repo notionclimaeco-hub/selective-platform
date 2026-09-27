@@ -9,6 +9,8 @@
     "dev:backend": "convex dev",
     "dev:admin": "pnpm --dir admin-frontend dev",
     "dev:client": "pnpm --dir client-frontend dev",
+    "dev:frontends": "bash scripts/dev/frontends.sh",
+    "setup:workspace": "bash scripts/dev/setup.sh",
     "test": "vitest run",
     "imagens:crawl": "node scripts/imagens/crawl.mjs",
     "imagens:targets": "node scripts/imagens/targets.mjs",
