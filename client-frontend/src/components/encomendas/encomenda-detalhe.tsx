@@ -4,7 +4,7 @@ import type { FunctionReturnType } from "convex/server"
 import { Mail } from "lucide-react"
 
 import type { api } from "@convex/_generated/api"
-import { CabecalhoPagina } from "@/components/conta/area-cliente"
+import { CabecalhoPagina } from "@/components/shell/pagina"
 import { Button } from "@/components/ui/button"
 import { eurExato } from "@/lib/catalogo"
 import {
@@ -49,7 +49,7 @@ export function EncomendaDetalhe({
   return (
     <>
       <CabecalhoPagina
-        voltar={{ to: "/conta/encomendas", label: "Encomendas" }}
+        voltar={{ to: "/encomendas", label: "Encomendas" }}
         titulo={
           <span className="flex flex-wrap items-center gap-3">
             ENC-{encomenda.numero}

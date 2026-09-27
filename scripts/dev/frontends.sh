@@ -39,6 +39,14 @@ done
 echo "==> admin-frontend  : http://localhost:$ADMIN_PORT"
 echo "==> client-frontend : http://localhost:$CLIENT_PORT"
 echo
+# Vite listens on every interface (see vite.config.ts `server.host`), so the
+# same ports work from a phone on the tailnet via the Tailscale IP or MagicDNS name.
+if command -v tailscale >/dev/null 2>&1 || [ -x /Applications/Tailscale.app/Contents/MacOS/Tailscale ]; then
+  TS_BIN="$(command -v tailscale || echo /Applications/Tailscale.app/Contents/MacOS/Tailscale)"
+  TS_IP="$("$TS_BIN" ip -4 2>/dev/null | head -1 || true)"
+  [ -n "$TS_IP" ] && echo "==> tailnet         : http://$TS_IP:$ADMIN_PORT (admin) · http://$TS_IP:$CLIENT_PORT (client)"
+fi
+echo
 
 prefix() { while IFS= read -r line; do printf '%s %s\n' "$1" "$line"; done; }
 

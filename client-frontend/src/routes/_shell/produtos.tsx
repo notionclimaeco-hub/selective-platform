@@ -15,8 +15,6 @@ import {
 } from "@/components/catalogo/product-card"
 import { SearchBox } from "@/components/catalogo/search-box"
 import { SortSelect } from "@/components/catalogo/sort-select"
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
 import { FAMILIAS, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
 import {
@@ -29,26 +27,14 @@ import type { FiltrosCatalogo } from "@/lib/catalogo-search"
 import { useMapaDesdePorGrupo } from "@/lib/precos-revenda"
 import { cn } from "@/lib/utils"
 
-export const Route = createFileRoute("/produtos")({
+export const Route = createFileRoute("/_shell/produtos")({
   validateSearch: validarBusca,
-  component: CatalogoPage,
+  component: Catalogo,
 })
 
 type Lista = FunctionReturnType<typeof api.catalogo.listar>
 
 const numero = new Intl.NumberFormat("pt-PT")
-
-function CatalogoPage() {
-  return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="flex-1">
-        <Catalogo />
-      </main>
-      <SiteFooter />
-    </div>
-  )
-}
 
 function Catalogo() {
   const filtros = Route.useSearch()

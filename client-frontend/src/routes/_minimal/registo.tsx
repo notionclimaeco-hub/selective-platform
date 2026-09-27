@@ -1,56 +1,53 @@
-import { useState, type FormEvent } from "react"
+import { useState } from "react"
+import type { FormEvent } from "react"
 import { Show, SignUp, useClerk } from "@clerk/tanstack-react-start"
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router"
 import { useAction, useQuery } from "convex/react"
 
 import { api } from "@convex/_generated/api"
 import { normalizarNif, validarNif } from "@convex/lib/nif"
-import { SiteFooter } from "@/components/landing/site-footer"
-import { SiteHeader } from "@/components/landing/site-header"
 import { Button } from "@/components/ui/button"
 
 const inputCls =
   "h-10 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 
-export const Route = createFileRoute("/registo")({ component: RegistoPage })
+export const Route = createFileRoute("/_minimal/registo")({
+  component: RegistoPage,
+})
 
 function RegistoPage() {
   return (
-    <div className="flex min-h-svh flex-col">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-12 sm:px-6">
-        <p className="text-sm font-medium text-primary">Área de Cliente</p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-          Registar empresa
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Crie a conta da pessoa de contacto e, em seguida, o perfil da empresa.
-          A aprovação é feita pela nossa equipa comercial.
-        </p>
-        <Show when="signed-out">
-          <div className="mt-8 flex flex-col items-center">
-            <SignUp
-              routing="hash"
-              signInUrl="/entrar"
-              fallbackRedirectUrl="/registo"
-              forceRedirectUrl="/registo"
-            />
-            <p className="mt-6 text-sm text-muted-foreground">
-              Já tem conta?{" "}
-              <Link
-                to="/entrar"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                Entrar
-              </Link>
-            </p>
-          </div>
-        </Show>
-        <Show when="signed-in">
-          <FormularioEmpresa />
-        </Show>
-      </main>
-      <SiteFooter />
+    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-10 sm:px-6 sm:py-12">
+      <p className="text-sm font-medium text-primary">Área de Cliente</p>
+      <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+        Registar empresa
+      </h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Crie a conta da pessoa de contacto e, em seguida, o perfil da empresa. A
+        aprovação é feita pela nossa equipa comercial.
+      </p>
+      <Show when="signed-out">
+        <div className="mt-8 flex flex-col items-center">
+          <SignUp
+            routing="hash"
+            signInUrl="/entrar"
+            fallbackRedirectUrl="/registo"
+            forceRedirectUrl="/registo"
+          />
+          <p className="mt-6 text-sm text-muted-foreground">
+            Já tem conta?{" "}
+            <Link
+              to="/entrar"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Entrar
+            </Link>
+          </p>
+        </div>
+      </Show>
+      <Show when="signed-in">
+        <FormularioEmpresa />
+      </Show>
     </div>
   )
 }
@@ -66,7 +63,7 @@ function FormularioEmpresa() {
     return <p className="mt-8 text-sm text-muted-foreground">A carregar…</p>
   }
   if (vista?.kind === "empresa" || vista?.kind === "sem-empresa") {
-    return <Navigate to="/conta" />
+    return <Navigate to="/empresa" />
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -92,9 +89,9 @@ function FormularioEmpresa() {
       try {
         await setActive({ organization: resultado.clerkOrgId })
       } catch {
-        // /conta still finds the company via registadoPor.
+        // /empresa still finds the company via registadoPor.
       }
-      window.location.assign("/conta?pedido=enviado")
+      window.location.assign("/empresa?pedido=enviado")
     } catch (err) {
       setErro(mensagemRegisto(err))
     } finally {
