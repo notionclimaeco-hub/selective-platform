@@ -1,8 +1,14 @@
-import { CountUp, Etiqueta, Reveal } from "./reveal"
+import { Download, FileText, MapPin } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { LogoMascara, MARCAS } from "./brand-marquee"
+import { CountUp, Etiqueta, Reveal, useInView } from "./reveal"
 
 /**
- * About teaser: one headline, one paragraph, four figures. The full story
- * lives on /sobre; the landing only needs to say who is behind the prices.
+ * About block in the page's own language: a short intro, then a bento of
+ * hairline tiles, each with a small illustration built from the same tokens
+ * and reveal motion as the vignettes and the deck. The full story lives on
+ * /sobre; this only says who is behind the prices.
  */
 export function Sobre() {
   return (
@@ -16,66 +22,208 @@ export function Sobre() {
           </h2>
           <p className="mt-4 leading-relaxed text-pretty text-muted-foreground">
             A Clima Eco Selective fornece equipamento das marcas líderes a
-            empresas instaladoras e gabinetes de projeto em todo o país. Stock
-            confirmado junto dos fornecedores, documentação técnica em cada
-            modelo e levantamento no nosso armazém.
+            empresas instaladoras e gabinetes de projeto em todo o país.
           </p>
         </Reveal>
 
-        <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border md:mt-12 lg:grid-cols-4">
-          <Figura
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 md:mt-12 lg:grid-cols-3">
+          <Tile
             atraso={0}
-            valor={<CountUp ate={20} sufixo="+" />}
-            rotulo="Anos de atividade"
-          />
-          <Figura
+            className="sm:col-span-2"
+            titulo="Há mais de 20 anos no mercado português"
+            texto="Ao lado de empresas instaladoras e gabinetes de projeto, obra após obra."
+          >
+            <Anos />
+          </Tile>
+          <Tile
             atraso={80}
-            valor={<CountUp ate={5} />}
-            rotulo="Marcas em distribuição oficial"
-          />
-          <Figura
+            titulo="Cinco marcas em distribuição oficial"
+            texto="Mitsubishi Electric, Daikin, Nipon, Hisense e Midea, com garantia de fabricante."
+          >
+            <Marcas />
+          </Tile>
+          <Tile
             atraso={160}
-            valor={<CountUp ate={1000} sufixo="+" />}
-            rotulo="Equipamentos em catálogo"
-          />
-          <Figura
+            titulo="Documentação técnica em cada modelo"
+            texto="Fichas técnicas e páginas de catálogo prontas a anexar às suas propostas."
+          >
+            <Documentos />
+          </Tile>
+          <Tile
             atraso={240}
-            valor={
-              <img
-                src="/certificacoes/pme2024.png"
-                alt="Scoring TOP 5%, Melhores PME Portugal 2024"
-                className="h-12 w-auto sm:h-14"
-              />
-            }
-            rotulo="Top 5% PME Portugal 2024"
-          />
-        </dl>
+            titulo="Levantamento no nosso armazém"
+            texto="Stock confirmado junto dos fornecedores e pronto a levantar."
+          >
+            <Armazem />
+          </Tile>
+          <Tile
+            atraso={320}
+            titulo="Top 5% PME Portugal"
+            texto="Distinguidos entre as melhores PME do país no ranking Scoring 2024."
+          >
+            <Distincao />
+          </Tile>
+        </div>
       </div>
     </section>
   )
 }
 
-function Figura({
-  valor,
-  rotulo,
+/* -------------------------------------------------------------- tile --- */
+
+function Tile({
+  titulo,
+  texto,
   atraso,
+  className,
+  children,
 }: {
-  valor: React.ReactNode
-  rotulo: string
+  titulo: string
+  texto: string
   atraso: number
+  className?: string
+  children: React.ReactNode
 }) {
   return (
     <Reveal
-      as="div"
       atraso={atraso}
-      className="flex flex-col justify-end bg-background p-5 sm:p-7"
+      className={cn(
+        "flex flex-col overflow-hidden rounded-xl border bg-card",
+        className
+      )}
     >
-      <dd className="flex h-14 items-center text-4xl font-semibold tracking-tight sm:text-5xl">
-        {valor}
-      </dd>
-      <dt className="mt-3 text-xs font-medium text-muted-foreground sm:text-sm">
-        {rotulo}
-      </dt>
+      <div className="flex h-36 items-center justify-center border-b bg-muted/50 px-5">
+        {children}
+      </div>
+      <div className="p-5">
+        <h3 className="text-sm font-semibold">{titulo}</h3>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+          {texto}
+        </p>
+      </div>
     </Reveal>
+  )
+}
+
+/* ----------------------------------------------------- illustrations --- */
+
+/** A ruler of years that lights up left to right, ending on today. */
+function Anos() {
+  const { ref, visivel } = useInView<HTMLDivElement>()
+  const anos = 24
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className="flex w-full items-end justify-between gap-4 sm:gap-8"
+    >
+      <span className="text-5xl font-semibold tracking-tight sm:text-6xl">
+        <CountUp ate={20} sufixo="+" />
+      </span>
+      <div className="flex flex-1 items-end justify-between">
+        {Array.from({ length: anos }, (_, i) => {
+          const ultimo = i === anos - 1
+          return (
+            <span
+              key={i}
+              className={cn(
+                "surge w-1 shrink-0 rounded-full sm:w-1.5 lg:w-2",
+                ultimo ? "h-10 bg-primary" : "bg-foreground/20",
+                i % 6 === 5 ? "h-7" : "h-4"
+              )}
+              data-on={visivel}
+              style={{ transitionDelay: `${i * 45}ms` }}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** The five partner logos in the page's single tone. */
+function Marcas() {
+  return (
+    <div className="grid w-full grid-cols-3 items-center gap-x-4 gap-y-3 text-muted-foreground/70">
+      {MARCAS.map((marca) => (
+        <div
+          key={marca.nome}
+          className="flex h-6 items-center justify-center"
+          aria-label={marca.nome}
+        >
+          {marca.logo ? (
+            <LogoMascara src={marca.logo} className="h-full w-full max-w-24" />
+          ) : (
+            <span className="text-base font-semibold tracking-tight italic">
+              nipon
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Two document rows, revealed one after the other. */
+function Documentos() {
+  const { ref, visivel } = useInView<HTMLDivElement>()
+  const linhas = ["Ficha técnica", "Página de catálogo"]
+  return (
+    <div ref={ref} aria-hidden className="w-full max-w-xs space-y-2">
+      {linhas.map((nome, i) => (
+        <div
+          key={nome}
+          className="surge flex items-center gap-3 rounded-lg border bg-background px-3 py-2"
+          data-on={visivel}
+          style={{ transitionDelay: `${i * 220}ms` }}
+        >
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-muted text-primary">
+            <FileText className="size-3.5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-medium">{nome}</span>
+            <span className="block text-[10px] text-muted-foreground">
+              PDF · do fabricante
+            </span>
+          </span>
+          <Download className="size-3.5 text-muted-foreground" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** A stylised map: thin guides, one pin, one label. */
+function Armazem() {
+  const { ref, visivel } = useInView<HTMLDivElement>()
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className="relative flex size-full items-center justify-center bg-[linear-gradient(to_right,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--border),transparent_35%)_1px,transparent_1px)] bg-[size:2.5rem_2.5rem] bg-center"
+    >
+      <span
+        className="surge flex flex-col items-center"
+        data-on={visivel}
+        style={{ transitionDelay: "150ms" }}
+      >
+        <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/15">
+          <MapPin className="size-4" />
+        </span>
+        <span className="mt-2 rounded-full border bg-background px-2.5 py-1 text-[11px] font-medium">
+          Armazém Clima Eco
+        </span>
+      </span>
+    </div>
+  )
+}
+
+function Distincao() {
+  return (
+    <img
+      src="/certificacoes/pme2024.png"
+      alt="Scoring TOP 5%, Melhores PME Portugal 2024"
+      className="h-20 w-auto"
+    />
   )
 }

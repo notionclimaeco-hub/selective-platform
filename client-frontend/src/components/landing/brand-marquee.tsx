@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 // (the SVG provides the shape, `currentColor`/bg-current the color). On hover
 // the real full-color logo cross-fades in. Nipon has no SVG yet, so it stays a
 // styled wordmark; add `logo` when the asset arrives.
-type Marca = {
+export type Marca = {
   nome: string
   // Catalog `marca` slug — the logo links to the brand's filtered catalog.
   slug: string
@@ -15,7 +15,7 @@ type Marca = {
   wordmark?: React.ReactNode
 }
 
-const MARCAS: Array<Marca> = [
+export const MARCAS: Array<Marca> = [
   {
     nome: "Mitsubishi Electric",
     slug: "mitsubishi",
@@ -51,7 +51,7 @@ const MARCAS: Array<Marca> = [
   },
 ]
 
-function LogoMascara({ src, className }: { src: string; className?: string }) {
+export function LogoMascara({ src, className }: { src: string; className?: string }) {
   return (
     <span
       aria-hidden
