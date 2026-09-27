@@ -96,14 +96,8 @@ export function BrandMarquee() {
   const itens = [...MARCAS, ...MARCAS]
 
   return (
-    <section id="marcas" className="scroll-mt-20 border-b py-10 md:py-12">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <p className="text-center text-sm font-medium text-muted-foreground">
-          Distribuidor oficial das marcas que especifica nos seus projetos
-        </p>
-      </div>
-
-      <div className="marquee relative mt-6 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+    <section id="marcas" className="scroll-mt-20 border-b pb-10 md:pb-12">
+      <div className="marquee relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
         <div className="marquee-track flex w-max items-center">
           {itens.map((marca, i) => {
             const duplicado = i >= MARCAS.length

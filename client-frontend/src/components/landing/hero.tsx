@@ -11,7 +11,7 @@ import { PriceReveal } from "./price-reveal"
  */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b">
+    <section className="relative overflow-hidden">
       <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pt-16 text-center sm:px-6 md:pt-24">
         <a
           href="#marcas"
