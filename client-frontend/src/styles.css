@@ -320,3 +320,82 @@
       translateY(var(--lift)) rotate(calc(var(--t) * var(--rot)));
   }
 }
+
+/* Focused pages (Entrar, Registo, payment): a faintly tinted page with a soft
+ * lime glow at the top, so the white card reads as the one object on it. */
+.fundo-auth {
+  background-color: oklch(0.982 0.005 132);
+  background-image: radial-gradient(
+    70% 45% at 50% -5%,
+    color-mix(in oklch, var(--accent), transparent 25%),
+    transparent 70%
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Welcome interstitial (/bem-vindo): the leaf draws and fills, then the
+ * cooling / heating / water glyphs draw around it in turn. Paths use pathLength="1" so a single dash rule
+ * draws any of them.
+ * ------------------------------------------------------------------------- */
+/* Round caps would show a dot at the start of an undrawn path, so a path
+ * stays invisible until its own draw begins. */
+@keyframes traco-desenhar {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.clima-traco {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: traco-desenhar 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+.clima-folha {
+  --delay: 0ms;
+  animation-duration: 0.8s;
+}
+.clima-nervura {
+  --delay: 500ms;
+  animation-duration: 0.45s;
+}
+.clima-folha-preencher {
+  opacity: 0;
+  animation: aparecer 0.5s ease-out 0.7s both;
+}
+.clima-frio .clima-traco {
+  --delay: 900ms;
+  animation-duration: 0.4s;
+}
+.clima-calor .clima-traco {
+  --delay: 1100ms;
+  animation-duration: 0.45s;
+}
+.clima-agua .clima-traco {
+  --delay: 1300ms;
+  animation-duration: 0.45s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .clima-traco,
+  .clima-folha-preencher {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: none;
+  }
+}

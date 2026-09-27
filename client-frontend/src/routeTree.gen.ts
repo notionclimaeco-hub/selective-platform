@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MinimalRouteImport } from './routes/_minimal'
 import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as BemVindoRouteImport } from './routes/bem-vindo'
 import { Route as ContaRouteImport } from './routes/conta'
 import { Route as MinimalEntrarRouteImport } from './routes/_minimal/entrar'
 import { Route as MinimalRegistoRouteImport } from './routes/_minimal/registo'
@@ -32,6 +33,11 @@ const MinimalRoute = MinimalRouteImport.update({
 } as any)
 const ShellRoute = ShellRouteImport.update({
   id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BemVindoRoute = BemVindoRouteImport.update({
+  id: '/bem-vindo',
+  path: '/bem-vindo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContaRoute = ContaRouteImport.update({
@@ -107,6 +113,7 @@ const ContaEncomendasIdRoute = ContaEncomendasIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof ShellIndexRoute
+  '/bem-vindo': typeof BemVindoRoute
   '/conta': typeof ContaRoute
   '/entrar': typeof MinimalEntrarRoute
   '/registo': typeof MinimalRegistoRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof ShellIndexRoute
+  '/bem-vindo': typeof BemVindoRoute
   '/conta': typeof ContaRoute
   '/entrar': typeof MinimalEntrarRoute
   '/registo': typeof MinimalRegistoRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_minimal': typeof MinimalRouteWithChildren
   '/_shell': typeof ShellRouteWithChildren
+  '/bem-vindo': typeof BemVindoRoute
   '/conta': typeof ContaRoute
   '/_minimal/entrar': typeof MinimalEntrarRoute
   '/_minimal/registo': typeof MinimalRegistoRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bem-vindo'
     | '/conta'
     | '/entrar'
     | '/registo'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bem-vindo'
     | '/conta'
     | '/entrar'
     | '/registo'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_minimal'
     | '/_shell'
+    | '/bem-vindo'
     | '/conta'
     | '/_minimal/entrar'
     | '/_minimal/registo'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   MinimalRoute: typeof MinimalRouteWithChildren
   ShellRoute: typeof ShellRouteWithChildren
+  BemVindoRoute: typeof BemVindoRoute
   ContaRoute: typeof ContaRoute
   ContaEncomendasRoute: typeof ContaEncomendasRoute
   ContaEncomendasIdRoute: typeof ContaEncomendasIdRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bem-vindo': {
+      id: '/bem-vindo'
+      path: '/bem-vindo'
+      fullPath: '/bem-vindo'
+      preLoaderRoute: typeof BemVindoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conta': {
@@ -376,6 +396,7 @@ const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   MinimalRoute: MinimalRouteWithChildren,
   ShellRoute: ShellRouteWithChildren,
+  BemVindoRoute: BemVindoRoute,
   ContaRoute: ContaRoute,
   ContaEncomendasRoute: ContaEncomendasRoute,
   ContaEncomendasIdRoute: ContaEncomendasIdRoute,

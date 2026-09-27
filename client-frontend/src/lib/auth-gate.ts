@@ -7,6 +7,38 @@ export function caminhoSeguroDeRegresso(raw: unknown): string | undefined {
   return undefined
 }
 
+/** `/entrar` or `/registo` with the `?return=` carried along, when there is one. */
+export function comRegresso(
+  caminho: "/entrar" | "/registo",
+  regresso: string | undefined
+): string {
+  return regresso === undefined
+    ? caminho
+    : `${caminho}?return=${encodeURIComponent(regresso)}`
+}
+
+/**
+ * Where the welcome interstitial (`/bem-vindo`) may send someone: the
+ * environment paths plus the public catalog (the registration's default).
+ */
+export function caminhoDeEntrada(raw: unknown): string {
+  if (raw === "/produtos") return raw
+  return caminhoSeguroDeRegresso(raw) ?? "/inicio"
+}
+
+/** `/bem-vindo?para=…`: play the welcome animation, then land on `destino`. */
+export function viaBemVindo(destino: string): string {
+  return `/bem-vindo?para=${encodeURIComponent(caminhoDeEntrada(destino))}`
+}
+
+/** Button label for going back to a safe return path after signing in or registering. */
+export function rotuloDeRegresso(regresso: string): string {
+  if (regresso === "/orcamento") return "Voltar ao orçamento"
+  if (regresso === "/empresa") return "Ver a empresa"
+  if (regresso.startsWith("/encomendas")) return "Voltar às encomendas"
+  return "Ir para o início"
+}
+
 /**
  * Pages that need a session. `/orcamento` is deliberately absent: anyone builds
  * the quote list; only submitting it prompts for sign-in.
