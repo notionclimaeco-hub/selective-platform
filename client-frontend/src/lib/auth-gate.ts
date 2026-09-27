@@ -17,6 +17,20 @@ export function comRegresso(
     : `${caminho}?return=${encodeURIComponent(regresso)}`
 }
 
+/**
+ * Where the welcome interstitial (`/bem-vindo`) may send someone: the
+ * environment paths plus the public catalog (the registration's default).
+ */
+export function caminhoDeEntrada(raw: unknown): string {
+  if (raw === "/produtos") return raw
+  return caminhoSeguroDeRegresso(raw) ?? "/inicio"
+}
+
+/** `/bem-vindo?para=…`: play the welcome animation, then land on `destino`. */
+export function viaBemVindo(destino: string): string {
+  return `/bem-vindo?para=${encodeURIComponent(caminhoDeEntrada(destino))}`
+}
+
 /** Button label for going back to a safe return path after signing in or registering. */
 export function rotuloDeRegresso(regresso: string): string {
   if (regresso === "/orcamento") return "Voltar ao orçamento"

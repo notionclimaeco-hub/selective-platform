@@ -19,6 +19,7 @@ import {
   caminhoSeguroDeRegresso,
   comRegresso,
   rotuloDeRegresso,
+  viaBemVindo,
 } from "@/lib/auth-gate"
 import {
   comporMorada,
@@ -439,8 +440,8 @@ function Campo({
 
 /**
  * Both buttons are plain anchors on purpose: the session just gained an
- * organization, and a full load lets the server pick the new claims up
- * before the app shell renders.
+ * organization, and a full load (into the welcome animation) lets the server
+ * pick the new claims up before the app shell renders.
  */
 function Concluido({
   nomeLegal,
@@ -462,14 +463,18 @@ function Concluido({
         Avisamos por email quando estiver aprovado.
       </p>
       <div className="mt-6 flex w-full flex-col gap-2">
-        <Button size="lg" render={<a href="/produtos" />} nativeButton={false}>
+        <Button
+          size="lg"
+          render={<a href={viaBemVindo("/produtos")} />}
+          nativeButton={false}
+        >
           Explorar o catálogo
         </Button>
         {regresso && (
           <Button
             size="lg"
             variant="outline"
-            render={<a href={regresso} />}
+            render={<a href={viaBemVindo(regresso)} />}
             nativeButton={false}
           >
             {rotuloDeRegresso(regresso)}

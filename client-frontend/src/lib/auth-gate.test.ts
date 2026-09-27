@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  caminhoDeEntrada,
   caminhoSeguroDeRegresso,
   clientAuthRedirect,
   comRegresso,
   rotuloDeRegresso,
+  viaBemVindo,
 } from "./auth-gate"
 
 describe("caminhoSeguroDeRegresso", () => {
@@ -36,6 +38,21 @@ describe("comRegresso", () => {
 
   it("leaves the path alone without a return", () => {
     expect(comRegresso("/entrar", undefined)).toBe("/entrar")
+  })
+})
+
+describe("caminhoDeEntrada / viaBemVindo", () => {
+  it("allows the environment and the catalog, defaults to /inicio", () => {
+    expect(caminhoDeEntrada("/orcamento")).toBe("/orcamento")
+    expect(caminhoDeEntrada("/produtos")).toBe("/produtos")
+    expect(caminhoDeEntrada("/produto/X")).toBe("/inicio")
+    expect(caminhoDeEntrada("https://evil.example")).toBe("/inicio")
+    expect(caminhoDeEntrada(undefined)).toBe("/inicio")
+  })
+
+  it("routes through the welcome page", () => {
+    expect(viaBemVindo("/orcamento")).toBe("/bem-vindo?para=%2Forcamento")
+    expect(viaBemVindo("/nope")).toBe("/bem-vindo?para=%2Finicio")
   })
 })
 

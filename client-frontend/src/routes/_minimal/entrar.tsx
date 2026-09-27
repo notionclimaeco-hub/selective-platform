@@ -2,12 +2,16 @@ import { Show, SignIn } from "@clerk/tanstack-react-start"
 import { createFileRoute, Navigate } from "@tanstack/react-router"
 
 import { CartaoAuth, PaginaAuth } from "@/components/auth/cartao-auth"
-import { caminhoSeguroDeRegresso, comRegresso } from "@/lib/auth-gate"
+import {
+  caminhoSeguroDeRegresso,
+  comRegresso,
+  viaBemVindo,
+} from "@/lib/auth-gate"
 
 /**
  * Sign-in for installer members. `?return=` (a safe environment path, see
- * `caminhoSeguroDeRegresso`) is where Clerk sends the member afterwards;
- * `/inicio` otherwise. The same return rides along to `/registo` through
+ * `caminhoSeguroDeRegresso`) is where the member ends up afterwards, via the
+ * `/bem-vindo` animation; `/inicio` otherwise. The same return rides along to `/registo` through
  * Clerk's own "Ainda não tem conta?" footer link (`signUpUrl`).
  */
 export const Route = createFileRoute("/_minimal/entrar")({
@@ -19,7 +23,8 @@ export const Route = createFileRoute("/_minimal/entrar")({
 
 function EntrarPage() {
   const { return: regresso } = Route.useSearch()
-  const depois = regresso ?? "/inicio"
+  // Clerk lands on the welcome interstitial, which then opens the destination.
+  const depois = viaBemVindo(regresso ?? "/inicio")
 
   return (
     <PaginaAuth>
