@@ -266,9 +266,8 @@
   will-change: transform;
 }
 
-/* The logos link to each brand's catalog, so stop the belt while the pointer
- * (or keyboard focus) is on it — otherwise the target moves as you click. */
-.marquee:hover .marquee-track,
+/* The belt keeps rolling under the pointer; it only pauses for keyboard
+ * focus, so a tabbed-to logo stays put while it is activated. */
 .marquee:focus-within .marquee-track {
   animation-play-state: paused;
 }
