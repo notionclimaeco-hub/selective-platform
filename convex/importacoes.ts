@@ -508,3 +508,197 @@ export const promoverLote = internalMutation({
     return null;
   },
 });
+
+// --- Queries (staff) ---------------------------------------------------------
+
+export const resumoGrupoValidator = v.object({
+  grupoModelo: v.string(),
+  nomeGrupo: v.string(),
+  marca: v.string(),
+  familia: v.string(),
+  componente: v.string(),
+  numSkus: v.number(),
+  numAvisos: v.number(),
+  numNovos: v.number(),
+  numAlterados: v.number(),
+  numIguais: v.number(),
+  revisto: v.boolean(),
+  precisaRevisao: v.boolean(),
+});
+
+export const filtroGruposValidator = v.union(
+  v.literal("todos"),
+  v.literal("por-rever"),
+  v.literal("com-avisos"),
+  v.literal("alterados"),
+  v.literal("novos"),
+);
+
+// The live `produtos` row a staged SKU would replace, reduced for the page.
+const atualValidator = v.object({
+  nome: v.string(),
+  nomeGrupo: v.string(),
+  grupoModelo: v.string(),
+  pvpCents: v.number(),
+  atributos: v.array(atributoValidator),
+  estado: estadoValidator,
+  numImagens: v.number(),
+});
+
+const paginaRevisaoValidator = v.object({
+  pagina: v.number(),
+  imagemUrl: v.union(v.string(), v.null()),
+  pdfUrl: v.union(v.string(), v.null()),
+});
+
+/** Runs index: newest first. */
+export const listar = query({
+  args: {},
+  returns: v.array(importacaoValidator),
+  handler: async (ctx) => {
+    await requireStaff(ctx);
+    return await ctx.db.query("importacoes").order("desc").take(100);
+  },
+});
+
+/**
+ * One run with a page of group summaries. Groups are derived in memory from
+ * the run's rows (runs are at most low thousands of rows), same offset
+ * pagination as `produtos.listarAdmin`. `gruposPorRever` counts over the
+ * whole run: zero means approval will pass the gate.
+ */
+export const obter = query({
+  args: {
+    importacaoId: v.id("importacoes"),
+    pagina: v.number(),
+    porPagina: v.number(),
+    filtro: v.optional(filtroGruposValidator),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      importacao: v.object({
+        ...importacaoValidator.fields,
+        pdfUrl: v.union(v.string(), v.null()),
+      }),
+      grupos: v.array(resumoGrupoValidator),
+      totalGrupos: v.number(),
+      numPaginas: v.number(),
+      pagina: v.number(),
+      gruposPorRever: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireStaff(ctx);
+    const run = await ctx.db.get(args.importacaoId);
+    if (!run) return null;
+
+    const resumos = resumirGrupos(await linhasDaRun(ctx, run._id));
+    const porRever = gruposPorRever(resumos).length;
+    const filtrados = filtrarGrupos(resumos, args.filtro ?? "todos");
+
+    const porPagina = Math.max(1, Math.floor(args.porPagina));
+    const numPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+    const pagina = Math.min(Math.max(0, Math.floor(args.pagina)), numPaginas - 1);
+    const inicio = pagina * porPagina;
+
+    const pdfUrl = run.pdf === undefined ? null : await ctx.storage.getUrl(run.pdf);
+    return {
+      importacao: { ...run, pdfUrl },
+      grupos: filtrados.slice(inicio, inicio + porPagina),
+      totalGrupos: filtrados.length,
+      numPaginas,
+      pagina,
+      gruposPorRever: porRever,
+    };
+  },
+});
+
+/**
+ * One staged group: its SKUs by price, each with the live counterpart (or
+ * null), plus the PNG render and one-page PDF of every page they cite.
+ */
+export const obterGrupo = query({
+  args: { importacaoId: v.id("importacoes"), grupoModelo: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      grupoModelo: v.string(),
+      nomeGrupo: v.string(),
+      revisto: v.boolean(),
+      skus: v.array(
+        v.object({
+          ...skuEmRevisaoValidator.fields,
+          atual: v.union(atualValidator, v.null()),
+        }),
+      ),
+      paginas: v.array(paginaRevisaoValidator),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireStaff(ctx);
+    const run = await ctx.db.get(args.importacaoId);
+    if (!run) return null;
+
+    const linhas = await ctx.db
+      .query("skusEmRevisao")
+      .withIndex("by_importacao_grupo", (q) =>
+        q.eq("importacaoId", run._id).eq("grupoModelo", args.grupoModelo),
+      )
+      .collect();
+    const [primeira] = linhas;
+    if (!primeira) return null;
+
+    linhas.sort((a, b) => a.pvpCents - b.pvpCents || a.ref.localeCompare(b.ref));
+
+    const skus = [];
+    for (const linha of linhas) {
+      const p = await ctx.db
+        .query("produtos")
+        .withIndex("by_ref", (q) => q.eq("ref", linha.ref))
+        .unique();
+      skus.push({
+        ...linha,
+        atual: p
+          ? {
+              nome: p.nome,
+              nomeGrupo: p.nomeGrupo,
+              grupoModelo: p.grupoModelo,
+              pvpCents: p.pvpCents,
+              atributos: p.atributos,
+              estado: p.estado,
+              numImagens: p.imagens.length,
+            }
+          : null,
+      });
+    }
+
+    const numeros = [...new Set(linhas.flatMap((l) => l.pdfPaginas))].sort(
+      (a, b) => a - b,
+    );
+    const paginas = [];
+    for (const pagina of numeros) {
+      const slot = await ctx.db
+        .query("paginasCatalogo")
+        .withIndex("by_tabela_pagina", (q) =>
+          q.eq("tabelaOrigem", run.tabelaOrigem).eq("pagina", pagina),
+        )
+        .unique();
+      paginas.push({
+        pagina,
+        imagemUrl:
+          slot?.imagem === undefined ? null : await ctx.storage.getUrl(slot.imagem),
+        pdfUrl:
+          slot?.ficheiro === undefined ? null : await ctx.storage.getUrl(slot.ficheiro),
+      });
+    }
+
+    return {
+      grupoModelo: args.grupoModelo,
+      nomeGrupo: primeira.nomeGrupo,
+      revisto: linhas.every((l) => l.grupoRevisto),
+      skus,
+      paginas,
+    };
+  },
+});

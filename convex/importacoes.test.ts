@@ -593,3 +593,123 @@ describe("importacoes: promoção", () => {
     expect(await produtoPorRef(test, "R149")).not.toBeNull();
   });
 });
+
+describe("importacoes: consultas", () => {
+  async function runParaConsulta(test: T) {
+    await seedLive(test, live("P1", { pvpCents: 10000 }), "publicado");
+    const pdf = await storeBlob(test);
+    const png = await storeBlob(test);
+    await test.mutation(api.importData.registarPagina, {
+      secret: SECRET,
+      tabelaOrigem: "hisense-2026",
+      pagina: 3,
+      ficheiro: pdf,
+    });
+    await test.mutation(api.importacoes.registarPaginaImagem, {
+      secret: SECRET,
+      tabelaOrigem: "hisense-2026",
+      pagina: 4,
+      imagem: png,
+    });
+    const id = await criarRun(test, { pdf });
+    await carregar(test, id, [
+      staged("P1", { pvpCents: 12000, pdfPaginas: [3, 4] }),
+      staged("P2", { pvpCents: 9000, pdfPaginas: [3] }),
+      staged("L1", { grupoModelo: "hisense-limpo", nomeGrupo: "Limpo" }),
+      staged("A1", { grupoModelo: "hisense-aviso", nomeGrupo: "Aviso", avisos: ["x"] }),
+    ]);
+    return id;
+  }
+
+  it("requires staff", async () => {
+    const test = t();
+    const id = await runParaConsulta(test);
+    await expect(test.query(api.importacoes.listar, {})).rejects.toThrow(/Not authenticated/);
+    await expect(
+      test.query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 10 }),
+    ).rejects.toThrow(/Not authenticated/);
+    await expect(
+      test.query(api.importacoes.obterGrupo, { importacaoId: id, grupoModelo: "hisense-energy" }),
+    ).rejects.toThrow(/Not authenticated/);
+  });
+
+  it("lists runs newest first with counts", async () => {
+    const test = t();
+    const antiga = await criarRun(test, { marca: "midea", tabelaOrigem: "midea-2026" });
+    const nova = await runParaConsulta(test);
+    const lista = await test.withIdentity(STAFF).query(api.importacoes.listar, {});
+    expect(lista.map((r) => r._id)).toEqual([nova, antiga]);
+    expect(lista[0]).toMatchObject({ estado: "em-revisao", numSkus: 4, numGrupos: 3 });
+  });
+
+  it("returns the run header, paginated group summaries and the review gate count", async () => {
+    const test = t();
+    const id = await runParaConsulta(test);
+    const staff = test.withIdentity(STAFF);
+    const r = await staff.query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 2 });
+    expect(r?.importacao).toMatchObject({ _id: id, estado: "em-revisao", numSkus: 4 });
+    expect(typeof r?.importacao.pdfUrl).toBe("string");
+    expect(r?.totalGrupos).toBe(3);
+    expect(r?.numPaginas).toBe(2);
+    expect(r?.gruposPorRever).toBe(2);
+    expect(r?.grupos.map((g) => g.grupoModelo)).toEqual(["hisense-aviso", "hisense-limpo"]);
+    expect(r?.grupos[0]).toMatchObject({
+      nomeGrupo: "Aviso",
+      numSkus: 1,
+      numAvisos: 1,
+      revisto: false,
+      precisaRevisao: true,
+    });
+
+    // Out-of-range page clamps to the last one.
+    const ultima = await staff.query(api.importacoes.obter, { importacaoId: id, pagina: 9, porPagina: 2 });
+    expect(ultima?.pagina).toBe(1);
+    expect(ultima?.grupos.map((g) => g.grupoModelo)).toEqual(["hisense-energy"]);
+
+    // Filters narrow the set and recount pages.
+    const porRever = await staff.query(api.importacoes.obter, {
+      importacaoId: id,
+      pagina: 0,
+      porPagina: 10,
+      filtro: "por-rever",
+    });
+    expect(porRever?.grupos.map((g) => g.grupoModelo)).toEqual(["hisense-aviso", "hisense-energy"]);
+    expect(porRever?.totalGrupos).toBe(2);
+    expect(porRever?.gruposPorRever).toBe(2);
+  });
+
+  it("returns null for an unknown run", async () => {
+    const test = t();
+    const id = await runParaConsulta(test);
+    await test.run((ctx) => ctx.db.delete(id));
+    const r = await test
+      .withIdentity(STAFF)
+      .query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 10 });
+    expect(r).toBeNull();
+  });
+
+  it("returns a group's SKUs by price with the live counterpart and page files", async () => {
+    const test = t();
+    const id = await runParaConsulta(test);
+    const staff = test.withIdentity(STAFF);
+    const g = await staff.query(api.importacoes.obterGrupo, {
+      importacaoId: id,
+      grupoModelo: "hisense-energy",
+    });
+    expect(g?.nomeGrupo).toBe("Mural Energy");
+    expect(g?.revisto).toBe(false);
+    expect(g?.skus.map((s) => s.ref)).toEqual(["P2", "P1"]);
+    expect(g?.skus[1]).toMatchObject({ diff: "alterado", precoAnteriorCents: 10000 });
+    expect(g?.skus[1]?.atual).toMatchObject({ pvpCents: 10000, estado: "publicado", numImagens: 0 });
+    expect(g?.skus[0]?.atual).toBeNull();
+    expect(g?.paginas.map((p) => p.pagina)).toEqual([3, 4]);
+    expect(typeof g?.paginas[0]?.pdfUrl).toBe("string");
+    expect(g?.paginas[0]?.imagemUrl).toBeNull();
+    expect(g?.paginas[1]?.pdfUrl).toBeNull();
+    expect(typeof g?.paginas[1]?.imagemUrl).toBe("string");
+
+    expect(
+      await staff.query(api.importacoes.obterGrupo, { importacaoId: id, grupoModelo: "nada" }),
+    ).toBeNull();
+  });
+});
