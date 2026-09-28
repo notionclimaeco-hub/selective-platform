@@ -290,3 +290,25 @@ export const concluirCarregamento = mutation({
     return contagens;
   },
 });
+
+/** Secret-guarded record of an uploaded page render (idempotent per slot). */
+export const registarPaginaImagem = mutation({
+  args: {
+    secret: v.string(),
+    tabelaOrigem: v.string(),
+    pagina: v.number(),
+    imagem: v.id("_storage"),
+  },
+  returns: v.object({
+    paginaId: v.id("paginasCatalogo"),
+    substituido: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+    return await upsertPaginaImagem(ctx, {
+      tabelaOrigem: args.tabelaOrigem,
+      pagina: args.pagina,
+      imagem: args.imagem,
+    });
+  },
+});

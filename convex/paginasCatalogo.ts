@@ -38,6 +38,38 @@ export async function upsertPagina(
 }
 
 /**
+ * Idempotent upsert of a page's PNG render (110 dpi, for the review page).
+ * Same (tabelaOrigem, pagina) slot as the one-page PDF; the previous render
+ * file is deleted so re-uploads don't accumulate orphans.
+ */
+export async function upsertPaginaImagem(
+  ctx: MutationCtx,
+  args: { tabelaOrigem: string; pagina: number; imagem: Id<"_storage"> },
+): Promise<{ paginaId: Id<"paginasCatalogo">; substituido: boolean }> {
+  const existente = await ctx.db
+    .query("paginasCatalogo")
+    .withIndex("by_tabela_pagina", (q) =>
+      q.eq("tabelaOrigem", args.tabelaOrigem).eq("pagina", args.pagina),
+    )
+    .unique();
+
+  if (existente) {
+    if (existente.imagem !== undefined && existente.imagem !== args.imagem) {
+      await ctx.storage.delete(existente.imagem);
+    }
+    await ctx.db.patch(existente._id, { imagem: args.imagem });
+    return { paginaId: existente._id, substituido: existente.imagem !== undefined };
+  }
+
+  const paginaId = await ctx.db.insert("paginasCatalogo", {
+    tabelaOrigem: args.tabelaOrigem,
+    pagina: args.pagina,
+    imagem: args.imagem,
+  });
+  return { paginaId, substituido: false };
+}
+
+/**
  * Staff-only: get a short-lived URL to upload a one-page catalog PDF to Convex
  * file storage. The returned storageId is then passed to `upsert`.
  */

@@ -305,3 +305,51 @@ describe("importacoes: carregamento", () => {
     expect(await run(test, outra)).toMatchObject({ estado: "a-extrair" });
   });
 });
+
+describe("importacoes: registarPaginaImagem", () => {
+  it("creates the slot when the PNG arrives before the PDF, then keeps both", async () => {
+    const test = t();
+    const png = await storeBlob(test);
+    const r1 = await test.mutation(api.importacoes.registarPaginaImagem, {
+      secret: SECRET,
+      tabelaOrigem: "hisense-2026",
+      pagina: 3,
+      imagem: png,
+    });
+    expect(r1.substituido).toBe(false);
+
+    const pdf = await storeBlob(test);
+    const r2 = await test.mutation(api.importData.registarPagina, {
+      secret: SECRET,
+      tabelaOrigem: "hisense-2026",
+      pagina: 3,
+      ficheiro: pdf,
+    });
+    expect(r2.paginaId).toBe(r1.paginaId);
+    expect(r2.substituido).toBe(false);
+
+    const slot = await test.run((ctx) => ctx.db.get(r1.paginaId));
+    expect(slot).toMatchObject({ ficheiro: pdf, imagem: png });
+  });
+
+  it("replaces the previous render and deletes its file", async () => {
+    const test = t();
+    const antigo = await storeBlob(test);
+    const { paginaId } = await test.mutation(api.importacoes.registarPaginaImagem, {
+      secret: SECRET,
+      tabelaOrigem: "hisense-2026",
+      pagina: 5,
+      imagem: antigo,
+    });
+    const novo = await storeBlob(test);
+    const r = await test.mutation(api.importacoes.registarPaginaImagem, {
+      secret: SECRET,
+      tabelaOrigem: "hisense-2026",
+      pagina: 5,
+      imagem: novo,
+    });
+    expect(r).toEqual({ paginaId, substituido: true });
+    expect(await test.run((ctx) => ctx.db.get(paginaId))).toMatchObject({ imagem: novo });
+    expect(await test.run((ctx) => ctx.db.system.get(antigo))).toBeNull();
+  });
+});
