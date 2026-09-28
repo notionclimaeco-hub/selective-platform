@@ -1,5 +1,6 @@
 import { useClerk, useOrganization } from "@clerk/tanstack-react-start"
 
+import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Seccao } from "./seccao"
 
@@ -56,15 +57,11 @@ export function SeccaoMembros({ pronto }: { pronto: boolean }) {
               key={m.id}
               className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
             >
-              {m.publicUserData?.imageUrl ? (
-                <img
-                  src={m.publicUserData.imageUrl}
-                  alt=""
-                  className="size-8 shrink-0 rounded-full bg-secondary"
-                />
-              ) : (
-                <span className="size-8 shrink-0 rounded-full bg-secondary" />
-              )}
+              <Avatar
+                src={m.publicUserData?.imageUrl}
+                hasImage={m.publicUserData?.hasImage}
+                nome={nome(m.publicUserData) ?? m.publicUserData?.identifier}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">
                   {nome(m.publicUserData) ?? m.publicUserData?.identifier}
@@ -85,7 +82,7 @@ export function SeccaoMembros({ pronto }: { pronto: boolean }) {
               key={c.id}
               className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
             >
-              <span className="size-8 shrink-0 rounded-full border border-dashed" />
+              <span className="size-8 shrink-0 rounded-full border border-dashed border-input" />
               <span className="min-w-0 flex-1 truncate text-sm">
                 {c.emailAddress}
               </span>

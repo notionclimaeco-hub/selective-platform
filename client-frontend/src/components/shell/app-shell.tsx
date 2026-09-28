@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useAvatarOrganizacao, useAvatarUtilizador } from "./avatar-clerk"
 import { EMAIL_GERAL, MAILTO_GERAL, NAV_APP, destinoActivo } from "./nav"
 import type { DestinoApp } from "./nav"
 
@@ -53,6 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 /* ------------------------------------------------------------------------ */
 
 function Sidebar({ activo }: { activo: DestinoApp | null }) {
+  const avatarUtilizador = useAvatarUtilizador()
   const [colapsada, setColapsada] = useState(false)
 
   // Read the stored preference after mount so SSR and hydration agree.
@@ -154,8 +156,11 @@ function Sidebar({ activo }: { activo: DestinoApp | null }) {
         >
           <UserButton
             showName={!colapsada}
+            userProfileMode="navigation"
+            userProfileUrl="/empresa?conta=true"
             appearance={{
               elements: {
+                ...avatarUtilizador,
                 rootBox: { width: colapsada ? "auto" : "100%" },
                 userButtonTrigger: { width: "100%", justifyContent: "start" },
                 userButtonBox: {
@@ -167,7 +172,7 @@ function Sidebar({ activo }: { activo: DestinoApp | null }) {
                   fontWeight: 500,
                   paddingLeft: 0,
                 },
-                avatarBox: "size-7",
+                userButtonAvatarBox: { width: "1.75rem", height: "1.75rem" },
               },
             }}
           />
@@ -248,6 +253,7 @@ function ComTooltip({
 }
 
 function SeletorOrganizacao({ colapsada }: { colapsada: boolean }) {
+  const avatarOrganizacao = useAvatarOrganizacao()
   return (
     <OrganizationSwitcher
       hidePersonal
@@ -255,6 +261,7 @@ function SeletorOrganizacao({ colapsada }: { colapsada: boolean }) {
       appearance={{
         // Clerk's own stylesheet outranks utility classes, so use CSS objects.
         elements: {
+          ...avatarOrganizacao,
           rootBox: { width: "100%" },
           organizationSwitcherTrigger: {
             width: "100%",
@@ -286,12 +293,22 @@ function SeletorOrganizacao({ colapsada }: { colapsada: boolean }) {
 /* ------------------------------------------------------------------------ */
 
 function BarraMovel() {
+  const avatarUtilizador = useAvatarUtilizador()
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:hidden">
       <Link to="/inicio" aria-label="Início" className="flex items-center">
         <Wordmark variant="mark" className="h-7" />
       </Link>
-      <UserButton appearance={{ elements: { avatarBox: "size-8" } }} />
+      <UserButton
+        userProfileMode="navigation"
+        userProfileUrl="/empresa?conta=true"
+        appearance={{
+          elements: {
+            ...avatarUtilizador,
+            userButtonAvatarBox: { width: "2rem", height: "2rem" },
+          },
+        }}
+      />
     </header>
   )
 }

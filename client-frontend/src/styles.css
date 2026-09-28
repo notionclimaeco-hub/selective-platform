@@ -75,6 +75,10 @@
   --muted-foreground: oklch(0.52 0.012 260);
   --accent: oklch(0.955 0.03 132);
   --accent-foreground: oklch(0.35 0.08 148);
+  /* Initials avatars (components/ui/avatar.tsx, lib/clerk-ui.ts). Resolved
+     here because Clerk's buttons redefine `--accent` on themselves. */
+  --avatar: var(--accent);
+  --avatar-foreground: var(--accent-foreground);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.905 0.003 260);
   --input: oklch(0.87 0.004 260);
