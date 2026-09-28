@@ -592,6 +592,30 @@ describe("importacoes: promoção", () => {
     expect(await run(test, id)).toMatchObject({ estado: "aprovada", numPromovidos: 150 });
     expect(await produtoPorRef(test, "R149")).not.toBeNull();
   });
+
+  it("retomarPromocao re-schedules a run left in a-promover and refuses other states", async () => {
+    const test = t();
+    const id = await criarRun(test);
+    await carregar(test, id, [staged("A"), staged("B")]);
+    const staff = test.withIdentity(STAFF);
+    await expect(
+      staff.mutation(api.importacoes.retomarPromocao, { importacaoId: id }),
+    ).rejects.toThrow(/a-promover/);
+    await expect(
+      test.mutation(api.importacoes.retomarPromocao, { importacaoId: id }),
+    ).rejects.toThrow(/Not authenticated/);
+
+    // Approve but never run the scheduled batch: the run sits in a-promover
+    // exactly as it would after a failed batch.
+    vi.useFakeTimers();
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId: id });
+    expect(await run(test, id)).toMatchObject({ estado: "a-promover" });
+    const r = await staff.mutation(api.importacoes.retomarPromocao, { importacaoId: id });
+    expect(r).toEqual({ agendado: true });
+    await test.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+    expect(await run(test, id)).toMatchObject({ estado: "aprovada", numPromovidos: 2 });
+  });
 });
 
 describe("importacoes: consultas", () => {
@@ -676,6 +700,28 @@ describe("importacoes: consultas", () => {
     expect(porRever?.grupos.map((g) => g.grupoModelo)).toEqual(["hisense-aviso", "hisense-energy"]);
     expect(porRever?.totalGrupos).toBe(2);
     expect(porRever?.gruposPorRever).toBe(2);
+  });
+
+  it("applies the page's text, familia and toggle filters and lists the run's familias", async () => {
+    const test = t();
+    const id = await runParaConsulta(test);
+    const staff = test.withIdentity(STAFF);
+    const base = { importacaoId: id, pagina: 0, porPagina: 10 };
+    const ids = async (extra: Record<string, unknown>) =>
+      (await staff.query(api.importacoes.obter, { ...base, ...extra }))?.grupos.map(
+        (g) => g.grupoModelo,
+      );
+    expect(await ids({ busca: "energy" })).toEqual(["hisense-energy"]);
+    expect(await ids({ busca: "LIMPO" })).toEqual(["hisense-limpo"]);
+    expect(await ids({ soAvisos: true })).toEqual(["hisense-aviso"]);
+    expect(await ids({ soAlterados: true })).toEqual(["hisense-energy"]);
+    expect(await ids({ soPorRever: true })).toEqual(["hisense-aviso", "hisense-energy"]);
+    expect(await ids({ soPorRever: true, soAvisos: true })).toEqual(["hisense-aviso"]);
+    expect(await ids({ familia: "aqs" })).toEqual([]);
+    const r = await staff.query(api.importacoes.obter, base);
+    expect(r?.familias).toEqual(["ar-condicionado"]);
+    expect(r?.grupos[0]?.componente).toBe("conjunto");
+    expect(r?.grupos[0]?.gama).toBeUndefined();
   });
 
   it("returns null for an unknown run", async () => {

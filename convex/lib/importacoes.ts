@@ -46,6 +46,10 @@ export type LinhaRevisao = {
   marca: string;
   familia: string;
   componente: string;
+  gama?: string;
+  sistema?: string;
+  tipoUnidade?: string;
+  segmento?: string;
   avisos: ReadonlyArray<string>;
   diff: Diff;
   grupoRevisto: boolean;
@@ -57,6 +61,11 @@ export type ResumoGrupo = {
   marca: string;
   familia: string;
   componente: string;
+  // Taxonomy of the first row, for the review card's badges.
+  gama?: string;
+  sistema?: string;
+  tipoUnidade?: string;
+  segmento?: string;
   numSkus: number;
   numAvisos: number;
   numNovos: number;
@@ -81,6 +90,10 @@ export function resumirGrupos(
         marca: l.marca,
         familia: l.familia,
         componente: l.componente,
+        ...(l.gama !== undefined ? { gama: l.gama } : {}),
+        ...(l.sistema !== undefined ? { sistema: l.sistema } : {}),
+        ...(l.tipoUnidade !== undefined ? { tipoUnidade: l.tipoUnidade } : {}),
+        ...(l.segmento !== undefined ? { segmento: l.segmento } : {}),
         numSkus: 0,
         numAvisos: 0,
         numNovos: 0,
@@ -138,6 +151,41 @@ export function filtrarGrupos(
     case "todos":
       return [...resumos];
   }
+}
+
+export type CriteriosGrupos = {
+  busca?: string;
+  familia?: string;
+  soAvisos?: boolean;
+  soAlterados?: boolean;
+  soPorRever?: boolean;
+};
+
+/**
+ * The review page's combinable filters (AND). `busca` is a case-insensitive
+ * substring of `nomeGrupo` or `grupoModelo`.
+ */
+export function filtrarPorCriterios(
+  resumos: ReadonlyArray<ResumoGrupo>,
+  c: CriteriosGrupos,
+): Array<ResumoGrupo> {
+  const termo = c.busca?.trim().toLowerCase() ?? "";
+  return resumos.filter((r) => {
+    if (
+      termo !== "" &&
+      !r.nomeGrupo.toLowerCase().includes(termo) &&
+      !r.grupoModelo.toLowerCase().includes(termo)
+    ) {
+      return false;
+    }
+    if (c.familia !== undefined && c.familia !== "" && r.familia !== c.familia) {
+      return false;
+    }
+    if (c.soAvisos && r.numAvisos === 0) return false;
+    if (c.soAlterados && r.numAlterados === 0) return false;
+    if (c.soPorRever && !(r.precisaRevisao && !r.revisto)) return false;
+    return true;
+  });
 }
 
 export type ContagensRun = {
