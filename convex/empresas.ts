@@ -184,13 +184,53 @@ async function vistaCliente(
 }
 
 /**
- * Signed-in installer-company view for `/conta`. Null when unsigned.
- * `sem-org` / `sem-empresa` cover the registration vs. orphan-org cases
- * without leaking staff notes or the discount matrix.
+ * The caller's installer company, or null when unsigned / not registered.
  *
  * After self-serve registration the Clerk session may not yet carry `org_id`.
- * In that case we still return the company this user registered, so `/conta`
- * can show the pending state instead of an empty "register" CTA.
+ * In that case we fall back to the company this user registered, so the
+ * environment can show the pending state instead of an empty "register" CTA.
+ * `sem-org` (no org claim, nothing registered) is distinct from
+ * `sem-empresa` (org claim without a company record).
+ */
+async function empresaDoUtilizador(
+  ctx: QueryCtx,
+): Promise<
+  | { kind: "anonimo" }
+  | { kind: "sem-org" }
+  | { kind: "sem-empresa"; orgId: string }
+  | { kind: "empresa"; empresa: Doc<"installerCompanies"> }
+> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) {
+    return { kind: "anonimo" };
+  }
+
+  const orgId = claimOrgId(identity);
+  if (orgId === null) {
+    const proprio = await ctx.db
+      .query("installerCompanies")
+      .withIndex("by_registadoPor", (q) =>
+        q.eq("registadoPor", identity.subject),
+      )
+      .take(1);
+    const empresa = proprio[0];
+    if (empresa) {
+      return { kind: "empresa", empresa };
+    }
+    return { kind: "sem-org" };
+  }
+
+  const context = await getInstallerContext(ctx);
+  if (context === null) {
+    return { kind: "sem-empresa", orgId };
+  }
+  return { kind: "empresa", empresa: context.company };
+}
+
+/**
+ * Signed-in installer-company view for `/empresa`. Null when unsigned.
+ * `sem-org` / `sem-empresa` cover the registration vs. orphan-org cases
+ * without leaking staff notes or the discount matrix.
  */
 export const minha = query({
   args: {},
@@ -207,32 +247,66 @@ export const minha = query({
     }),
   ),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
+    const resultado = await empresaDoUtilizador(ctx);
+    switch (resultado.kind) {
+      case "anonimo":
+        return null;
+      case "sem-org":
+        return { kind: "sem-org" as const };
+      case "sem-empresa":
+        return { kind: "sem-empresa" as const, orgId: resultado.orgId };
+      case "empresa":
+        return await vistaCliente(ctx, resultado.empresa);
+    }
+  },
+});
+
+/**
+ * Tier summary for the caller's company (Empresa and Início). Null until the
+ * company has a tier, i.e. before its first approval. `proximo` is the next
+ * active tier above the *current* tier by threshold (not by volume), so a
+ * company pinned above its volume never sees a lower tier as "next"; null at
+ * the top. The discount matrix and every id stay on the server.
+ */
+export const resumoTier = query({
+  args: {},
+  returns: v.union(
+    v.null(),
+    v.object({
+      nivel: v.string(),
+      // A tier pin, worded for installers: staff holds this tier.
+      definidoPelaClimaeco: v.boolean(),
+      // Lifetime paid volume, VAT-excl cents.
+      volumeCents: v.number(),
+      proximo: v.union(
+        v.null(),
+        v.object({ nivel: v.string(), limiarCents: v.number() }),
+      ),
+    }),
+  ),
+  handler: async (ctx) => {
+    const resultado = await empresaDoUtilizador(ctx);
+    if (resultado.kind !== "empresa") {
       return null;
     }
-
-    const orgId = claimOrgId(identity);
-    if (orgId === null) {
-      const proprio = await ctx.db
-        .query("installerCompanies")
-        .withIndex("by_registadoPor", (q) =>
-          q.eq("registadoPor", identity.subject),
-        )
-        .take(1);
-      const empresa = proprio[0];
-      if (empresa) {
-        return await vistaCliente(ctx, empresa);
-      }
-      return { kind: "sem-org" as const };
+    const empresa = resultado.empresa;
+    const actual =
+      empresa.tierId === undefined ? null : await ctx.db.get(empresa.tierId);
+    if (actual === null) {
+      return null;
     }
-
-    const context = await getInstallerContext(ctx);
-    if (context === null) {
-      return { kind: "sem-empresa" as const, orgId };
-    }
-
-    return await vistaCliente(ctx, context.company);
+    const tiers = await obterTiersAtivosOrdenados(ctx);
+    const proximo =
+      tiers.find((t) => t.limiarCents > actual.limiarCents) ?? null;
+    return {
+      nivel: actual.nome,
+      definidoPelaClimaeco: empresa.tierPin !== undefined,
+      volumeCents: empresa.volumeCents,
+      proximo:
+        proximo === null
+          ? null
+          : { nivel: proximo.nome, limiarCents: proximo.limiarCents },
+    };
   },
 });
 
