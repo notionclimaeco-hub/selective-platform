@@ -112,6 +112,7 @@ const NAV = [
   { to: "/comercial", label: "Comercial", exact: false },
   { to: "/produtos", label: "Produtos", exact: false },
   { to: "/paginas-catalogo", label: "Páginas do catálogo", exact: false },
+  { to: "/importacoes", label: "Importações", exact: false },
 ] as const
 
 function AppHeader() {

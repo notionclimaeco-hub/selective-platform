@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { Authenticated, AuthLoading } from "convex/react"
 import { convexQuery } from "@convex-dev/react-query"
 import { useSuspenseQuery } from "@tanstack/react-query"
-import { CheckCircle2, Building2, FileText, Images, Package, Percent } from "lucide-react"
+import { CheckCircle2, Building2, FileText, Images, Import, Package, Percent } from "lucide-react"
 import { api } from "@convex/_generated/api"
 
 export const Route = createFileRoute("/")({ component: App })
@@ -46,6 +46,13 @@ const CARDS = [
     title: "Páginas do catálogo",
     desc: "Carregar os PDFs de cada página da tabela de preços e associá-los aos produtos.",
     cta: "Gerir páginas",
+  },
+  {
+    to: "/importacoes",
+    icon: Import,
+    title: "Importações",
+    desc: "Rever a extração de uma tabela de preços e aprová-la para o catálogo.",
+    cta: "Rever importações",
   },
 ] as const
 

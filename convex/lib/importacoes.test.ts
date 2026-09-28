@@ -4,6 +4,7 @@ import {
   contarRun,
   dobrarCompatibilidade,
   filtrarGrupos,
+  filtrarPorCriterios,
   gruposPorRever,
   resumirGrupos,
   type LinhaRevisao,
@@ -93,6 +94,24 @@ describe("resumirGrupos", () => {
     expect(resumos[2]?.precisaRevisao).toBe(false);
   });
 
+  it("carries the first row's gama, sistema, tipoUnidade and segmento", () => {
+    const [r] = resumirGrupos([
+      linha({
+        gama: "Energy",
+        sistema: "mono-split",
+        tipoUnidade: "mural",
+        segmento: "domestico",
+      }),
+      linha({ gama: "Outra" }),
+    ]);
+    expect(r).toMatchObject({
+      gama: "Energy",
+      sistema: "mono-split",
+      tipoUnidade: "mural",
+      segmento: "domestico",
+    });
+  });
+
   it("is revisto only when every row is revisto", () => {
     const [r] = resumirGrupos([
       linha({ grupoRevisto: true }),
@@ -128,6 +147,45 @@ describe("gruposPorRever and filtrarGrupos", () => {
     expect(ids("com-avisos")).toEqual(["aviso"]);
     expect(ids("alterados")).toEqual(["preco", "visto"]);
     expect(ids("novos")).toEqual(["novo"]);
+  });
+});
+
+describe("filtrarPorCriterios", () => {
+  const resumos = resumirGrupos([
+    linha({ grupoModelo: "limpo", nomeGrupo: "Mural Limpo", familia: "aqs" }),
+    linha({ grupoModelo: "aviso", nomeGrupo: "Cassete Aviso", avisos: ["x"] }),
+    linha({ grupoModelo: "preco", nomeGrupo: "Mural Preco", diff: "alterado" }),
+    linha({
+      grupoModelo: "visto",
+      nomeGrupo: "Mural Visto",
+      diff: "alterado",
+      avisos: ["y"],
+      grupoRevisto: true,
+    }),
+  ]);
+  const ids = (c: Parameters<typeof filtrarPorCriterios>[1]) =>
+    filtrarPorCriterios(resumos, c).map((r) => r.grupoModelo);
+
+  it("returns everything without criteria", () => {
+    expect(ids({})).toEqual(["aviso", "limpo", "preco", "visto"]);
+  });
+  it("matches text against nomeGrupo and grupoModelo, case-insensitively", () => {
+    expect(ids({ busca: "mural" })).toEqual(["limpo", "preco", "visto"]);
+    expect(ids({ busca: "AVI" })).toEqual(["aviso"]);
+    expect(ids({ busca: "  " })).toEqual(["aviso", "limpo", "preco", "visto"]);
+  });
+  it("filters by familia", () => {
+    expect(ids({ familia: "aqs" })).toEqual(["limpo"]);
+  });
+  it("combines the toggles with AND", () => {
+    expect(ids({ soAvisos: true })).toEqual(["aviso", "visto"]);
+    expect(ids({ soAlterados: true })).toEqual(["preco", "visto"]);
+    expect(ids({ soPorRever: true })).toEqual(["aviso", "preco"]);
+    expect(ids({ soAvisos: true, soAlterados: true })).toEqual(["visto"]);
+    expect(ids({ soAvisos: true, soPorRever: true })).toEqual(["aviso"]);
+    expect(ids({ busca: "mural", soAlterados: true, soPorRever: true })).toEqual([
+      "preco",
+    ]);
   });
 });
 

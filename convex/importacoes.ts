@@ -23,6 +23,7 @@ import {
   contarRun,
   dobrarCompatibilidade,
   filtrarGrupos,
+  filtrarPorCriterios,
   gruposPorRever,
   resumirGrupos,
 } from "./lib/importacoes";
@@ -429,6 +430,25 @@ export const aprovarImportacao = mutation({
   },
 });
 
+/**
+ * Re-schedule promotion for a run stuck in `a-promover` (a batch threw, e.g.
+ * a cross-brand group). Rows already `promovido` are skipped by
+ * `promoverLote`, so this is safe to press more than once.
+ */
+export const retomarPromocao = mutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.object({ agendado: v.boolean() }),
+  handler: async (ctx, args) => {
+    await requireStaff(ctx);
+    const run = await obterRun(ctx, args.importacaoId);
+    exigirEstado(run, "a-promover");
+    await ctx.scheduler.runAfter(0, internal.importacoes.promoverLote, {
+      importacaoId: run._id,
+    });
+    return { agendado: true };
+  },
+});
+
 // --- Promotion (scheduled batches) ------------------------------------------
 
 /** The 18 catalog fields of a staged row, as `upsertProdutoPorRef` wants them. */
@@ -544,6 +564,10 @@ export const resumoGrupoValidator = v.object({
   marca: v.string(),
   familia: v.string(),
   componente: v.string(),
+  gama: v.optional(v.string()),
+  sistema: v.optional(v.string()),
+  tipoUnidade: v.optional(v.string()),
+  segmento: v.optional(v.string()),
   numSkus: v.number(),
   numAvisos: v.number(),
   numNovos: v.number(),
@@ -592,7 +616,10 @@ export const listar = query({
  * One run with a page of group summaries. Groups are derived in memory from
  * the run's rows (runs are at most low thousands of rows), same offset
  * pagination as `produtos.listarAdmin`. `gruposPorRever` counts over the
- * whole run: zero means approval will pass the gate.
+ * whole run: zero means approval will pass the gate. `filtro` is the coarse
+ * tab; `busca`, `familia` and the `so*` toggles are the review page's
+ * combinable filters (AND), applied after it. `familias` lists the distinct
+ * familias of the whole run for the filter dropdown.
  */
 export const obter = query({
   args: {
@@ -600,6 +627,11 @@ export const obter = query({
     pagina: v.number(),
     porPagina: v.number(),
     filtro: v.optional(filtroGruposValidator),
+    busca: v.optional(v.string()),
+    familia: v.optional(v.string()),
+    soAvisos: v.optional(v.boolean()),
+    soAlterados: v.optional(v.boolean()),
+    soPorRever: v.optional(v.boolean()),
   },
   returns: v.union(
     v.null(),
@@ -613,6 +645,7 @@ export const obter = query({
       numPaginas: v.number(),
       pagina: v.number(),
       gruposPorRever: v.number(),
+      familias: v.array(v.string()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -622,7 +655,17 @@ export const obter = query({
 
     const resumos = resumirGrupos(await linhasDaRun(ctx, run._id));
     const porRever = gruposPorRever(resumos).length;
-    const filtrados = filtrarGrupos(resumos, args.filtro ?? "todos");
+    const filtrados = filtrarPorCriterios(
+      filtrarGrupos(resumos, args.filtro ?? "todos"),
+      {
+        busca: args.busca,
+        familia: args.familia,
+        soAvisos: args.soAvisos,
+        soAlterados: args.soAlterados,
+        soPorRever: args.soPorRever,
+      },
+    );
+    const familias = [...new Set(resumos.map((r) => r.familia))].sort();
 
     const porPagina = Math.max(1, Math.floor(args.porPagina));
     const numPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
@@ -637,6 +680,7 @@ export const obter = query({
       numPaginas,
       pagina,
       gruposPorRever: porRever,
+      familias,
     };
   },
 });
