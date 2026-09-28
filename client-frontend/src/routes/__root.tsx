@@ -21,6 +21,7 @@ import { ShellByAuth } from "@/components/shell/shell-by-auth"
 import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
 import { clientAuthRedirect } from "@/lib/auth-gate"
 import { clerkAppearance, clerkLocalization } from "@/lib/clerk-ui"
+import { Toaster } from "@/components/ui/sonner"
 import { fetchConvexClerkToken } from "@/lib/convex-clerk-token"
 
 import appCss from "../styles.css?url"
@@ -125,6 +126,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <Toaster />
         {import.meta.env.DEV && (
           <TanStackDevtools
             config={{ position: "bottom-right" }}

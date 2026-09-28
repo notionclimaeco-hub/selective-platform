@@ -12,10 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ComercialRouteImport } from './routes/comercial'
 import { Route as EmpresasRouteImport } from './routes/empresas'
+import { Route as ImportacoesRouteImport } from './routes/importacoes'
 import { Route as PaginasCatalogoRouteImport } from './routes/paginas-catalogo'
 import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as EmpresasEmpresaIdRouteImport } from './routes/empresas_.$empresaId'
+import { Route as ImportacoesImportacaoIdRouteImport } from './routes/importacoes_.$importacaoId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +32,11 @@ const ComercialRoute = ComercialRouteImport.update({
 const EmpresasRoute = EmpresasRouteImport.update({
   id: '/empresas',
   path: '/empresas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportacoesRoute = ImportacoesRouteImport.update({
+  id: '/importacoes',
+  path: '/importacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaginasCatalogoRoute = PaginasCatalogoRouteImport.update({
@@ -52,34 +59,45 @@ const EmpresasEmpresaIdRoute = EmpresasEmpresaIdRouteImport.update({
   path: '/empresas/$empresaId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImportacoesImportacaoIdRoute = ImportacoesImportacaoIdRouteImport.update({
+  id: '/importacoes_/$importacaoId',
+  path: '/importacoes/$importacaoId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/comercial': typeof ComercialRoute
   '/empresas': typeof EmpresasRoute
+  '/importacoes': typeof ImportacoesRoute
   '/paginas-catalogo': typeof PaginasCatalogoRoute
   '/produtos': typeof ProdutosRoute
   '/sign-in': typeof SignInRoute
   '/empresas/$empresaId': typeof EmpresasEmpresaIdRoute
+  '/importacoes/$importacaoId': typeof ImportacoesImportacaoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/comercial': typeof ComercialRoute
   '/empresas': typeof EmpresasRoute
+  '/importacoes': typeof ImportacoesRoute
   '/paginas-catalogo': typeof PaginasCatalogoRoute
   '/produtos': typeof ProdutosRoute
   '/sign-in': typeof SignInRoute
   '/empresas/$empresaId': typeof EmpresasEmpresaIdRoute
+  '/importacoes/$importacaoId': typeof ImportacoesImportacaoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/comercial': typeof ComercialRoute
   '/empresas': typeof EmpresasRoute
+  '/importacoes': typeof ImportacoesRoute
   '/paginas-catalogo': typeof PaginasCatalogoRoute
   '/produtos': typeof ProdutosRoute
   '/sign-in': typeof SignInRoute
   '/empresas_/$empresaId': typeof EmpresasEmpresaIdRoute
+  '/importacoes_/$importacaoId': typeof ImportacoesImportacaoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,38 +105,46 @@ export interface FileRouteTypes {
     | '/'
     | '/comercial'
     | '/empresas'
+    | '/importacoes'
     | '/paginas-catalogo'
     | '/produtos'
     | '/sign-in'
     | '/empresas/$empresaId'
+    | '/importacoes/$importacaoId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/comercial'
     | '/empresas'
+    | '/importacoes'
     | '/paginas-catalogo'
     | '/produtos'
     | '/sign-in'
     | '/empresas/$empresaId'
+    | '/importacoes/$importacaoId'
   id:
     | '__root__'
     | '/'
     | '/comercial'
     | '/empresas'
+    | '/importacoes'
     | '/paginas-catalogo'
     | '/produtos'
     | '/sign-in'
     | '/empresas_/$empresaId'
+    | '/importacoes_/$importacaoId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComercialRoute: typeof ComercialRoute
   EmpresasRoute: typeof EmpresasRoute
+  ImportacoesRoute: typeof ImportacoesRoute
   PaginasCatalogoRoute: typeof PaginasCatalogoRoute
   ProdutosRoute: typeof ProdutosRoute
   SignInRoute: typeof SignInRoute
   EmpresasEmpresaIdRoute: typeof EmpresasEmpresaIdRoute
+  ImportacoesImportacaoIdRoute: typeof ImportacoesImportacaoIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -142,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/empresas'
       fullPath: '/empresas'
       preLoaderRoute: typeof EmpresasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importacoes': {
+      id: '/importacoes'
+      path: '/importacoes'
+      fullPath: '/importacoes'
+      preLoaderRoute: typeof ImportacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/paginas-catalogo': {
@@ -172,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmpresasEmpresaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/importacoes_/$importacaoId': {
+      id: '/importacoes_/$importacaoId'
+      path: '/importacoes/$importacaoId'
+      fullPath: '/importacoes/$importacaoId'
+      preLoaderRoute: typeof ImportacoesImportacaoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -179,10 +219,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComercialRoute: ComercialRoute,
   EmpresasRoute: EmpresasRoute,
+  ImportacoesRoute: ImportacoesRoute,
   PaginasCatalogoRoute: PaginasCatalogoRoute,
   ProdutosRoute: ProdutosRoute,
   SignInRoute: SignInRoute,
   EmpresasEmpresaIdRoute: EmpresasEmpresaIdRoute,
+  ImportacoesImportacaoIdRoute: ImportacoesImportacaoIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

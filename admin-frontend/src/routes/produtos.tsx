@@ -9,7 +9,6 @@ import {
 } from "convex/react"
 import {
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ImageOff,
   Images,
@@ -22,6 +21,8 @@ import { api } from "@convex/_generated/api"
 import type { FunctionReturnType } from "convex/server"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Paginacao } from "@/components/ui/paginacao"
+import { useDebounced } from "@/lib/use-debounced"
 import {
   ImageManager
   
@@ -252,17 +253,6 @@ type ListaProps = {
 const filtroCls =
   "h-9 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 
-// Debounce free-text search so each keystroke doesn't re-run the paginated
-// query (dropdown filters apply immediately).
-function useDebounced<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs)
-    return () => clearTimeout(id)
-  }, [value, delayMs])
-  return debounced
-}
-
 function Lista({
   busca,
   setBusca,
@@ -402,44 +392,6 @@ function Lista({
           />
         </>
       )}
-    </div>
-  )
-}
-
-function Paginacao({
-  pagina,
-  numPaginas,
-  onPagina,
-}: {
-  pagina: number
-  numPaginas: number
-  onPagina: (pagina: number) => void
-}) {
-  if (numPaginas <= 1) return null
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={pagina <= 0}
-        onClick={() => onPagina(pagina - 1)}
-      >
-        <ChevronLeft data-icon="inline-start" />
-        Anterior
-      </Button>
-      {/* On phones the counter drops to its own line under the buttons. */}
-      <span className="order-last w-full text-center text-xs text-muted-foreground sm:order-none sm:w-auto">
-        Página {pagina + 1} de {numPaginas}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={pagina >= numPaginas - 1}
-        onClick={() => onPagina(pagina + 1)}
-      >
-        Seguinte
-        <ChevronRight data-icon="inline-end" />
-      </Button>
     </div>
   )
 }
