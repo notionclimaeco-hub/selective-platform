@@ -16,11 +16,16 @@ import { useEmpresaActiva } from "@/lib/empresa-activa"
 type EmpresaSearch = {
   // Carried by the old `/conta?pedido=enviado` redirect after registration.
   pedido?: "enviado"
+  // Opens the account editor (user menu › "Configurar conta").
+  conta?: true
 }
 
 export const Route = createFileRoute("/_shell/empresa")({
   validateSearch: (search: Record<string, unknown>): EmpresaSearch => ({
     pedido: search.pedido === "enviado" ? "enviado" : undefined,
+    // Clerk navigates to the literal `?conta=true`; the router may hand it
+    // over as a boolean or a string depending on who parsed it.
+    conta: String(search.conta) === "true" ? true : undefined,
   }),
   component: EmpresaPage,
 })

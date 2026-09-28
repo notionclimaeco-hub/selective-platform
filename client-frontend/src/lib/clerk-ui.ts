@@ -137,6 +137,221 @@ const EMBUTIDO: NonNullable<Appearance["elements"]> = {
   },
 }
 
+/** Outline `size="sm"` from `components/ui/button.tsx`, for Clerk's row actions. */
+const BOTAO_CONTORNO = {
+  minHeight: "2rem",
+  padding: "0 0.75rem",
+  borderRadius: "var(--radius-lg)",
+  fontSize: "0.875rem",
+  fontWeight: 500,
+  color: "var(--foreground)",
+  backgroundColor: "var(--background)",
+  boxShadow: "0 0 0 1px var(--input)",
+  "&&:hover": { backgroundColor: "var(--muted)", color: "var(--foreground)" },
+  "&&:focus-visible": { boxShadow: `0 0 0 1px var(--ring), ${ANEL}` },
+}
+
+/** `Badge variant="secondary"`: "Principal", "O utilizador", tab counts. */
+const ETIQUETA = {
+  backgroundColor: "var(--secondary)",
+  color: "var(--secondary-foreground)",
+  borderRadius: "9999px",
+  padding: "0 0.5rem",
+  fontSize: "0.75rem",
+  fontWeight: 500,
+  lineHeight: "1.25rem",
+  boxShadow: "none",
+  border: "none",
+}
+
+/**
+ * The profile modals (Empresa › Gerir): the same shape as the page's cards.
+ * Tinted side nav without Clerk's "Conta / Gira as informações…" header (the
+ * page title already says it), hairline card, muted section labels on the
+ * left, outline buttons for the row actions. Shared by `userProfile` and
+ * `organizationProfile`.
+ */
+const MODAL: NonNullable<Appearance["elements"]> = {
+  modalBackdrop: {
+    backgroundColor: "color-mix(in oklch, var(--foreground), transparent 60%)",
+  },
+  cardBox: {
+    width: "min(56rem, calc(100vw - 2rem))",
+    height: "min(36rem, calc(100vh - 4rem))",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-xl)",
+    boxShadow:
+      "0 24px 48px -16px color-mix(in oklch, var(--foreground), transparent 70%)",
+  },
+  modalCloseButton: {
+    color: "var(--muted-foreground)",
+    borderRadius: "var(--radius-md)",
+    "&&:hover": { color: "var(--foreground)", backgroundColor: "var(--muted)" },
+  },
+  navbar: {
+    backgroundColor: "var(--sidebar)",
+    borderRight: "1px solid var(--border)",
+    // Clerk's navbar header (h1 + lead paragraph) carries no element key.
+    "& h1": { display: "none" },
+    "& h1 + p": { display: "none" },
+  },
+  navbarButtons: { gap: "0.125rem" },
+  navbarButton: {
+    minHeight: "2.25rem",
+    padding: "0 0.625rem",
+    borderRadius: "var(--radius-md)",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    color: "var(--muted-foreground)",
+    "&&:hover": {
+      backgroundColor: "var(--sidebar-accent)",
+      color: "var(--foreground)",
+    },
+    "&&.cl-active": {
+      backgroundColor: "var(--sidebar-accent)",
+      color: "var(--sidebar-accent-foreground)",
+    },
+  },
+  navbarButtonIcon: { width: "1rem", height: "1rem", opacity: 1 },
+  navbarMobileMenuRow: {
+    backgroundColor: "var(--sidebar)",
+    borderBottom: "1px solid var(--border)",
+  },
+  navbarMobileMenuButton: { fontSize: "1rem", fontWeight: 600 },
+  // The 64px profile avatar drawn by `avatarComIniciais`.
+  userPreviewAvatarBox: { "&&&": { fontSize: "1.375rem" } },
+  headerTitle: {
+    fontSize: "1rem",
+    lineHeight: "1.5rem",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+  },
+  pageScrollBox: {
+    padding: "1.25rem 1.5rem 1.5rem",
+    "@media (max-width: 40rem)": { padding: "0.5rem 1.25rem 1.25rem" },
+  },
+  profileSectionTitleText: {
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    color: "var(--muted-foreground)",
+  },
+  profileSectionPrimaryButton: {
+    ...BOTAO_CONTORNO,
+    "@media (max-width: 40rem)": { padding: "0 0.5rem" },
+    // "+ Adicionar um e-mail" stands alone under the list: a quiet text
+    // action, not a full-width outlined bar.
+    "&&.cl-profileSectionPrimaryButton__emailAddresses": {
+      boxShadow: "none",
+      backgroundColor: "transparent",
+      color: "var(--muted-foreground)",
+      justifyContent: "flex-start",
+      padding: "0 0.25rem",
+      width: "fit-content",
+    },
+    "&&.cl-profileSectionPrimaryButton__emailAddresses:hover": {
+      color: "var(--foreground)",
+      backgroundColor: "var(--muted)",
+    },
+  },
+  badge: ETIQUETA,
+  notificationBadge: ETIQUETA,
+  menuButtonEllipsis: {
+    color: "var(--muted-foreground)",
+    borderRadius: "var(--radius-md)",
+    "&&:hover": { color: "var(--foreground)", backgroundColor: "var(--muted)" },
+  },
+  // Organization › Membros
+  tabButton: { fontSize: "0.875rem", fontWeight: 500 },
+  membersPageInviteButton: { ...BOTAO_PRIMARIO, minHeight: "2.25rem" },
+  searchInput: { ...CAMPO, minHeight: "2.25rem" },
+  tableHead: { backgroundColor: "var(--muted)" },
+  tableHeaderCell: {
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    color: "var(--muted-foreground)",
+  },
+  selectButton: { ...BOTAO_CONTORNO, minHeight: "2rem" },
+  footerItem: { fontSize: "0.75rem" },
+}
+
+/**
+ * `UserButton` menu (sidebar footer, phone top bar): a bordered popover the
+ * size of our dropdowns, compact rows, muted icons. Clerk's default has no
+ * edge (our `colorShadow` is transparent) and 16px×20px rows.
+ */
+const MENU_UTILIZADOR: NonNullable<Appearance["elements"]> = {
+  userButtonPopoverCard: {
+    "&&": {
+      width: "16rem",
+      border: "1px solid var(--border)",
+      borderRadius: "var(--radius-xl)",
+      boxShadow:
+        "0 12px 32px -12px color-mix(in oklch, var(--foreground), transparent 75%)",
+      backgroundColor: "var(--popover)",
+    },
+  },
+  userPreview__userButton: { padding: "0.75rem 1rem", gap: "0.75rem" },
+  userPreviewMainIdentifier: { fontSize: "0.875rem", fontWeight: 500 },
+  userPreviewSecondaryIdentifier: {
+    fontSize: "0.75rem",
+    color: "var(--muted-foreground)",
+  },
+  userButtonPopoverActionButton: {
+    padding: "0.625rem 1rem",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    color: "var(--foreground)",
+    "&&:hover": { backgroundColor: "var(--muted)", color: "var(--foreground)" },
+  },
+  userButtonPopoverActionButtonIconBox: {
+    flex: "0 0 1.5rem",
+    width: "1.5rem",
+    color: "var(--muted-foreground)",
+  },
+  userButtonPopoverFooter: { padding: 0 },
+  footerItem: { padding: "0.5rem 1rem", fontSize: "0.75rem" },
+}
+
+/**
+ * Initials in place of Clerk's generated gradient avatar, for the components
+ * Clerk renders itself (`UserButton`, `OrganizationSwitcher`, the profile
+ * modal). Only for a user or organization with `hasImage === false`: the
+ * `<img>` is hidden and the box draws the initials on the accent tint, like
+ * `components/ui/avatar.tsx`. Callers spread the result into `elements`.
+ */
+export function avatarComIniciais(
+  letras: string,
+  forma: "circulo" | "quadrado" = "circulo"
+): NonNullable<Appearance["elements"]> {
+  const texto = letras.replace(/[^A-Z0-9]/gi, "").slice(0, 2).toUpperCase()
+  return {
+    avatarImage: { display: "none" },
+    // Clerk's avatar rules sit on the class pair (`cl-avatarBox
+    // cl-userButtonAvatarBox`), so the box needs `&&` to win. 11px suits the
+    // 28–36px boxes (trigger, popover); the 64px profile-modal avatar bumps
+    // it in `MODAL`.
+    avatarBox: {
+      "&&": {
+        display: "grid",
+        placeItems: "center",
+        // Clerk's box keeps `justify-content: flex-start`, which packs the
+        // single grid track (and the letters) to the left.
+        placeContent: "center",
+        // Not `--accent`: Clerk's buttons redefine it on themselves.
+        backgroundColor: "var(--avatar)",
+        color: "var(--avatar-foreground)",
+        borderRadius: forma === "circulo" ? "9999px" : "var(--radius-md)",
+        fontWeight: 600,
+        fontSize: "0.6875rem",
+        lineHeight: 1,
+        letterSpacing: "0.025em",
+        userSelect: "none",
+      },
+      "&::before": { content: `"${texto}"` },
+    },
+  }
+}
+
 export const clerkAppearance: Appearance = {
   options: { logoPlacement: "none" },
   variables: {
@@ -169,6 +384,9 @@ export const clerkAppearance: Appearance = {
   },
   signIn: { elements: EMBUTIDO },
   signUp: { elements: EMBUTIDO },
+  userButton: { elements: MENU_UTILIZADOR },
+  userProfile: { elements: MODAL },
+  organizationProfile: { elements: MODAL },
 }
 
 /**
