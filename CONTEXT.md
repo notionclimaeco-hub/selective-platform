@@ -117,3 +117,33 @@ _Avoid_: Receipt, payment confirmation
 **Nota de crédito**:
 The Moloni credit note issued when paid quantity on an installer-order line is refunded.
 _Avoid_: Credit note, refund document
+
+## Catalog import
+
+**Price table**:
+A brand's yearly PDF price list, the only source of SKUs, PVPs and specs in the catalog.
+_Avoid_: Catalog PDF, brochure, tabela
+
+**Import run**:
+One pass of a price table through extraction, staging and review, ending in approval or rejection for that brand and year.
+_Avoid_: Import, upload, batch
+
+**Staged SKU**:
+A SKU extracted from a price table and held for review; it only becomes a catalog SKU when its import run is approved.
+_Avoid_: Draft product, candidate, row
+
+**Spec registry**:
+The single list of allowed spec keys per product category, with type, unit and display order, that every staged SKU is validated against.
+_Avoid_: Attribute list, schema, field map
+
+**Hero specs**:
+The few registry keys per category shown on catalog cards and at the top of a product page on phones.
+_Avoid_: Key fields, highlights, summary specs
+
+**Compatibility**:
+The set of indoor units a multi-split outdoor unit accepts, as printed in the price table.
+_Avoid_: Combination table, pairing, matrix
+
+**Discontinued SKU**:
+A catalog SKU absent from the latest approved price table of its brand; hidden from the catalog but kept for order history.
+_Avoid_: Deleted product, archived, removed
