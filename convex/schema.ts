@@ -106,6 +106,56 @@ export const SISTEMAS = [
   "bibloco",
 ] as const;
 
+// Import-run lifecycle (#40). `a-promover` is the window while promotion runs
+// in scheduled batches.
+export const estadoImportacaoValidator = v.union(
+  v.literal("a-extrair"),
+  v.literal("em-revisao"),
+  v.literal("a-promover"),
+  v.literal("aprovada"),
+  v.literal("rejeitada"),
+);
+
+// Staged SKU against the live catalog: no live ref / live price differs /
+// same price. Other field changes are visible when a group is opened.
+export const diffValidator = v.union(
+  v.literal("novo"),
+  v.literal("alterado"),
+  v.literal("igual"),
+);
+
+// Shared field validators for an imported product row (v4 JSON / v3 CSV).
+// Reused by the internal upsert, the bulk importer and the staged-SKU table
+// so all accept exactly the same shape. `imagens`/`estado` are app-managed
+// and never imported.
+export const produtoImportFields = {
+  ref: v.string(),
+  ean: v.optional(v.string()),
+  marca: v.string(),
+  nome: v.string(),
+  nomeGrupo: v.string(),
+  familia: v.string(),
+  segmento: v.optional(segmentoValidator),
+  sistema: v.optional(v.string()),
+  tipoUnidade: v.optional(v.string()),
+  componente: componenteValidator,
+  gama: v.optional(v.string()),
+  grupoModelo: v.string(),
+  atributos: v.array(atributoValidator),
+  descricao: v.optional(v.string()),
+  pvpCents: v.number(),
+  ivaIncluido: v.boolean(),
+  tabelaOrigem: v.string(),
+  pdfPaginas: v.array(v.number()),
+};
+
+// One staged SKU as the extractor sends it (`lib/stagedSku.ts` JSON contract).
+export const stagedSkuFields = {
+  ...produtoImportFields,
+  compativelCom: v.optional(v.array(v.string())),
+  avisos: v.array(v.string()),
+};
+
 export default defineSchema({
   // One row = one purchasable SKU. Product pages on the frontend are groups of
   // SKUs sharing `grupoModelo`, rendered as a variant table (one row per SKU,
@@ -211,14 +261,62 @@ export default defineSchema({
     .index("by_familia", ["familia"])
     .index("by_marca", ["marca"]),
 
-  // One-page catalog PDFs, stored once per (tabelaOrigem, pagina) and shared
-  // across every product that references that page. Uniqueness on
-  // (tabelaOrigem, pagina) is enforced in the mutation, not by the schema.
+  // One-page catalog PDFs and 110 dpi PNG renders, stored once per
+  // (tabelaOrigem, pagina) and shared across every product that references
+  // that page. Either file may arrive first, so both are optional.
+  // Uniqueness on (tabelaOrigem, pagina) is enforced in the mutation.
   paginasCatalogo: defineTable({
     tabelaOrigem: v.string(),
     pagina: v.number(),
-    ficheiro: v.id("_storage"),
+    ficheiro: v.optional(v.id("_storage")),
+    imagem: v.optional(v.id("_storage")),
   }).index("by_tabela_pagina", ["tabelaOrigem", "pagina"]),
+
+  // One import run = one pass of a brand price table through extraction,
+  // staging and review (#40). Counts are computed by `concluirCarregamento`;
+  // the promotion counters by `promoverLote`.
+  importacoes: defineTable({
+    marca: v.string(),
+    ano: v.number(),
+    tabelaOrigem: v.string(), // "{marca}-{ano}", matches produtos.tabelaOrigem
+    ficheiro: v.string(), // price-table PDF file name
+    pdf: v.optional(v.id("_storage")),
+    estado: estadoImportacaoValidator,
+    numSkus: v.number(),
+    numGrupos: v.number(),
+    numNovos: v.number(),
+    numAlterados: v.number(),
+    numIguais: v.number(),
+    numComAvisos: v.number(),
+    numPromovidos: v.optional(v.number()),
+    numReativados: v.optional(v.number()),
+    numDescontinuados: v.optional(v.number()),
+    criadoEm: v.number(),
+    decididoEm: v.optional(v.number()),
+    decididoPor: v.optional(v.string()),
+    motivoRejeicao: v.optional(v.string()),
+  })
+    .index("by_tabelaOrigem", ["tabelaOrigem"])
+    .index("by_estado", ["estado"]),
+
+  // Staged SKUs of an import run. Never promoted directly: approval copies
+  // them into `produtos` through the existing upsert path.
+  skusEmRevisao: defineTable({
+    importacaoId: v.id("importacoes"),
+    ...stagedSkuFields,
+    diff: diffValidator,
+    // Live pvpCents whenever the ref already exists in `produtos`.
+    precoAnteriorCents: v.optional(v.number()),
+    // Same value on every row of a group; set by `marcarGrupoRevisto`.
+    grupoRevisto: v.boolean(),
+    // Set by `promoverLote`; lets promotion resume after a failed batch.
+    promovido: v.boolean(),
+  })
+    .index("by_importacao", ["importacaoId"])
+    // Duplicate-ref check at load, one indexed read per SKU.
+    .index("by_importacao_ref", ["importacaoId", "ref"])
+    .index("by_importacao_grupo", ["importacaoId", "grupoModelo"])
+    .index("by_importacao_promovido", ["importacaoId", "promovido"]),
 
   marcas: defineTable({
     slug: v.string(),

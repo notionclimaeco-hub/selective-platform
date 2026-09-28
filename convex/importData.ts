@@ -5,6 +5,7 @@ import { upsertPagina } from "./paginasCatalogo";
 import { definirImagensProduto } from "./imagens";
 import { estadoValidator } from "./schema";
 import { sincronizarGrupos } from "./lib/catalogoGrupos";
+import { conferirSegredo } from "./lib/importSecret";
 
 // Bulk data import, driven by a trusted local script (no browser / no Clerk).
 //
@@ -13,18 +14,6 @@ import { sincronizarGrupos } from "./lib/catalogoGrupos";
 // env var IMPORT_SECRET. They are NOT exposed to app users and can be deleted
 // once the initial data load is done. The staff-gated UI functions and the
 // internal `upsertPorRef` are unaffected — this file just reuses their helpers.
-
-function conferirSegredo(secret: string): void {
-  const esperado = process.env.IMPORT_SECRET;
-  if (!esperado) {
-    throw new Error(
-      "IMPORT_SECRET não está configurado no deployment (npx convex env set IMPORT_SECRET ...).",
-    );
-  }
-  if (secret !== esperado) {
-    throw new Error("Segredo de importação inválido.");
-  }
-}
 
 /**
  * Upsert a batch of products by ref (idempotent). Bad rows are collected and
@@ -70,6 +59,10 @@ export const importarProdutos = mutation({
 });
 
 /**
+ * @deprecated v3 full-rebuild rule. Replaced by import-run promotion (#40),
+ * which marks absent refs `descontinuado` instead of deleting. Kept only for
+ * the v3 `catalog-brand-import` skill until the cutover (#53) removes both.
+ *
  * Secret-guarded: enforce full-rebuild semantics for a brand price table.
  * Deletes every product with the given `tabelaOrigem` whose `ref` is NOT in
  * `refsMantidos` (i.e. rows dropped from the latest CSV). Orphaned image files
@@ -331,8 +324,14 @@ export const limparCatalogo = mutation({
     if (incluirPaginas) {
       const paginas = await ctx.db.query("paginasCatalogo").take(batchSize);
       for (const pagina of paginas) {
-        await ctx.storage.delete(pagina.ficheiro);
-        ficheirosPaginaApagados++;
+        if (pagina.ficheiro !== undefined) {
+          await ctx.storage.delete(pagina.ficheiro);
+          ficheirosPaginaApagados++;
+        }
+        if (pagina.imagem !== undefined) {
+          await ctx.storage.delete(pagina.imagem);
+          ficheirosPaginaApagados++;
+        }
         await ctx.db.delete(pagina._id);
         paginasApagadas++;
       }

@@ -22,15 +22,49 @@ export async function upsertPagina(
     .unique();
 
   if (existente) {
-    await ctx.storage.delete(existente.ficheiro);
+    if (existente.ficheiro !== undefined && existente.ficheiro !== args.ficheiro) {
+      await ctx.storage.delete(existente.ficheiro);
+    }
     await ctx.db.patch(existente._id, { ficheiro: args.ficheiro });
-    return { paginaId: existente._id, substituido: true };
+    return { paginaId: existente._id, substituido: existente.ficheiro !== undefined };
   }
 
   const paginaId = await ctx.db.insert("paginasCatalogo", {
     tabelaOrigem: args.tabelaOrigem,
     pagina: args.pagina,
     ficheiro: args.ficheiro,
+  });
+  return { paginaId, substituido: false };
+}
+
+/**
+ * Idempotent upsert of a page's PNG render (110 dpi, for the review page).
+ * Same (tabelaOrigem, pagina) slot as the one-page PDF; the previous render
+ * file is deleted so re-uploads don't accumulate orphans.
+ */
+export async function upsertPaginaImagem(
+  ctx: MutationCtx,
+  args: { tabelaOrigem: string; pagina: number; imagem: Id<"_storage"> },
+): Promise<{ paginaId: Id<"paginasCatalogo">; substituido: boolean }> {
+  const existente = await ctx.db
+    .query("paginasCatalogo")
+    .withIndex("by_tabela_pagina", (q) =>
+      q.eq("tabelaOrigem", args.tabelaOrigem).eq("pagina", args.pagina),
+    )
+    .unique();
+
+  if (existente) {
+    if (existente.imagem !== undefined && existente.imagem !== args.imagem) {
+      await ctx.storage.delete(existente.imagem);
+    }
+    await ctx.db.patch(existente._id, { imagem: args.imagem });
+    return { paginaId: existente._id, substituido: existente.imagem !== undefined };
+  }
+
+  const paginaId = await ctx.db.insert("paginasCatalogo", {
+    tabelaOrigem: args.tabelaOrigem,
+    pagina: args.pagina,
+    imagem: args.imagem,
   });
   return { paginaId, substituido: false };
 }
@@ -100,7 +134,10 @@ export const listarPorTabela = query({
       linhas.map(async (linha) => ({
         _id: linha._id,
         pagina: linha.pagina,
-        url: await ctx.storage.getUrl(linha.ficheiro),
+        url:
+          linha.ficheiro === undefined
+            ? null
+            : await ctx.storage.getUrl(linha.ficheiro),
       })),
     );
   },

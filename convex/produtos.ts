@@ -7,9 +7,12 @@ import {
   componenteValidator,
   segmentoValidator,
   atributoValidator,
+  produtoImportFields,
   FAMILIAS,
   SISTEMAS,
 } from "./schema";
+
+export { produtoImportFields };
 import { requireStaff } from "./lib/auth";
 import {
   escolherCanonica,
@@ -122,7 +125,7 @@ async function fichasCatalogoDe(
         q.eq("tabelaOrigem", produto.tabelaOrigem).eq("pagina", pagina),
       )
       .unique();
-    if (!linha) continue;
+    if (!linha || linha.ficheiro === undefined) continue;
     const url = await ctx.storage.getUrl(linha.ficheiro);
     if (url === null) continue;
     fichas.push({ pagina, url });
@@ -441,31 +444,6 @@ export const obterAdmin = query({
     };
   },
 });
-
-// Shared field validators for an imported product row (v3 CSV). Reused by the
-// internal upsert mutation and the (secret-guarded) bulk importer so both
-// accept exactly the same shape. `imagens`/`estado` are app-managed and never
-// imported.
-export const produtoImportFields = {
-  ref: v.string(),
-  ean: v.optional(v.string()),
-  marca: v.string(),
-  nome: v.string(),
-  nomeGrupo: v.string(),
-  familia: v.string(),
-  segmento: v.optional(segmentoValidator),
-  sistema: v.optional(v.string()),
-  tipoUnidade: v.optional(v.string()),
-  componente: componenteValidator,
-  gama: v.optional(v.string()),
-  grupoModelo: v.string(),
-  atributos: v.array(atributoValidator),
-  descricao: v.optional(v.string()),
-  pvpCents: v.number(),
-  ivaIncluido: v.boolean(),
-  tabelaOrigem: v.string(),
-  pdfPaginas: v.array(v.number()),
-};
 
 export const upsertResultValidator = v.object({
   produtoId: v.id("produtos"),
