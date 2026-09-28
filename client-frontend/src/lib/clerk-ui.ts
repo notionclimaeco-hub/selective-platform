@@ -162,6 +162,10 @@ export const clerkAppearance: Appearance = {
     cardBox: { boxShadow: "none", border: "1px solid var(--border)" },
     formButtonPrimary: BOTAO_PRIMARIO,
     formFieldInput: CAMPO,
+    // Organization modal (Empresa › Membros › Gerir): no "Sair da
+    // organização" / "Eliminar organização". The organization is the
+    // company's link to Convex; leaving or deleting it is the office's call.
+    profileSection__organizationDanger: { display: "none" },
   },
   signIn: { elements: EMBUTIDO },
   signUp: { elements: EMBUTIDO },

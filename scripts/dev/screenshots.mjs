@@ -6,6 +6,7 @@
 //   node scripts/dev/screenshots.mjs --port 3001 --out .context/shots /,/produtos
 //   node scripts/dev/screenshots.mjs --port 3001 --signed-in /inicio,/empresa
 //   node scripts/dev/screenshots.mjs --port 3001 --full-page /
+//   node scripts/dev/screenshots.mjs --port 3001 --signed-in --email e2e-pendente+clerk_test@climaeco.pt /empresa
 //
 // `--full-page` scrolls to the bottom first (so scroll-reveal sections have
 // played) and captures the whole document instead of the first viewport.
@@ -15,8 +16,8 @@
 // `e2e+clerk_test@climaeco.pt` if missing, mints a sign-in token and redeems it
 // in the browser with the `ticket` strategy, which sidesteps the Turnstile
 // captcha on the sign-up form. The user has no password (tokens are the only
-// way in) and no installer company, so the app shell shows the "Complete o
-// registo" banner.
+// way in). Since #32 it owns the approved dev company "Clima Teste E2E";
+// `--email e2e-pendente+clerk_test@climaeco.pt` signs in the pending one.
 import { chromium } from "playwright"
 import { mkdirSync, readFileSync } from "node:fs"
 
@@ -29,7 +30,8 @@ const port = flag("--port", process.env.CLIENT_PORT ?? "3001")
 const out = flag("--out", ".context/shots")
 const prefix = flag("--prefix", args.includes("--signed-in") ? "in" : "out")
 const fullPage = args.includes("--full-page")
-const FLAGS_WITH_VALUE = new Set(["--port", "--out", "--prefix"])
+const email = flag("--email", "e2e+clerk_test@climaeco.pt")
+const FLAGS_WITH_VALUE = new Set(["--port", "--out", "--prefix", "--email"])
 const positional = args.filter(
   (a, i) => !a.startsWith("--") && !FLAGS_WITH_VALUE.has(args[i - 1] ?? "")
 )
@@ -49,13 +51,12 @@ async function clerkTicket() {
     })
     return res.json()
   }
-  const email = "e2e+clerk_test@climaeco.pt"
   let [user] = await api(`/users?email_address=${encodeURIComponent(email)}`)
   user ??= await api("/users", {
     method: "POST",
     body: JSON.stringify({
       email_address: [email],
-      username: "e2e-shell",
+      username: email.split("@")[0].replace(/[^a-z0-9_-]/gi, "-"),
       first_name: "E2E",
       last_name: "Shell",
     }),
