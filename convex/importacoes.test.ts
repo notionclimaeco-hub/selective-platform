@@ -469,3 +469,127 @@ describe("importacoes: revisão", () => {
     ).rejects.toThrow(/rejeitada/);
   });
 });
+
+async function aprovarEPromover(test: T, importacaoId: Id<"importacoes">) {
+  vi.useFakeTimers();
+  await test
+    .withIdentity(STAFF)
+    .mutation(api.importacoes.aprovarImportacao, { importacaoId });
+  await test.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
+}
+
+describe("importacoes: promoção", () => {
+  it("promotes every staged ref, preserving estado and imagens of live refs", async () => {
+    const test = t();
+    const foto = await storeBlob(test);
+    await seedLive(test, live("PUB", { pvpCents: 50000 }), "publicado", [foto]);
+    await seedLive(test, live("DESC", { pvpCents: 50000 }), "descontinuado");
+    const id = await criarRun(test);
+    await carregar(test, id, [
+      staged("PUB", { nome: "Mural Energy PUB 2026" }),
+      staged("DESC"),
+      staged("NOVO"),
+    ]);
+    await aprovarEPromover(test, id);
+
+    expect(await run(test, id)).toMatchObject({
+      estado: "aprovada",
+      numPromovidos: 3,
+      numReativados: 1,
+      numDescontinuados: 0,
+    });
+    expect(await produtoPorRef(test, "PUB")).toMatchObject({
+      estado: "publicado",
+      imagens: [foto],
+      nome: "Mural Energy PUB 2026",
+    });
+    expect(await produtoPorRef(test, "DESC")).toMatchObject({ estado: "rascunho" });
+    expect(await produtoPorRef(test, "NOVO")).toMatchObject({
+      estado: "rascunho",
+      imagens: [],
+      tabelaOrigem: "hisense-2026",
+    });
+    const rows = await test.run((ctx) =>
+      ctx.db
+        .query("skusEmRevisao")
+        .withIndex("by_importacao_promovido", (q) =>
+          q.eq("importacaoId", id).eq("promovido", false),
+        )
+        .collect(),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("marks absent refs of the brand descontinuado, across an older tabelaOrigem, never deleting", async () => {
+    const test = t();
+    await seedLive(test, live("FICA"), "publicado");
+    await seedLive(
+      test,
+      live("SAI", { tabelaOrigem: "hisense-2025", grupoModelo: "hisense-antigo", nomeGrupo: "Antigo" }),
+      "publicado",
+    );
+    await seedLive(
+      test,
+      live("SGT", { marca: "midea", tabelaOrigem: "midea-sgt", grupoModelo: "midea-sgt-x", nomeGrupo: "SGT" }),
+      "publicado",
+    );
+    await seedLive(test, live("JA", { grupoModelo: "hisense-ja" }), "descontinuado");
+    const id = await criarRun(test);
+    await carregar(test, id, [staged("FICA")]);
+    await aprovarEPromover(test, id);
+
+    expect(await run(test, id)).toMatchObject({ estado: "aprovada", numDescontinuados: 1 });
+    expect(await produtoPorRef(test, "FICA")).toMatchObject({ estado: "publicado" });
+    expect(await produtoPorRef(test, "SAI")).toMatchObject({ estado: "descontinuado" });
+    expect(await produtoPorRef(test, "SGT")).toMatchObject({ estado: "publicado" });
+    expect(await produtoPorRef(test, "JA")).toMatchObject({ estado: "descontinuado" });
+    // The listing drops a group whose only published SKU was discontinued.
+    const grupo = await test.run((ctx) =>
+      ctx.db
+        .query("catalogoGrupos")
+        .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", "hisense-antigo"))
+        .unique(),
+    );
+    expect(grupo).toBeNull();
+  });
+
+  it("also discontinues by tabelaOrigem when the marca slug differs", async () => {
+    const test = t();
+    await seedLive(
+      test,
+      live("VELHO", { marca: "hisense-pt", grupoModelo: "hisense-pt-velho" }),
+      "publicado",
+    );
+    const id = await criarRun(test);
+    await carregar(test, id, [staged("NOVO")]);
+    await aprovarEPromover(test, id);
+    expect(await produtoPorRef(test, "VELHO")).toMatchObject({ estado: "descontinuado" });
+  });
+
+  it("promotes in batches of 100 and blocks a new run while promoting", async () => {
+    const test = t();
+    const id = await criarRun(test);
+    const skus = Array.from({ length: 150 }, (_, i) =>
+      staged(`R${String(i).padStart(3, "0")}`),
+    );
+    await carregar(test, id, skus.slice(0, 100), false);
+    await carregar(test, id, skus.slice(100));
+
+    vi.useFakeTimers();
+    await test
+      .withIdentity(STAFF)
+      .mutation(api.importacoes.aprovarImportacao, { importacaoId: id });
+    // Fire the runAfter(0) timer so the first batch starts, then wait for
+    // it; the second batch it schedules stays pending.
+    await vi.advanceTimersByTimeAsync(0);
+    await test.finishInProgressScheduledFunctions();
+    expect(await run(test, id)).toMatchObject({ estado: "a-promover", numPromovidos: 100 });
+    await expect(criarRun(test)).rejects.toThrow(/a ser promovida/);
+    await test.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+
+    expect(await run(test, id)).toMatchObject({ estado: "aprovada", numPromovidos: 150 });
+    expect(await produtoPorRef(test, "R149")).not.toBeNull();
+  });
+});

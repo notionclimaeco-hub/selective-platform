@@ -404,12 +404,107 @@ export const aprovarImportacao = mutation({
 
 // --- Promotion (scheduled batches) ------------------------------------------
 
+/** The 18 catalog fields of a staged row, as `upsertProdutoPorRef` wants them. */
+function camposProduto(l: Doc<"skusEmRevisao">): ProdutoImport {
+  return {
+    ref: l.ref,
+    ean: l.ean,
+    marca: l.marca,
+    nome: l.nome,
+    nomeGrupo: l.nomeGrupo,
+    familia: l.familia,
+    segmento: l.segmento,
+    sistema: l.sistema,
+    tipoUnidade: l.tipoUnidade,
+    componente: l.componente,
+    gama: l.gama,
+    grupoModelo: l.grupoModelo,
+    atributos: l.atributos,
+    descricao: l.descricao,
+    pvpCents: l.pvpCents,
+    ivaIncluido: l.ivaIncluido,
+    tabelaOrigem: l.tabelaOrigem,
+    pdfPaginas: l.pdfPaginas,
+  };
+}
+
+/**
+ * One promotion batch. Upserts up to LOTE_PROMOCAO unpromoted rows through
+ * the catalog path (existing refs keep `imagens` and `estado`; new refs insert
+ * as `rascunho`; a `descontinuado` ref that reappears is revived as
+ * `rascunho`), marks them `promovido` and reschedules itself. The final pass
+ * marks every live ref of the brand (by `marca` or by `tabelaOrigem`) that is
+ * absent from the run `descontinuado` and closes the run as `aprovada`.
+ * Rows already `promovido` are skipped, so re-running after a failed batch
+ * (`npx convex run importacoes:promoverLote '{"importacaoId": "..."}'`)
+ * resumes where it stopped.
+ */
 export const promoverLote = internalMutation({
   args: { importacaoId: v.id("importacoes") },
   returns: v.null(),
   handler: async (ctx, args) => {
     const run = await obterRun(ctx, args.importacaoId);
     exigirEstado(run, "a-promover");
+    const tocados = new Set<string>();
+
+    const pendentes = await ctx.db
+      .query("skusEmRevisao")
+      .withIndex("by_importacao_promovido", (q) =>
+        q.eq("importacaoId", run._id).eq("promovido", false),
+      )
+      .take(LOTE_PROMOCAO);
+
+    if (pendentes.length > 0) {
+      let reativados = 0;
+      for (const linha of pendentes) {
+        const anterior = await ctx.db
+          .query("produtos")
+          .withIndex("by_ref", (q) => q.eq("ref", linha.ref))
+          .unique();
+        const r = await upsertProdutoPorRef(ctx, camposProduto(linha), tocados);
+        if (anterior?.estado === "descontinuado") {
+          await ctx.db.patch(r.produtoId, { estado: "rascunho" });
+          reativados++;
+        }
+        await ctx.db.patch(linha._id, { promovido: true });
+      }
+      await sincronizarGrupos(ctx, tocados);
+      await ctx.db.patch(run._id, {
+        numPromovidos: (run.numPromovidos ?? 0) + pendentes.length,
+        numReativados: (run.numReativados ?? 0) + reativados,
+      });
+      await ctx.scheduler.runAfter(0, internal.importacoes.promoverLote, {
+        importacaoId: run._id,
+      });
+      return null;
+    }
+
+    // Final pass: discontinue what the brand no longer sells. Never delete —
+    // order lines reference refs.
+    const refsDaRun = new Set((await linhasDaRun(ctx, run._id)).map((l) => l.ref));
+    const daMarca = await ctx.db
+      .query("produtos")
+      .withIndex("by_marca", (q) => q.eq("marca", run.marca))
+      .collect();
+    const daTabela = await ctx.db
+      .query("produtos")
+      .withIndex("by_tabela", (q) => q.eq("tabelaOrigem", run.tabelaOrigem))
+      .collect();
+    const vivos = new Map<Id<"produtos">, Doc<"produtos">>();
+    for (const p of [...daMarca, ...daTabela]) vivos.set(p._id, p);
+
+    let descontinuados = 0;
+    for (const p of vivos.values()) {
+      if (refsDaRun.has(p.ref) || p.estado === "descontinuado") continue;
+      await ctx.db.patch(p._id, { estado: "descontinuado" });
+      tocados.add(p.grupoModelo);
+      descontinuados++;
+    }
+    await sincronizarGrupos(ctx, tocados);
+    await ctx.db.patch(run._id, {
+      estado: "aprovada",
+      numDescontinuados: descontinuados,
+    });
     return null;
   },
 });
