@@ -331,8 +331,14 @@ export const limparCatalogo = mutation({
     if (incluirPaginas) {
       const paginas = await ctx.db.query("paginasCatalogo").take(batchSize);
       for (const pagina of paginas) {
-        await ctx.storage.delete(pagina.ficheiro);
-        ficheirosPaginaApagados++;
+        if (pagina.ficheiro !== undefined) {
+          await ctx.storage.delete(pagina.ficheiro);
+          ficheirosPaginaApagados++;
+        }
+        if (pagina.imagem !== undefined) {
+          await ctx.storage.delete(pagina.imagem);
+          ficheirosPaginaApagados++;
+        }
         await ctx.db.delete(pagina._id);
         paginasApagadas++;
       }

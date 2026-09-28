@@ -22,9 +22,11 @@ export async function upsertPagina(
     .unique();
 
   if (existente) {
-    await ctx.storage.delete(existente.ficheiro);
+    if (existente.ficheiro !== undefined && existente.ficheiro !== args.ficheiro) {
+      await ctx.storage.delete(existente.ficheiro);
+    }
     await ctx.db.patch(existente._id, { ficheiro: args.ficheiro });
-    return { paginaId: existente._id, substituido: true };
+    return { paginaId: existente._id, substituido: existente.ficheiro !== undefined };
   }
 
   const paginaId = await ctx.db.insert("paginasCatalogo", {
@@ -100,7 +102,10 @@ export const listarPorTabela = query({
       linhas.map(async (linha) => ({
         _id: linha._id,
         pagina: linha.pagina,
-        url: await ctx.storage.getUrl(linha.ficheiro),
+        url:
+          linha.ficheiro === undefined
+            ? null
+            : await ctx.storage.getUrl(linha.ficheiro),
       })),
     );
   },

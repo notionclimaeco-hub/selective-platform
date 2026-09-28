@@ -320,7 +320,8 @@ export const limparImagensOrfas = internalMutation({
       for (const id of p.imagens) referenciados.add(id);
     }
     for (const pagina of await ctx.db.query("paginasCatalogo").collect()) {
-      referenciados.add(pagina.ficheiro);
+      if (pagina.ficheiro !== undefined) referenciados.add(pagina.ficheiro);
+      if (pagina.imagem !== undefined) referenciados.add(pagina.imagem);
     }
 
     const todos = await ctx.db.system.query("_storage").collect();
