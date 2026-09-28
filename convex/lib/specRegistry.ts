@@ -153,6 +153,12 @@ const COMPATIVEL_COM: Base = {
   padrao: PADRAO_LISTA,
 };
 const TIPO: Base = { chave: "tipo", tipo: "texto", rotulo: "Tipo" };
+const TUBAGEM: Base = {
+  chave: "tubagem",
+  tipo: "texto",
+  rotulo: "Tubagem líq./gás",
+  unidade: "pol.",
+};
 
 // --- Registry ----------------------------------------------------------------
 
@@ -161,6 +167,7 @@ const ACESSORIOS: CategoriaSpecs = {
     chave({ ...TIPO, hero: true }),
     chave({ ...COMPATIVEL_COM, hero: true }),
     chave({ ...COR, hero: true }),
+    chave(DIMENSOES),
   ],
 };
 
@@ -191,12 +198,7 @@ export const REGISTO_SPECS = {
       chave(PRESSAO_ESTATICA),
       chave(DIMENSOES_UI),
       chave(DIMENSOES_UE),
-      chave({
-        chave: "tubagem",
-        tipo: "texto",
-        rotulo: "Tubagem líq./gás",
-        unidade: "mm",
-      }),
+      chave(TUBAGEM),
       chave(numero("comprimento-max-m", "Comprimento máx.", "m")),
       chave(numero("desnivel-max-m", "Desnível máx.", "m")),
       chave(ALIMENTACAO),
@@ -205,6 +207,7 @@ export const REGISTO_SPECS = {
       chave(numero("frio-kw-max", "Frio máx.", "kW")),
       chave(numero("calor-kw-min", "Calor mín.", "kW")),
       chave(numero("calor-kw-max", "Calor máx.", "kW")),
+      chave(numero("cv", "Potência", "CV")),
       chave({ ...COMPATIVEL_COM, componentes: ["unidade-exterior"] }),
     ],
   },
@@ -225,6 +228,7 @@ export const REGISTO_SPECS = {
       chave(ALIMENTACAO),
       chave(DIMENSOES_UI),
       chave(DIMENSOES_UE),
+      chave(TUBAGEM),
       chave(WIFI),
     ],
   },
@@ -260,6 +264,11 @@ export const REGISTO_SPECS = {
         rotulo: "Secção da conduta",
         unidade: "mm",
       }),
+      chave(FRIO_KW),
+      chave(CALOR_KW),
+      chave(REFRIGERANTE),
+      chave(TUBAGEM),
+      chave(ALIMENTACAO),
     ],
   },
   ventiloconvectores: {
@@ -299,6 +308,7 @@ export const REGISTO_SPECS = {
       chave(REFRIGERANTE),
       chave({ chave: "compressor", tipo: "texto", rotulo: "Compressor" }),
       chave(DIMENSOES),
+      chave(TUBAGEM),
       chave(numero("peso-kg", "Peso", "kg")),
     ],
   },
