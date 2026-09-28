@@ -17,7 +17,8 @@
     "imagens:match": "node scripts/imagens/match.mjs",
     "imagens:preview": "node scripts/imagens/preview.mjs",
     "imagens:process": "node scripts/imagens/process.mjs",
-    "imagens:upload": "node scripts/imagens/upload.mjs"
+    "imagens:upload": "node scripts/imagens/upload.mjs",
+    "registry:json": "node --no-warnings --experimental-strip-types scripts/registry/export.mjs"
   },
   "dependencies": {
     "convex": "^1.42.3"
