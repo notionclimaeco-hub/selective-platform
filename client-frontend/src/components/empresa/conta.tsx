@@ -1,9 +1,10 @@
-import { SignOutButton, useClerk, useUser } from "@clerk/tanstack-react-start"
+import { useClerk, useUser } from "@clerk/tanstack-react-start"
 
 import { Button } from "@/components/ui/button"
 import { Seccao } from "./seccao"
 
-/** The signed-in person: name and email, Clerk profile modal, sign-out. */
+/** The signed-in person: name and email, Clerk profile modal. Sign-out lives
+ * in the `UserButton` menu (sidebar footer / phone top bar). */
 export function SeccaoConta() {
   const { openUserProfile } = useClerk()
   const { user } = useUser()
@@ -15,16 +16,9 @@ export function SeccaoConta() {
       id="conta"
       titulo="A minha conta"
       direita={
-        <>
-          <Button variant="outline" size="sm" onClick={() => openUserProfile()}>
-            Gerir
-          </Button>
-          <SignOutButton redirectUrl="/">
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
-              Terminar sessão
-            </Button>
-          </SignOutButton>
-        </>
+        <Button variant="outline" size="sm" onClick={() => openUserProfile()}>
+          Gerir
+        </Button>
       }
     >
       <div className="flex items-center gap-3">
