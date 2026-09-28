@@ -312,3 +312,104 @@ export const registarPaginaImagem = mutation({
     });
   },
 });
+
+// --- Review (staff) ----------------------------------------------------------
+
+/** Flag every staged row of a group as reviewed (or not). */
+export const marcarGrupoRevisto = mutation({
+  args: {
+    importacaoId: v.id("importacoes"),
+    grupoModelo: v.string(),
+    revisto: v.boolean(),
+  },
+  returns: v.object({ atualizados: v.number() }),
+  handler: async (ctx, args) => {
+    await requireStaff(ctx);
+    const run = await obterRun(ctx, args.importacaoId);
+    exigirEstado(run, "em-revisao");
+    const linhas = await ctx.db
+      .query("skusEmRevisao")
+      .withIndex("by_importacao_grupo", (q) =>
+        q.eq("importacaoId", run._id).eq("grupoModelo", args.grupoModelo),
+      )
+      .collect();
+    if (linhas.length === 0) {
+      throw new Error(`Grupo "${args.grupoModelo}" não existe nesta importação.`);
+    }
+    let atualizados = 0;
+    for (const linha of linhas) {
+      if (linha.grupoRevisto === args.revisto) continue;
+      await ctx.db.patch(linha._id, { grupoRevisto: args.revisto });
+      atualizados++;
+    }
+    return { atualizados };
+  },
+});
+
+/** Close a run without promoting. Staged rows are kept for audit. */
+export const rejeitarImportacao = mutation({
+  args: { importacaoId: v.id("importacoes"), motivo: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await requireStaff(ctx);
+    const run = await obterRun(ctx, args.importacaoId);
+    exigirEstado(run, "a-extrair", "em-revisao");
+    const motivo = args.motivo?.trim();
+    await ctx.db.patch(run._id, {
+      estado: "rejeitada",
+      decididoEm: Date.now(),
+      decididoPor: identity.subject,
+      motivoRejeicao: motivo === "" ? undefined : motivo,
+    });
+    return null;
+  },
+});
+
+/**
+ * Approve a run. Gate: every group with a warning or a price change must be
+ * reviewed. Promotion itself runs in scheduled batches (`promoverLote`) so a
+ * Daikin-sized table stays under transaction limits; `a-promover` is the
+ * visible in-between state.
+ */
+export const aprovarImportacao = mutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.object({ agendado: v.boolean() }),
+  handler: async (ctx, args) => {
+    const identity = await requireStaff(ctx);
+    const run = await obterRun(ctx, args.importacaoId);
+    exigirEstado(run, "em-revisao");
+
+    const porRever = gruposPorRever(resumirGrupos(await linhasDaRun(ctx, run._id)));
+    if (porRever.length > 0) {
+      const lista = porRever.slice(0, 10).join(", ");
+      const resto = porRever.length > 10 ? ", …" : "";
+      throw new Error(
+        `${porRever.length} grupo(s) com avisos ou preços alterados ainda por rever: ${lista}${resto}.`,
+      );
+    }
+
+    await ctx.db.patch(run._id, {
+      estado: "a-promover",
+      decididoEm: Date.now(),
+      decididoPor: identity.subject,
+      numPromovidos: 0,
+      numReativados: 0,
+    });
+    await ctx.scheduler.runAfter(0, internal.importacoes.promoverLote, {
+      importacaoId: run._id,
+    });
+    return { agendado: true };
+  },
+});
+
+// --- Promotion (scheduled batches) ------------------------------------------
+
+export const promoverLote = internalMutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await obterRun(ctx, args.importacaoId);
+    exigirEstado(run, "a-promover");
+    return null;
+  },
+});

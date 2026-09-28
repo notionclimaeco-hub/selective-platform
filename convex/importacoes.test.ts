@@ -353,3 +353,119 @@ describe("importacoes: registarPaginaImagem", () => {
     expect(await test.run((ctx) => ctx.db.system.get(antigo))).toBeNull();
   });
 });
+
+describe("importacoes: revisão", () => {
+  async function runComGrupos(test: T) {
+    await seedLive(test, live("P1", { pvpCents: 10000 }));
+    const id = await criarRun(test);
+    await carregar(test, id, [
+      // group with a price change → must be reviewed
+      staged("P1", { pvpCents: 12000 }),
+      // clean, unchanged group → never blocks
+      staged("L1", { grupoModelo: "hisense-limpo", nomeGrupo: "Limpo" }),
+      // group with a warning → must be reviewed
+      staged("A1", {
+        grupoModelo: "hisense-aviso",
+        nomeGrupo: "Aviso",
+        avisos: ["extractor: capacidade ilegível"],
+      }),
+    ]);
+    return id;
+  }
+
+  it("requires staff for review functions", async () => {
+    const test = t();
+    const id = await runComGrupos(test);
+    await expect(
+      test.mutation(api.importacoes.marcarGrupoRevisto, {
+        importacaoId: id,
+        grupoModelo: "hisense-energy",
+        revisto: true,
+      }),
+    ).rejects.toThrow(/Not authenticated/);
+    await expect(
+      test.mutation(api.importacoes.aprovarImportacao, { importacaoId: id }),
+    ).rejects.toThrow(/Not authenticated/);
+    await expect(
+      test.mutation(api.importacoes.rejeitarImportacao, { importacaoId: id }),
+    ).rejects.toThrow(/Not authenticated/);
+  });
+
+  it("marks every row of a group and rejects unknown groups", async () => {
+    const test = t();
+    const id = await runComGrupos(test);
+    const staff = test.withIdentity(STAFF);
+    const r = await staff.mutation(api.importacoes.marcarGrupoRevisto, {
+      importacaoId: id,
+      grupoModelo: "hisense-energy",
+      revisto: true,
+    });
+    expect(r).toEqual({ atualizados: 1 });
+    const rows = await linhas(test, id);
+    expect(rows.find((l) => l.ref === "P1")?.grupoRevisto).toBe(true);
+    expect(rows.find((l) => l.ref === "L1")?.grupoRevisto).toBe(false);
+    await expect(
+      staff.mutation(api.importacoes.marcarGrupoRevisto, {
+        importacaoId: id,
+        grupoModelo: "nao-existe",
+        revisto: true,
+      }),
+    ).rejects.toThrow(/não existe/);
+  });
+
+  it("refuses approval while a group with avisos or price changes is unreviewed", async () => {
+    const test = t();
+    const id = await runComGrupos(test);
+    const staff = test.withIdentity(STAFF);
+    await expect(
+      staff.mutation(api.importacoes.aprovarImportacao, { importacaoId: id }),
+    ).rejects.toThrow(/2 grupo\(s\).*hisense-aviso, hisense-energy/);
+    await staff.mutation(api.importacoes.marcarGrupoRevisto, {
+      importacaoId: id,
+      grupoModelo: "hisense-energy",
+      revisto: true,
+    });
+    await expect(
+      staff.mutation(api.importacoes.aprovarImportacao, { importacaoId: id }),
+    ).rejects.toThrow(/1 grupo\(s\).*hisense-aviso/);
+    expect(await run(test, id)).toMatchObject({ estado: "em-revisao" });
+  });
+
+  it("passes the gate once every blocking group is reviewed", async () => {
+    const test = t();
+    const id = await runComGrupos(test);
+    const staff = test.withIdentity(STAFF);
+    for (const grupoModelo of ["hisense-energy", "hisense-aviso"]) {
+      await staff.mutation(api.importacoes.marcarGrupoRevisto, {
+        importacaoId: id,
+        grupoModelo,
+        revisto: true,
+      });
+    }
+    const r = await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId: id });
+    expect(r).toEqual({ agendado: true });
+    expect(await run(test, id)).toMatchObject({
+      estado: "a-promover",
+      decididoPor: "user_staff",
+    });
+  });
+
+  it("rejects a run with a motivo and refuses to reject twice", async () => {
+    const test = t();
+    const id = await runComGrupos(test);
+    const staff = test.withIdentity(STAFF);
+    await staff.mutation(api.importacoes.rejeitarImportacao, {
+      importacaoId: id,
+      motivo: "  páginas em falta ",
+    });
+    expect(await run(test, id)).toMatchObject({
+      estado: "rejeitada",
+      motivoRejeicao: "páginas em falta",
+      decididoPor: "user_staff",
+    });
+    expect((await linhas(test, id)).length).toBe(3);
+    await expect(
+      staff.mutation(api.importacoes.rejeitarImportacao, { importacaoId: id }),
+    ).rejects.toThrow(/rejeitada/);
+  });
+});
