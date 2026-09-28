@@ -62,9 +62,9 @@ One row per staged SKU.
 - `grupoRevisto`: boolean. Same value on every row of a group.
 - `promovido`: boolean. Set by `promoverLote`.
 
-Indexes: `by_importacao` (`importacaoId`), `by_importacao_grupo`
-(`importacaoId`, `grupoModelo`), `by_importacao_promovido`
-(`importacaoId`, `promovido`).
+Indexes: `by_importacao` (`importacaoId`), `by_importacao_ref`
+(`importacaoId`, `ref`), `by_importacao_grupo` (`importacaoId`,
+`grupoModelo`), `by_importacao_promovido` (`importacaoId`, `promovido`).
 
 `estado` and `imagens` never appear on a staged SKU: they are app-managed.
 
@@ -107,13 +107,17 @@ The secret check helper moves to `convex/lib/importSecret.ts` and is shared by
   → `{ carregados, erros: [{ ref, erro }] }`. Requires `estado: a-extrair`.
   Per SKU:
   1. `familia` in `FAMILIAS`, `sistema` in `SISTEMAS`, `pdfPaginas` positive
-     integers, `pvpCents` non-negative integer, `tabelaOrigem` equal to the
-     run's. Failure → error, row skipped.
+     integers, `pvpCents` non-negative integer, `tabelaOrigem` and `marca`
+     equal to the run's. Failure → error, row skipped.
   2. `compativelCom`, when present and non-empty, is folded into `atributos`
      as `compativel-com` = items joined by `,` (only when the key is absent).
   3. `validarAtributos(familia, componente, atributos)`: `erros` → row
      rejected; `avisos` appended to the SKU's `avisos` (deduplicated).
-  4. Duplicate `ref` inside the run → error, row skipped.
+  4. Duplicate `ref` inside the run (in-batch set plus one indexed lookup
+     on `by_importacao_ref`) → error, row skipped.
+  4b. `grupoModelo` already held by another brand in `produtos` → error,
+     row skipped. Caught here so `upsertProdutoPorRef` cannot throw
+     mid-promotion and strand the run in `a-promover`.
   5. Diff against `produtos` by `ref`: no live row → `novo`; live `pvpCents`
      differs → `alterado`; otherwise `igual`. `precoAnteriorCents` = live
      `pvpCents` when a live row exists.

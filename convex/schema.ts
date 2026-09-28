@@ -313,6 +313,8 @@ export default defineSchema({
     promovido: v.boolean(),
   })
     .index("by_importacao", ["importacaoId"])
+    // Duplicate-ref check at load, one indexed read per SKU.
+    .index("by_importacao_ref", ["importacaoId", "ref"])
     .index("by_importacao_grupo", ["importacaoId", "grupoModelo"])
     .index("by_importacao_promovido", ["importacaoId", "promovido"]),
 

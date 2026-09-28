@@ -713,3 +713,22 @@ describe("importacoes: consultas", () => {
     ).toBeNull();
   });
 });
+
+describe("importacoes: carregamento (revisão final)", () => {
+  it("rejects a SKU whose marca is not the run's", async () => {
+    const test = t();
+    const id = await criarRun(test);
+    const r = await carregar(test, id, [staged("X", { marca: "midea" })], false);
+    expect(r.carregados).toBe(0);
+    expect(r.erros[0]?.erro).toMatch(/marca "midea"/);
+  });
+
+  it("rejects a SKU whose grupoModelo already holds another brand in the catalog", async () => {
+    const test = t();
+    await seedLive(test, live("M1", { marca: "midea", tabelaOrigem: "midea-2026", grupoModelo: "partilhado" }));
+    const id = await criarRun(test);
+    const r = await carregar(test, id, [staged("H1", { grupoModelo: "partilhado" })], false);
+    expect(r.carregados).toBe(0);
+    expect(r.erros[0]?.erro).toMatch(/partilhado.*midea/);
+  });
+});

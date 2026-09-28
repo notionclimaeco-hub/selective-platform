@@ -127,6 +127,11 @@ function prepararSku(
       `tabelaOrigem "${sku.tabelaOrigem}" não é a da importação (${run.tabelaOrigem}).`,
     );
   }
+  if (sku.marca !== run.marca) {
+    throw new Error(
+      `marca "${sku.marca}" não é a da importação (${run.marca}).`,
+    );
+  }
   if (refsNaRun.has(sku.ref)) {
     throw new Error(`ref "${sku.ref}" duplicada na importação.`);
   }
@@ -236,15 +241,37 @@ export const carregarSkus = mutation({
     const run = await obterRun(ctx, args.importacaoId);
     exigirEstado(run, "a-extrair");
 
-    const refsNaRun = new Set(
-      (await linhasDaRun(ctx, run._id)).map((l) => l.ref),
-    );
+    // Refs seen in this batch; earlier batches are checked by index below.
+    const refsNaRun = new Set<string>();
     let carregados = 0;
     const erros: Array<{ ref: string; erro: string }> = [];
 
     for (const sku of args.skus) {
       try {
         const { atributos, avisos } = prepararSku(sku, run, refsNaRun);
+        const jaCarregado = await ctx.db
+          .query("skusEmRevisao")
+          .withIndex("by_importacao_ref", (q) =>
+            q.eq("importacaoId", run._id).eq("ref", sku.ref),
+          )
+          .unique();
+        if (jaCarregado) {
+          throw new Error(`ref "${sku.ref}" duplicada na importação.`);
+        }
+        // A group never mixes brands: catch it here, at load, instead of
+        // letting `upsertProdutoPorRef` throw mid-promotion and strand the
+        // run in `a-promover`.
+        const grupoModelo = sku.grupoModelo;
+        const noGrupo = await ctx.db
+          .query("produtos")
+          .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", grupoModelo))
+          .collect();
+        const conflito = noGrupo.find((p) => p.marca !== sku.marca);
+        if (conflito) {
+          throw new Error(
+            `grupo "${sku.grupoModelo}" já contém a marca "${conflito.marca}" no catálogo.`,
+          );
+        }
         const atual = await ctx.db
           .query("produtos")
           .withIndex("by_ref", (q) => q.eq("ref", sku.ref))
