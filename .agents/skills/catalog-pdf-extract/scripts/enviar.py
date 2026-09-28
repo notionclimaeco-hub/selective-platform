@@ -140,9 +140,9 @@ def enviar(run: dict, cliente: Convex, pdf: Path | None, paginas: Path | None, l
     for i, parte in enumerate(lotes, start=1):
         r = cliente.mutation("importacoes:carregarSkus",
                              {"importacaoId": importacao_id, "skus": [_sku_para_envio(s) for s in parte]})
-        resumo["carregados"] += r["carregados"]
+        resumo["carregados"] += int(r["carregados"])   # a API HTTP devolve números como float
         resumo["erros"].extend(r["erros"])
-        log(f"  lote {i}/{len(lotes)}: {r['carregados']} carregados, {len(r['erros'])} rejeitados")
+        log(f"  lote {i}/{len(lotes)}: {int(r['carregados'])} carregados, {len(r['erros'])} rejeitados")
     for e in resumo["erros"]:
         log(f"  ✗ {e['ref']}: {e['erro']}")
 
@@ -162,7 +162,8 @@ def enviar(run: dict, cliente: Convex, pdf: Path | None, paginas: Path | None, l
         log(f"\n{len(resumo['erros'])} SKUs rejeitados — a run fica em 'a-extrair'. Corrige e volta a enviar "
             "(a nova extração substitui esta run).")
         return resumo
-    contagens = cliente.mutation("importacoes:concluirCarregamento", {"importacaoId": importacao_id})
+    contagens = {k: int(v) for k, v in cliente.mutation(
+        "importacoes:concluirCarregamento", {"importacaoId": importacao_id}).items()}
     resumo["contagens"] = contagens
     log(f"run em revisão: {contagens['numSkus']} SKUs, {contagens['numGrupos']} grupos, "
         f"{contagens['numNovos']} novos, {contagens['numAlterados']} alterados, {contagens['numIguais']} iguais, "
