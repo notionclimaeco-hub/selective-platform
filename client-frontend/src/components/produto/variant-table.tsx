@@ -1,5 +1,7 @@
 import { Check } from "lucide-react"
 
+import { rotuloChave as rotuloChaveRegisto } from "@convex/lib/specRegistry"
+
 import { eurExato } from "@/lib/catalogo"
 import { cn } from "@/lib/utils"
 
@@ -11,34 +13,19 @@ export type Variante = {
   pvpCents: number
 }
 
-// Friendly Portuguese labels for the canonical attribute keys the import
-// pipeline produces. Unknown keys fall back to a humanized slug.
-const ROTULOS_CHAVE: Record<string, string> = {
+// Labels come from the spec registry (schema v4). The live catalog still
+// carries a few pre-registry keys until the cutover (#53); label those here
+// so nothing renders as a raw slug meanwhile.
+const ROTULOS_LEGADO: Record<string, string> = {
   capacidade: "Capacidade (kW)",
-  "frio-kw": "Frio (kW)",
-  "calor-kw": "Calor (kW)",
-  btu: "BTU",
-  "classe-energetica": "Classe energética",
-  seer: "SEER",
-  scop: "SCOP",
-  refrigerante: "Refrigerante",
-  wifi: "Wi-Fi",
-  "unidades-max": "UI máx.",
-  alimentacao: "Alimentação",
-  cor: "Cor",
   deposito: "Depósito",
-  "pressao-estatica": "Pressão estática",
   comando: "Comando",
   modo: "Modo",
   caudal: "Caudal",
 }
 
-// "unidades-max" -> "Unidades max"; "capacidade" -> "Capacidade".
 export function rotuloChave(chave: string): string {
-  const conhecido = ROTULOS_CHAVE[chave]
-  if (conhecido) return conhecido
-  const texto = chave.replace(/-/g, " ")
-  return texto.charAt(0).toUpperCase() + texto.slice(1)
+  return ROTULOS_LEGADO[chave] ?? rotuloChaveRegisto(chave)
 }
 
 // Slug values read better with spaces ("branco-perola" -> "branco perola").
