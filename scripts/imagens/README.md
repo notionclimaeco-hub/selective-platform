@@ -14,6 +14,8 @@ pnpm imagens:crawl      # → product-scaffold/crawl-raw/ + manifest.json
 #   node scripts/imagens/crawl-daikin-curl.mjs
 #   node scripts/imagens/crawl-midea-curl.mjs
 #   node scripts/imagens/crawl-megaclima-curl.mjs [--brand daikin]
+#   node scripts/imagens/crawl-hisense-es-curl.mjs     # hisense.es (gama comercial, Hi-Water)
+#   node scripts/imagens/crawl-hisense-hvac-curl.mjs   # hisensehvac.com (VRF, Hi-Therma, chillers)
 pnpm imagens:targets    # → product-scaffold/targets.json (needs IMPORT_SECRET)
 # Brand not imported into Convex yet? Build its targets from the extraction CSV
 # (replaces that brand's entries; re-run imagens:targets after the import):

@@ -128,6 +128,7 @@ export const diffValidator = v.union(
 export const fonteCandidataValidator = v.union(
   v.literal("site"),
   v.literal("megaclima"),
+  v.literal("web"),
   v.literal("pdf"),
   v.literal("upload"),
   v.literal("recorte"),

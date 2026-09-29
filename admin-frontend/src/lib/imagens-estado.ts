@@ -1,6 +1,6 @@
 // Pure state for the review page's image panel. The active list is the group
 // list or, when a ref is selected, that ref's override (seeded from the group).
-export type Fonte = "site" | "megaclima" | "pdf" | "upload" | "recorte"
+export type Fonte = "site" | "megaclima" | "web" | "pdf" | "upload" | "recorte"
 export type Imagem = { ficheiro: string; url: string }
 export type Candidata = Imagem & {
   _id: string

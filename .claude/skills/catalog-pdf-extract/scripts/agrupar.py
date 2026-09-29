@@ -111,7 +111,9 @@ def _nome_grupo(seccao: dict, familia: str, componente: str, gama: str) -> str:
     return f"{base} | {comp}" if comp else base
 
 
-def _sufixo_capacidade(attrs: dict[str, str]) -> str:
+def _sufixo_capacidade(attrs: dict[str, str], familia: str = "") -> str:
+    if familia == "aqs" and attrs.get("deposito-l"):    # AQS varia pelo depósito, não pelos kW
+        return f"{attrs['deposito-l']} L"
     if attrs.get("frio-kw"):
         return f"{attrs['frio-kw']} kW"
     if attrs.get("calor-kw"):
@@ -126,7 +128,7 @@ def _sufixo_capacidade(attrs: dict[str, str]) -> str:
 
 
 def _atributos_ordenados(campos: dict[str, str], contexto: dict[str, str], familia: str,
-                         componente: str) -> OrderedDict:
+                         componente: str, sistema: str | None = None) -> OrderedDict:
     d: dict[str, str] = {}
     for k in EIXOS:
         v = contexto.get(k) or campos.get(k)
@@ -136,7 +138,8 @@ def _atributos_ordenados(campos: dict[str, str], contexto: dict[str, str], famil
     if dims:
         if familia in ("ar-condicionado", "bombas-de-calor", "ventiloconvectores") and componente in (
                 "conjunto", "unidade-interior", "unidade-exterior"):
-            d["dimensoes-ue" if componente == "unidade-exterior" else "dimensoes-ui"] = dims
+            exterior = componente == "unidade-exterior" or sistema == "monobloco"   # monobloco = só UE
+            d["dimensoes-ue" if exterior else "dimensoes-ui"] = dims
         else:
             d["dimensoes"] = dims
     for k in ORDEM_SPECS:
@@ -237,6 +240,11 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
                 comp = s["componente"]
         elif comp == "unidade-exterior" and l["ref"] in acessorio_do_conjunto:
             comp = "acessorio"
+        # Monoblocos e chillers imprimem "UE" na coluna Categoria, mas a unidade
+        # exterior é o produto inteiro (não há UI): fica conjunto como a secção diz.
+        if comp == "unidade-exterior" and s["componente"] == "conjunto" and (
+                s.get("sistema") == "monobloco" or familia == "chillers"):
+            comp = "conjunto"
         if familia == "acessorios-e-controlo" or comp in ("acessorio", "comando"):
             desc = l["campos"].get("descricao", "")
             litros = re.match(r"(?i)^dep[óo]sito\b.*?(\d{2,4})\s*L\b", desc)
@@ -250,6 +258,7 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
                 if COMANDO_RX.search(desc) or s["componente"] == "comando":
                     comp = "comando"
                 familia = "acessorios-e-controlo"
+                l["campos"].pop("wifi", None)                # nota "* WIFI opcional" é da UI, não do painel
         l["_componente"] = comp
         l["_familia"] = familia
         # UI/UE vendidas à parte herdam os kW do conjunto (a tabela só os imprime
@@ -335,7 +344,11 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
             nome_grupo = _primeira_frase(desc) if desc else ""
             if not nome_grupo or not re.search(r"[A-Za-z]{3}", nome_grupo):
                 painel = "cassete" in (s.get("tipoUnidade") or "") and s["familia"] != "acessorios-e-controlo"
-                nome_grupo = f"{'Painel' if painel else FAM_LABEL['acessorios-e-controlo']} {codigo}"
+                titulo = (s.get("gama") or s["titulo"]).strip()
+                if s["familia"] == "acessorios-e-controlo" and not re.match(r"(?i)^acess", titulo):
+                    nome_grupo = f"{titulo} {codigo}"           # "Kit de conexão UTA HZX-BEJ"
+                else:
+                    nome_grupo = f"{'Painel' if painel else FAM_LABEL['acessorios-e-controlo']} {codigo}"
             elif ACESSORIO_NOME_RX.match(nome_grupo) and len(nome_grupo.split()) <= 2:
                 nome_grupo = f"{nome_grupo} {codigo}"
             grupo = grupo_modelo(marca, None, comp, ref=codigo)
@@ -344,8 +357,12 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
         elif chave[2] == "acc":                        # produto reclassificado (ex.: depósito AQS)
             gama = _primeira_frase(desc) or ref
             nome_grupo = gama
+            if slug(gama) == comp:                       # "Depósito" → série pela ref (HDHWT)
+                gama = None
+                nome_grupo = f"{nome_grupo} {prefixo_serie(ref)}"
             grupo = grupo_modelo(marca, gama if tamanho_grupo[chave] > 1 else None, comp,
-                                 ref=esqueleto(ref).replace("#", "") if tamanho_grupo[chave] > 1 else ref)
+                                 ref=(prefixo_serie(ref) if gama is None else esqueleto(ref).replace("#", ""))
+                                 if tamanho_grupo[chave] > 1 else ref)
             tipo_unidade = "deposito" if comp == "deposito" else None
             sistema = None
         else:
@@ -357,7 +374,7 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
                 tipo_unidade = "exterior"
             sistema = s.get("sistema")
 
-        attrs = _atributos_ordenados(l["campos"], l["contexto"], familia, comp)
+        attrs = _atributos_ordenados(l["campos"], l["contexto"], familia, comp, sistema)
 
         pvp = l["pvpCents"]
         if pvp is None:
@@ -387,13 +404,13 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
     # 6. Nomes das variantes e desambiguação de títulos.
     for grupo, membros_g in grupos.items():
         varia_fase = len({dict((a["chave"], a["valor"]) for a in m["atributos"]).get("alimentacao") for m in membros_g}) > 1
-        varia_capacidade = len({_sufixo_capacidade({a["chave"]: a["valor"] for a in m["atributos"]})
+        varia_capacidade = len({_sufixo_capacidade({a["chave"]: a["valor"] for a in m["atributos"]}, m["familia"])
                                 for m in membros_g}) > 1
         for m in membros_g:
             attrs = {a["chave"]: a["valor"] for a in m["atributos"]}
             bits = [m["nomeGrupo"]]
             if m["familia"] != "acessorios-e-controlo" or varia_capacidade:
-                suf = _sufixo_capacidade(attrs)
+                suf = _sufixo_capacidade(attrs, m["familia"])
                 if suf:
                     bits.append(suf)
                 if attrs.get("unidades-max"):

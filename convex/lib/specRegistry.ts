@@ -162,12 +162,19 @@ const TUBAGEM: Base = {
 
 // --- Registry ----------------------------------------------------------------
 
+// AHU connection kits (Hisense HZX, Daikin EKEXV) and heat-recovery boxes are
+// priced as accessories but sized by capacity/CV, refrigerant and power supply.
 const ACESSORIOS: CategoriaSpecs = {
   chaves: [
     chave({ ...TIPO, hero: true }),
     chave({ ...COMPATIVEL_COM, hero: true }),
     chave({ ...COR, hero: true }),
     chave(DIMENSOES),
+    chave(FRIO_KW),
+    chave(CALOR_KW),
+    chave(numero("cv", "Potência", "CV")),
+    chave(REFRIGERANTE),
+    chave(ALIMENTACAO),
   ],
 };
 

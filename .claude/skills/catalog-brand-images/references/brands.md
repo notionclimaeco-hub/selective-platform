@@ -16,7 +16,25 @@ Config de sementes: `scripts/imagens/crawl.config.json`.
   Uma UE não vai buscar fotos à página da série da UI: procurar nestas fontes.
 - UE das linhas conduta/coluna (`AUW*`): packshots de exterior das multi, não
   as fotos `hisense-conduta-*` (que são de interior).
+- A página de categoria `/ar-condicionado-profissional/cassete/` lista a gama
+  comercial inteira com `alt` = "Tipo REF" e ficheiros com as refs
+  (`AUW105U4RA4-4AMW81U4RAA…png`): é a forma mais rápida de ligar packshot a
+  ref; o `manifest.json` guarda o `alt`.
+- hisense.pt só tem splits residenciais/comerciais. As outras gamas estão em
+  dois sites oficiais, ambos `fonte: "site"`:
+  - **hisense.es** (Hisense Iberia, mesma tabela): gama comercial completa com
+    as refs atuais (`turbo-inverter/…`, `super-inverter/…`, páginas
+    `exterior-auw*` só de UE), Multifunción II (`multifuncion/afw-*`, `afm/afs`
+    = hydrobox), Hi-Water (`heat-pump/…`).
+    `node scripts/imagens/crawl-hisense-es-curl.mjs` (curl, sitemap; muitos
+    URLs do sitemap dão 404 — é normal; ~15 s/página).
+  - **hisensehvac.com** (Hisense HVAC global): VRF (Hi-Smart/Hi-FLEXi, UI VRF
+    por tipo), Hi-Therma (ATW), chillers, recuperadores.
+    `node scripts/imagens/crawl-hisense-hvac-curl.mjs` — galeria `.scrolBox`,
+    packshots a 710×400. Um `.png` pode ser BMP (Hi-Smart C+): converter.
 - Megaclima: `node scripts/imagens/crawl-megaclima-curl.mjs --brand hisense`.
+- Sem foto em lado nenhum (2026): Hi-Smart I centrífugo (brochura Hisense
+  em aunadistribucion.com, `fonte: "web"`), depósito HDHWT (revendedor).
 
 ## Mitsubishi Electric
 

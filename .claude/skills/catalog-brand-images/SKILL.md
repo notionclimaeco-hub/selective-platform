@@ -48,6 +48,9 @@ de TLS e de URL de cada marca), mas a decisão do que é um packshot é tua:
 
 ## 3. Fallbacks, por esta ordem
 
+0. Outro site oficial da marca (ex.: Hisense tem hisense.pt, hisense.es e
+   hisensehvac.com): continua a ser `fonte: "site"`. Ver
+   [references/brands.md](references/brands.md).
 1. Megaclima: `node scripts/imagens/crawl-megaclima-curl.mjs --brand {marca}`
    e escolher à mão o que serve. O crawler escreve em
    `product-scaffold/crawl-raw/{marca}/<pageSlug>/NN.png` e no `manifest.json`
@@ -63,6 +66,13 @@ de TLS e de URL de cada marca), mas a decisão do que é um packshot é tua:
    (`../../pdf-images/{marca}/{grupo}/NN.png`), `"fonte": "pdf"` e
    `"origemUrl": "pdf:<pagina>"`.
 
+3. Pesquisa pela ref (`"Hisense AVW-54H6FH3-C"`): páginas de revendedores,
+   brochuras da marca alojadas por distribuidores. Só packshots do fabricante
+   que o revendedor republica — nunca fotos próprias da loja, com marca de
+   água ou de ambiente. Guardar com `"fonte": "web"` e `origemUrl` da página.
+   (O endpoint de imagens do DuckDuckGo recusa scripts; usar a pesquisa web
+   normal e abrir as páginas dos resultados.)
+
 Cada uso de fallback fica listado no PR.
 
 ## 4. Manifesto e upload
@@ -73,6 +83,8 @@ Cada uso de fallback fica listado no PR.
 { "hisense-air-master": [
     { "ficheiro": "hisense-air-master/01.jpg", "fonte": "site", "origemUrl": "https://hisense.pt/…", "cor": "branco" } ] }
 ```
+
+`fonte` ∈ `site` | `megaclima` | `web` | `pdf` | `upload` (o `recorte` é gerado).
 
 O valor de `cor` tem de ser exatamente um dos `cores` desse grupo em
 `alvos.json` (valores de cor do registo); senão o `cobertura.md` conta a cor
@@ -101,8 +113,8 @@ produtos vivos.
 
 `cobertura.md`: contagens por fonte por grupo, grupos sem candidatas, grupos
 com cores em falta, UE só com fotos de interior. Barra mínima: todos os grupos
-de equipamento com pelo menos uma candidata de `site` ou `megaclima`, ou uma
-razão escrita.
+de equipamento com pelo menos uma candidata de `site`, `megaclima` ou `web`,
+ou uma razão escrita.
 
 ## Notas por marca
 

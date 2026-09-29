@@ -231,6 +231,7 @@ export const DIFF_CLASSES: Record<Diff, string> = {
 export const FONTE_LABELS: Record<Fonte, string> = {
   site: "Site",
   megaclima: "Megaclima",
+  web: "Web",
   pdf: "PDF",
   upload: "Upload",
   recorte: "Recortes",

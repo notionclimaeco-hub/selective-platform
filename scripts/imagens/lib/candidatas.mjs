@@ -2,7 +2,8 @@
 import { createHash } from "node:crypto"
 import sharp from "sharp"
 
-export const FONTES = ["site", "megaclima", "pdf", "upload", "recorte"]
+// "web": packshot found by searching the ref (dealer listings, image search); origemUrl says where.
+export const FONTES = ["site", "megaclima", "web", "pdf", "upload", "recorte"]
 
 /** manifest {grupoModelo: [{ficheiro, fonte, origemUrl?, cor?}]} → flat entries. */
 export function lerManifesto(json, alvos) {
@@ -39,23 +40,23 @@ export function cobertura(alvos, entradas) {
       g.componente === "unidade-exterior" && minhas.length > 0 &&
       minhas.some((e) => INTERIOR_RX.test(e.ficheiro)) &&
       !minhas.some((e) => EXTERIOR_RX.test(e.ficheiro))
-    porGrupo.push({ grupoModelo: g.grupoModelo, site: n("site"), megaclima: n("megaclima"), pdf: n("pdf"),
+    porGrupo.push({ grupoModelo: g.grupoModelo, site: n("site"), megaclima: n("megaclima"), web: n("web"), pdf: n("pdf"),
       upload: n("upload"), recorte: n("recorte"), coresEmFalta, soInterior })
     if (g.acessorio) continue
     if (minhas.length === 0) semCandidatas.push(g.grupoModelo)
-    if (n("site") + n("megaclima") === 0) equipamentoSemSiteNemMegaclima.push(g.grupoModelo)
+    if (n("site") + n("megaclima") + n("web") === 0) equipamentoSemSiteNemMegaclima.push(g.grupoModelo)
   }
   return { porGrupo, semCandidatas, equipamentoSemSiteNemMegaclima }
 }
 
 export function coberturaMarkdown(c) {
-  const linhas = ["# Cobertura de imagens", "", "| grupo | site | megaclima | pdf | upload | recorte | cores em falta | só interior |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+  const linhas = ["# Cobertura de imagens", "", "| grupo | site | megaclima | web | pdf | upload | recorte | cores em falta | só interior |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
   for (const g of c.porGrupo) {
-    linhas.push(`| ${g.grupoModelo} | ${g.site} | ${g.megaclima} | ${g.pdf} | ${g.upload} | ${g.recorte} | ${g.coresEmFalta.join(", ") || "—"} | ${g.soInterior ? "⚠" : ""} |`)
+    linhas.push(`| ${g.grupoModelo} | ${g.site} | ${g.megaclima} | ${g.web} | ${g.pdf} | ${g.upload} | ${g.recorte} | ${g.coresEmFalta.join(", ") || "—"} | ${g.soInterior ? "⚠" : ""} |`)
   }
   linhas.push("", `## Sem candidatas (${c.semCandidatas.length})`, ...c.semCandidatas.map((g) => `- ${g}`))
-  linhas.push("", `## Equipamento sem foto do site nem Megaclima (${c.equipamentoSemSiteNemMegaclima.length})`,
+  linhas.push("", `## Equipamento sem foto do site, Megaclima nem web (${c.equipamentoSemSiteNemMegaclima.length})`,
     ...c.equipamentoSemSiteNemMegaclima.map((g) => `- ${g}`))
   return linhas.join("\n") + "\n"
 }
