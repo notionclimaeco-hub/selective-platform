@@ -229,3 +229,27 @@ drag via the long-press pointer sensor already used on the products page.
 - Batch cutouts in the browser, cropping or other edits.
 - Client catalog display changes (it keeps reading `produtos.imagens`).
 - Retiring `catalog-brand-import` (ticket #53).
+
+## Deviations recorded during implementation (2026-09-29)
+
+- Promotion patches `produtos.imagens` directly (not through
+  `definirImagensProduto`) and, right after each batch, deletes the replaced
+  files that are not in the brand-wide in-use set; the scheduled cleanup
+  keeps any file chosen by any decision of the brand.
+- Candidate dedupe is per (`grupoModelo`, `hash`), index `by_grupo_hash`: the
+  same bytes in two groups are two rows and two files.
+- `definirImagensProduto` orphan protection is brand-wide: it reads
+  candidates and decisions `by_marca`.
+- The panel does not fork the group list when a ref is selected; an override
+  is created on the first edit and dropped on save when it equals the group
+  list.
+- Save feedback is a `sonner` toast with "Reverter" (the admin app gained
+  `sonner`).
+- `redimensionar` keeps WebP as WebP; the strip's sensors are Mouse, Touch
+  (long press) and Keyboard; object URLs come from `useObjectUrls`.
+- The panel scopes `atuais` and `porRef` to the run's staged refs.
+- `@imgly/background-removal`'s default model is ~80 MB (not ~40 MB) and its
+  assets load from IMG.LY's CDN.
+- `cobertura.md` "só interior" ignores neutral filenames and matches UI/UE
+  as delimited tokens.
+- `limparCandidatasDaRun` uses the brand-wide kept set.
