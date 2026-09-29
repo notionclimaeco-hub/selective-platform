@@ -40,4 +40,28 @@ describe("cobertura", () => {
     expect(c.equipamentoSemSiteNemMegaclima).toEqual(["hisense-air-master-unidade-exterior"]);
     expect(coberturaMarkdown(c)).toContain("hisense-air-master-unidade-exterior");
   });
+
+  it("respects word boundaries for ui/ue detection", () => {
+    const c = cobertura(alvos, [
+      // outdoor-unit.jpg should not match ue word boundary, soInterior should be false
+      { grupoModelo: "hisense-air-master-unidade-exterior", marca: "hisense", ficheiro: "outdoor-unit.jpg", fonte: "pdf" },
+    ]);
+    const ueOutdoor = c.porGrupo.find((g) => g.grupoModelo === "hisense-air-master-unidade-exterior");
+    expect(ueOutdoor).toMatchObject({ pdf: 1, soInterior: false });
+
+    // 01-ui.png should match ui word boundary, soInterior should be true
+    const c2 = cobertura(alvos, [
+      { grupoModelo: "hisense-air-master-unidade-exterior", marca: "hisense", ficheiro: "01-ui.png", fonte: "pdf" },
+    ]);
+    const ueUi = c2.porGrupo.find((g) => g.grupoModelo === "hisense-air-master-unidade-exterior");
+    expect(ueUi).toMatchObject({ pdf: 1, soInterior: true });
+
+    // queue.jpg should not match ue, ui-front.jpg matches ui, soInterior should be true
+    const c3 = cobertura(alvos, [
+      { grupoModelo: "hisense-air-master-unidade-exterior", marca: "hisense", ficheiro: "ui-front.jpg", fonte: "pdf" },
+      { grupoModelo: "hisense-air-master-unidade-exterior", marca: "hisense", ficheiro: "queue.jpg", fonte: "pdf" },
+    ]);
+    const ueMultiple = c3.porGrupo.find((g) => g.grupoModelo === "hisense-air-master-unidade-exterior");
+    expect(ueMultiple).toMatchObject({ pdf: 2, soInterior: true });
+  });
 });

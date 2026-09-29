@@ -20,8 +20,8 @@ export function lerManifesto(json, alvos) {
   return out
 }
 
-const INTERIOR_RX = /(?:interior|indoor|ui|_ui|mural|wall)/i
-const EXTERIOR_RX = /(?:exterior|outdoor|ue|_ue|multisplit|condens)/i
+const INTERIOR_RX = /(?:interior|indoor|mural|wall|(?:^|[^a-z])ui(?![a-z]))/i
+const EXTERIOR_RX = /(?:exterior|outdoor|multisplit|condens|(?:^|[^a-z])ue(?![a-z]))/i
 
 export function cobertura(alvos, entradas) {
   const porGrupo = []
@@ -34,7 +34,8 @@ export function cobertura(alvos, entradas) {
     const coresEmFalta = g.cores.filter((c) => !cores.has(c))
     const soInterior =
       g.componente === "unidade-exterior" && minhas.length > 0 &&
-      minhas.every((e) => INTERIOR_RX.test(e.ficheiro) && !EXTERIOR_RX.test(e.ficheiro))
+      minhas.some((e) => INTERIOR_RX.test(e.ficheiro)) &&
+      !minhas.some((e) => EXTERIOR_RX.test(e.ficheiro))
     porGrupo.push({ grupoModelo: g.grupoModelo, site: n("site"), megaclima: n("megaclima"), pdf: n("pdf"),
       upload: n("upload"), recorte: n("recorte"), coresEmFalta, soInterior })
     if (g.acessorio) continue
