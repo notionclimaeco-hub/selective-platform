@@ -72,6 +72,7 @@ for (let i = 0; i < preparadas.length; i += 50) {
     const c = { marca: p.marca, grupoModelo: p.grupoModelo, ficheiro: storageId, fonte: p.fonte, hash: p.hash,
       largura: p.largura, altura: p.altura }
     if (p.origemUrl) c.origemUrl = p.origemUrl
+    if (p.aviso) c.aviso = p.aviso
     if (p.cor) c.cor = p.cor
     if (p.fonte === "recorte" && p.origemDe) c.origemHash = hashDe.get(p.origemDe)
     lote.push(c)

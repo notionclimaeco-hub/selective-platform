@@ -274,6 +274,7 @@ const candidataEntradaValidator = v.object({
   cor: v.optional(v.string()),
   // For "recorte" rows uploaded by the script: hash of the source candidate.
   origemHash: v.optional(v.string()),
+  aviso: v.optional(v.string()),
 });
 
 /** A candidate is identified by (grupoModelo, hash): the same bytes may be a candidate in several groups. */
@@ -307,9 +308,10 @@ export const registarCandidatas = mutation({
       const existente = await candidataPorHash(ctx, c.grupoModelo, c.hash);
       if (existente) {
         repetidas++;
-        const patch: { origemUrl?: string; cor?: string } = {};
+        const patch: { origemUrl?: string; cor?: string; aviso?: string } = {};
         if (c.origemUrl !== undefined) patch.origemUrl = c.origemUrl;
         if (c.cor !== undefined) patch.cor = c.cor;
+        if (c.aviso !== undefined && c.aviso !== existente.aviso) patch.aviso = c.aviso;
         if (Object.keys(patch).length > 0) await ctx.db.patch(existente._id, patch);
         if (existente.ficheiro !== c.ficheiro) await ctx.storage.delete(c.ficheiro);
         continue;
@@ -329,6 +331,7 @@ export const registarCandidatas = mutation({
         altura: c.altura,
         cor: c.cor,
         origem,
+        aviso: c.aviso,
         criadoEm: agora,
       });
       criadas++;
@@ -431,6 +434,7 @@ export const obterGrupoImagens = query({
         recorteId: v.optional(v.id("imagensCandidatas")),
         largura: v.number(),
         altura: v.number(),
+        aviso: v.optional(v.string()),
       }),
     ),
     escolhidas: v.union(
@@ -455,7 +459,7 @@ export const obterGrupoImagens = query({
       candidatas.push({
         _id: r._id, ficheiro: r.ficheiro, url: await ctx.storage.getUrl(r.ficheiro),
         fonte: r.fonte, origemUrl: r.origemUrl, cor: r.cor, origem: r.origem,
-        recorteId: recortePor.get(r._id), largura: r.largura, altura: r.altura,
+        recorteId: recortePor.get(r._id), largura: r.largura, altura: r.altura, aviso: r.aviso,
       });
     }
     const decisao = await ctx.db

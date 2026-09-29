@@ -18,6 +18,7 @@ export function lerManifesto(json, alvos) {
       const entrada = { grupoModelo, marca: alvos.marca, ficheiro: e.ficheiro, fonte: e.fonte }
       if (e.origemUrl) entrada.origemUrl = e.origemUrl
       if (e.cor) entrada.cor = e.cor
+      if (e.aviso) entrada.aviso = e.aviso   // why the agent doubts this photo; shown in the review
       out.push(entrada)
     }
   }

@@ -76,6 +76,9 @@ export type ResumoGrupo = {
   precisaRevisao: boolean;
   // A staff image decision or a live product with images exists.
   temImagens: boolean;
+  // Every candidate photo of the group carries an agent warning (generic
+  // outdoor unit, sister series, PDF thumbnail…): the reviewer should look.
+  fotosARever: boolean;
 };
 
 /** One summary per grupoModelo, sorted by nomeGrupo then grupoModelo. */
@@ -104,6 +107,7 @@ export function resumirGrupos(
         revisto: true,
         precisaRevisao: false,
         temImagens: false,
+        fotosARever: false,
       };
       grupos.set(l.grupoModelo, r);
     }
@@ -163,6 +167,7 @@ export type CriteriosGrupos = {
   soAlterados?: boolean;
   soPorRever?: boolean;
   soSemImagens?: boolean;
+  soFotosARever?: boolean;
 };
 
 /**
@@ -189,6 +194,7 @@ export function filtrarPorCriterios(
     if (c.soAlterados && r.numAlterados === 0) return false;
     if (c.soPorRever && !(r.precisaRevisao && !r.revisto)) return false;
     if (c.soSemImagens && r.temImagens) return false;
+    if (c.soFotosARever && !r.fotosARever) return false;
     return true;
   });
 }

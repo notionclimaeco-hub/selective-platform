@@ -350,6 +350,10 @@ export default defineSchema({
     altura: v.number(),
     cor: v.optional(v.string()), // registry colour value when known
     origem: v.optional(v.id("imagensCandidatas")), // recorte: source candidate
+    // Why the agent doubts this photo (generic outdoor unit, sister series,
+    // PDF thumbnail, dealer watermark…); shown on the thumbnail and rolled up
+    // into the group's "Fotos a rever" flag.
+    aviso: v.optional(v.string()),
     criadoEm: v.number(),
   })
     .index("by_grupo", ["grupoModelo"])

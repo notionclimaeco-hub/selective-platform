@@ -89,6 +89,12 @@ Cada uso de fallback fica listado no PR.
 ```
 
 `fonte` ∈ `site` | `megaclima` | `web` | `pdf` | `upload` (o `recorte` é gerado).
+`"aviso"` (opcional) diz porque é que a foto merece dúvida — UE genérica da
+gama, série irmã, miniatura do PDF, marca de água de revendedor, modelo
+anterior, imagem pequena (< 400 px). Aparece na miniatura na revisão e, quando
+todas as candidatas de um grupo têm aviso, o grupo leva a etiqueta "Fotos a
+rever" (filtro "Só fotos a rever"). Pôr aviso em tudo o que não é um packshot
+confirmado da ref.
 
 O valor de `cor` tem de ser exatamente um dos `cores` desse grupo em
 `alvos.json` (valores de cor do registo); senão o `cobertura.md` conta a cor

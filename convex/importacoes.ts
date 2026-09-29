@@ -647,6 +647,7 @@ export const resumoGrupoValidator = v.object({
   revisto: v.boolean(),
   precisaRevisao: v.boolean(),
   temImagens: v.boolean(),
+  fotosARever: v.boolean(),
 });
 
 export const filtroGruposValidator = v.union(
@@ -705,6 +706,7 @@ export const obter = query({
     soAlterados: v.optional(v.boolean()),
     soPorRever: v.optional(v.boolean()),
     soSemImagens: v.optional(v.boolean()),
+    soFotosARever: v.optional(v.boolean()),
   },
   returns: v.union(
     v.null(),
@@ -719,6 +721,7 @@ export const obter = query({
       pagina: v.number(),
       gruposPorRever: v.number(),
       gruposSemImagens: v.number(),
+      gruposFotosARever: v.number(),
       familias: v.array(v.string()),
     }),
   ),
@@ -729,6 +732,11 @@ export const obter = query({
 
     const resumos = resumirGrupos(await linhasDaRun(ctx, run._id));
     for (const r of resumos) {
+      const candidatas = await ctx.db
+        .query("imagensCandidatas")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", r.grupoModelo))
+        .collect();
+      r.fotosARever = candidatas.length > 0 && candidatas.every((c) => c.aviso !== undefined);
       const decisao = await ctx.db
         .query("imagensGrupo")
         .withIndex("by_grupo", (q) => q.eq("grupoModelo", r.grupoModelo))
@@ -744,6 +752,7 @@ export const obter = query({
       r.temImagens = vivos.some((p) => p.imagens.length > 0);
     }
     const semImagens = resumos.filter((r) => !r.temImagens).length;
+    const fotosARever = resumos.filter((r) => r.fotosARever).length;
     const porRever = gruposPorRever(resumos).length;
     const filtrados = filtrarPorCriterios(
       filtrarGrupos(resumos, args.filtro ?? "todos"),
@@ -754,6 +763,7 @@ export const obter = query({
         soAlterados: args.soAlterados,
         soPorRever: args.soPorRever,
         soSemImagens: args.soSemImagens,
+        soFotosARever: args.soFotosARever,
       },
     );
     const familias = [...new Set(resumos.map((r) => r.familia))].sort();
@@ -772,6 +782,7 @@ export const obter = query({
       pagina,
       gruposPorRever: porRever,
       gruposSemImagens: semImagens,
+      gruposFotosARever: fotosARever,
       familias,
     };
   },

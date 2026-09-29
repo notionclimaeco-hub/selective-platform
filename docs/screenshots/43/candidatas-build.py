@@ -27,15 +27,20 @@ paginas["web-centrifuga"] = ("web", "https://premios.aunadistribucion.com/upload
 paginas["web-hdhwt"] = ("web", "https://vissklimatam.lv/hisense-hvac-karsta-udens-boileris-200l/")
 
 
-def P(slug, *nums, cor=None):
-    """Files NN of a crawled page folder."""
+def P(slug, *nums, cor=None, nota=None):
+    """Files NN of a crawled page folder. `nota` = why the reviewer should doubt it."""
     out = []
     for n in nums:
         cands = sorted((RAW / slug).glob(f"{n:02d}.*"))
         if not cands:
             raise SystemExit(f"missing {slug}/{n:02d}")
-        out.append((cands[0], slug, cor))
+        out.append((cands[0], slug, cor, nota))
     return out
+
+
+def N(lista, nota):
+    """Same files with a warning attached."""
+    return [(f, s, c, nota) for f, s, c, _ in lista]
 
 
 # --- hisense.pt page folders
@@ -47,17 +52,22 @@ UNI_PURE_BRANCO = P("es-uni-pure-hb25xu0a", 1, cor="branco") + P("es-uni-pure-hb
 UNI_PURE_PRETO = P("es-uni-pure-hb25xu0b", 1, cor="preto") + P("hvac-u6-uni-series", 1, 3, 5, cor="preto")
 MAX_COMFORT = P("es-max-comfort-hisense-hc25yc00", 1) + P("es-max-comfort-hisense-hc70fw00", 1) + P("max-comfort-hc25yc0ug-monosplit-25kw-wifi", 1, 2)
 PERLA = P("es-brissa-ca25yr03", 1, 2, 3, 4) + P("es-brissa-ca70bt1a-2", 1, 2) + P("ar-condicionado-perla-ca25yr1a", 1, 2, 5, 6, 8, 9) + P("hisense-mural-perla", 1)
-COMFORT = P("es-comfort-dj25ve0b", 1) + P("ar-condicionado-comfort-dj25ve0b", 1, 2, 3, 4, 7, 8, 9, 10) + P("hisense-mural-comfort-1", 1)
-UE_RESID = P("ar-condicionado-comfort-dj25ve0b", 11) + P("cassete", 4) + P("hisense-exterior-2amw42u4rgc-3", 1)
+COMFORT = N(P("es-comfort-dj25ve0b", 1) + P("ar-condicionado-comfort-dj25ve0b", 1, 2, 3, 4, 7, 8, 9, 10) + P("hisense-mural-comfort-1", 1),
+    "Série irmã (Comfort DJ*VE0B), não a Premium Comfort DJ*LE0UG — confirmar a carcaça")
+UE_RESID = N(P("ar-condicionado-comfort-dj25ve0b", 11) + P("cassete", 4) + P("hisense-exterior-2amw42u4rgc-3", 1),
+    "Unidade exterior genérica da gama, não a desta ref")
 MULTI_UE = P("es-multi-amw2-14u4rgc", 1, 2, 3) + P("es-multi-amw3-21u4rjc", 1, 2, 3) + P("es-multi-amw4-27u4rjc", 1, 2, 3) + P("es-multi-2x1-2amw52u4rxc", 1, 2) + \
     P("multisplit-2amw42u4rra", 1) + P("multisplit-2ma912tg1", 3) + P("multisplit-3amw62u4rfa", 1) + \
     P("multisplit-4amw105u4raa", 1) + P("multisplit-5amw125u4rta", 1) + P("cassete", 4, 5, 6, 30) + \
     P("hvac-freematch", 1, 2, 3) + P("hisense-exterior-2amw42u4rgc-3", 1)
+UE_GEN = "Unidade exterior da gama (AUW), ref não confirmada para este grupo"
 UE_COMERCIAL_S = P("es-exterior-auw26u4rs8", 1, 2) + P("es-exterior-auw35u4rs8", 1) + P("es-exterior-auw52u4rj8", 1) + P("es-exterior-auw52u4rs7", 1, 2) + \
     P("es-exterior-auw71u4rk8", 1) + P("cassete", 4) + P("hisense-exterior-2amw42u4rgc-3", 1)          # AUW26–71 (ADT/ACT/AKT pairs)
-UE_COMERCIAL_M = P("es-exterior-auw71u4rk8", 1) + P("es-exterior-auw71u4rj7", 1) + P("es-exterior-auw90u4rf4", 1) + P("es-auw105u6rn8", 1, 2) + P("cassete", 5, 6)   # AUW71–105
+UE_COMERCIAL_S = N(UE_COMERCIAL_S, UE_GEN)
+UE_COMERCIAL_M = N(P("es-exterior-auw71u4rk8", 1) + P("es-exterior-auw71u4rj7", 1) + P("es-exterior-auw90u4rf4", 1) + P("es-auw105u6rn8", 1, 2) + P("cassete", 5, 6), UE_GEN)   # AUW71–105
 UE_COMERCIAL_L = P("es-auw105u6rn8", 1, 2) + P("es-exterior-auw125u6rn8", 1, 2) + P("es-exterior-auw140u6rn8", 1) + P("es-exterior-auw125u4rt5", 1, 2) + \
     P("es-exterior-auw175u6rp4", 1, 2) + P("cassete", 6)                                              # AUW105–175
+UE_COMERCIAL_L = N(UE_COMERCIAL_L, UE_GEN)
 CONDUTA_BAIXA = P("es-adt26ux4rsbl8", 1) + P("es-adt52ux4rjcl8", 1) + P("cassete", 9, 19) + P("hvac-ceiling-ducted-dc-low-height", 2, 3) + P("hisense-conduta-baixa", 1)
 CONDUTA_MEDIA = P("es-aud71ux4rkfm8", 1, 2, 3) + P("es-conducto-aud-36ux4reh8", 1, 2) + P("cassete", 10, 19, 20) + P("hisense-conduta-media", 1)
 CONDUTA_ALTA = P("es-conducto-aud-75ux4rph8", 1, 2) + P("es-conducto-aud105ux4radh5", 1) + P("cassete", 11, 21, 20) + P("hisense-conduta-alta-1", 1)
@@ -76,7 +86,9 @@ HT_INTEGRA_UI = P("hvac-hi-therma-integra", 1, 2, 3, 4)
 HT_MONO = P("hvac-hi-therma-monobloc", 1, 2, 3, 4)
 HT2_M = P("hvac-hi-therma-ii-mono-solution", 1, 2)
 HT2_HYDRO = P("hvac-hi-therma-ii-hydro-solution", 1, 2)
-CHILLER = P("hvac-air-cooled-scroll-chiller-heat-pump-hi-mod-v-series", 1, 2) + P("hvac-dc-air-cooled-scroll-chiller-heat-pump-hi-mod-ve1-series", 1, 2, 3)
+HT2_M_COMO_UE = N(HT2_M, "Unidade exterior da Hi-Therma II M (série irmã)")
+CHILLER = N(P("hvac-air-cooled-scroll-chiller-heat-pump-hi-mod-v-series", 1, 2) + P("hvac-dc-air-cooled-scroll-chiller-heat-pump-hi-mod-ve1-series", 1, 2, 3),
+    "Série Hi-Mod do site global; modelo HFRWVE não confirmado")
 HRV = P("hvac-heat-recovery-ventilator", 1, 2)
 
 grupos = {
@@ -88,7 +100,7 @@ grupos = {
     "hisense-energy-pro-x-unidade-exterior": UE_RESID,
     "hisense-uni-pure": UNI_PURE_BRANCO + UNI_PURE_PRETO + UE_RESID,
     "hisense-uni-pure-unidade-interior": UNI_PURE_BRANCO + UNI_PURE_PRETO,
-    "hisense-uni-pure-unidade-exterior": [(f, s, "branco") for f, s, _ in UE_RESID],
+    "hisense-uni-pure-unidade-exterior": [(f, s, "branco", n) for f, s, _, n in UE_RESID],
     "hisense-max-comfort": MAX_COMFORT + UE_RESID,
     "hisense-max-comfort-unidade-interior": MAX_COMFORT,
     "hisense-max-comfort-unidade-exterior": UE_RESID,
@@ -137,7 +149,7 @@ grupos = {
     "hisense-mini-vrf-hi-smart-a-unidade-exterior": P("hvac-hi-smart-a-series", 1, 2, 3, 4),
     "hisense-vrf-multifuncoes-ii-r32-unidade-exterior": P("es-multifuncion-afw-34fjdh1", 1, 5, 6, 7) + P("hvac-multi-function-ii-series", 1, 2, 3, 4),
     "hisense-vrf-serie-s-unidade-exterior": P("hvac-hi-flexi-s-series", 1, 2, 3, 4, 5),
-    "hisense-vrf-s-especial-anticorrosao-unidade-exterior": P("hvac-hi-flexi-s-series", 1, 2, 3, 4, 5),
+    "hisense-vrf-s-especial-anticorrosao-unidade-exterior": P("hvac-hi-flexi-s-series", 1, 2, 3, 4, 5, nota="Foto da Serie S normal; a versão anticorrosão não tem foto própria"),
     "hisense-vrf-s5-bomba-de-calor-unidade-exterior": P("hvac-hi-flexi-s5-series", 1, 3, 4, 5, 6, 7),
     "hisense-vrf-serie-w-unidade-exterior": P("hvac-hi-flexi-w5-series", 1, 2, 3),
     # VRF indoor
@@ -152,7 +164,7 @@ grupos = {
     "hisense-vrf-chao-teto-unidade-interior": P("hvac-ceiling-and-floor", 2) + P("hvac-ceiling-suspended", 1, 3),
     "hisense-vrf-chao-sem-envolvente-unidade-interior": P("hvac-floor-concealed", 1, 2),
     "hisense-vrf-coluna-unidade-interior": P("hvac-floor-standing", 1, 2, 3, 4, 5),
-    "hisense-vrf-hydrobox-para-serie-s-unidade-interior": P("hvac-multi-function-ii-series", 5),
+    "hisense-vrf-hydrobox-para-serie-s-unidade-interior": P("hvac-multi-function-ii-series", 5, nota="Hydrobox da série Multifunções (série irmã), AHM-*FJFAA não confirmado"),
     "hisense-vrf-hydrobox-para-serie-multifuncoes-unidade-interior": P("es-multifuncion-afm-160hjdh", 1, 5) + P("es-multifuncion-afs-160hjdh-23", 1, 5) + P("hvac-multi-function-ii-series", 5),
     "hisense-vrf-100-ar-novo-unidade-interior": P("hvac-all-fresh-air", 1, 2, 3),
     # Aerotermia / chillers / ventilação
@@ -162,7 +174,7 @@ grupos = {
     "hisense-hi-therma-r32-integra-unidade-interior": HT_INTEGRA_UI,
     "hisense-hi-therma-r32-monobloco": HT_MONO,
     "hisense-hi-therma-ii-m": HT2_M,
-    "hisense-hi-therma-ii-hydro-unidade-exterior": HT2_HYDRO + HT2_M,
+    "hisense-hi-therma-ii-hydro-unidade-exterior": HT2_HYDRO + HT2_M_COMO_UE,
     "hisense-hi-therma-ii-hydro-unidade-interior": HT2_HYDRO,
     "hisense-chiller": CHILLER,
     "hisense-hi-water": P("es-hisense-heat-pump-ah-80nh4geb00", 1, 14, 15) + P("es-hisense-heat-pump-ah-200u4gab00", 1, 14, 15, 16),
@@ -179,19 +191,22 @@ for grupo, itens in grupos.items():
         shutil.rmtree(d)
     d.mkdir(parents=True)
     lista = []
-    for n, (src, slug, cor) in enumerate(itens, 1):
+    for n, (src, slug, cor, nota) in enumerate(itens, 1):
         dst = d / f"{n:02d}{src.suffix.lower()}"
         shutil.copy2(src, dst)
         fonte, url = paginas[slug]
         e = {"ficheiro": f"{grupo}/{dst.name}", "fonte": fonte, "origemUrl": url}
         if cor:
             e["cor"] = cor
+        if nota:
+            e["aviso"] = nota
         lista.append(e)
     manifest[grupo] = lista
 
 # Last resort: the thumbnail the price table prints next to the rows (p32, white twin-fan unit).
 manifest["hisense-vrf-multifuncoes-unidade-exterior"] = [
-    {"ficheiro": "../../pdf-images/hisense/hisense-vrf-multifuncoes-unidade-exterior/02.png", "fonte": "pdf", "origemUrl": "pdf:32"}]
+    {"ficheiro": "../../pdf-images/hisense/hisense-vrf-multifuncoes-unidade-exterior/02.png", "fonte": "pdf", "origemUrl": "pdf:32",
+     "aviso": "Miniatura da tabela de preços (166 px); nenhum site tem foto do AFW-*U4SC"}]
 
 existing = OUT / "candidatas.json"
 if existing.exists():   # keep entries of groups handled elsewhere (pdf/web fallbacks)
