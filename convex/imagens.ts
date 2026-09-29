@@ -4,6 +4,9 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireStaff } from "./lib/auth";
 import { sincronizarGrupo } from "./lib/catalogoGrupos";
+import { conferirSegredo } from "./lib/importSecret";
+import { ficheirosEscolhidos } from "./lib/imagensGrupo";
+import { fonteCandidataValidator } from "./schema";
 
 /**
  * Staff-only image management for products.
@@ -170,5 +173,120 @@ export const definirImagens = mutation({
   handler: async (ctx, args) => {
     await requireStaff(ctx);
     return await definirImagensProduto(ctx, args);
+  },
+});
+
+// --- Candidatas (secret-guarded, filled by scripts/imagens/candidatas.mjs) --
+
+const candidataEntradaValidator = v.object({
+  marca: v.string(),
+  grupoModelo: v.string(),
+  ficheiro: v.id("_storage"),
+  fonte: fonteCandidataValidator,
+  origemUrl: v.optional(v.string()),
+  hash: v.string(),
+  largura: v.number(),
+  altura: v.number(),
+  cor: v.optional(v.string()),
+  // For "recorte" rows uploaded by the script: hash of the source candidate.
+  origemHash: v.optional(v.string()),
+});
+
+async function candidataPorHash(ctx: MutationCtx, hash: string) {
+  return await ctx.db
+    .query("imagensCandidatas")
+    .withIndex("by_hash", (q) => q.eq("hash", hash))
+    .first();
+}
+
+/**
+ * Upsert candidate photos by hash. A hash already known keeps its original
+ * file (the new upload is deleted) and only refreshes origemUrl/cor. Batches
+ * of ≤ 50 from the upload script.
+ */
+export const registarCandidatas = mutation({
+  args: { secret: v.string(), candidatas: v.array(candidataEntradaValidator) },
+  returns: v.object({ criadas: v.number(), repetidas: v.number() }),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+    let criadas = 0;
+    let repetidas = 0;
+    const agora = Date.now();
+    for (const c of args.candidatas) {
+      if (c.largura <= 0 || c.altura <= 0) {
+        throw new Error(`candidata ${c.hash}: dimensões inválidas.`);
+      }
+      if ((await ctx.db.system.get(c.ficheiro)) === null) {
+        throw new Error(`candidata ${c.hash}: ficheiro ${c.ficheiro} não existe.`);
+      }
+      const existente = await candidataPorHash(ctx, c.hash);
+      if (existente) {
+        repetidas++;
+        const patch: { origemUrl?: string; cor?: string } = {};
+        if (c.origemUrl !== undefined) patch.origemUrl = c.origemUrl;
+        if (c.cor !== undefined) patch.cor = c.cor;
+        if (Object.keys(patch).length > 0) await ctx.db.patch(existente._id, patch);
+        if (existente.ficheiro !== c.ficheiro) await ctx.storage.delete(c.ficheiro);
+        continue;
+      }
+      const origem =
+        c.origemHash !== undefined
+          ? ((await candidataPorHash(ctx, c.origemHash))?._id ?? undefined)
+          : undefined;
+      await ctx.db.insert("imagensCandidatas", {
+        marca: c.marca,
+        grupoModelo: c.grupoModelo,
+        ficheiro: c.ficheiro,
+        fonte: c.fonte,
+        origemUrl: c.origemUrl,
+        hash: c.hash,
+        largura: c.largura,
+        altura: c.altura,
+        cor: c.cor,
+        origem,
+        criadoEm: agora,
+      });
+      criadas++;
+    }
+    return { criadas, repetidas };
+  },
+});
+
+/** Files any decision or any live product still references. */
+async function ficheirosEmUso(ctx: MutationCtx, marca: string): Promise<Set<Id<"_storage">>> {
+  const emUso = new Set<Id<"_storage">>();
+  const decisoes = await ctx.db
+    .query("imagensGrupo")
+    .withIndex("by_marca", (q) => q.eq("marca", marca))
+    .collect();
+  for (const d of decisoes) for (const f of ficheirosEscolhidos(d)) emUso.add(f);
+  const produtos = await ctx.db
+    .query("produtos")
+    .withIndex("by_marca", (q) => q.eq("marca", marca))
+    .collect();
+  for (const p of produtos) for (const f of p.imagens) emUso.add(f);
+  return emUso;
+}
+
+/** Delete a brand's candidates (rows + files) except chosen or live ones. */
+export const limparCandidatas = mutation({
+  args: { secret: v.string(), marca: v.string(), fonte: v.optional(fonteCandidataValidator) },
+  returns: v.object({ removidas: v.number() }),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+    const emUso = await ficheirosEmUso(ctx, args.marca);
+    const candidatas = await ctx.db
+      .query("imagensCandidatas")
+      .withIndex("by_marca", (q) => q.eq("marca", args.marca))
+      .collect();
+    let removidas = 0;
+    for (const c of candidatas) {
+      if (args.fonte !== undefined && c.fonte !== args.fonte) continue;
+      if (emUso.has(c.ficheiro)) continue;
+      await ctx.storage.delete(c.ficheiro);
+      await ctx.db.delete(c._id);
+      removidas++;
+    }
+    return { removidas };
   },
 });
