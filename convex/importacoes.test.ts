@@ -810,3 +810,72 @@ describe("obter: imagens", () => {
     expect(so?.grupos.map((g) => g.grupoModelo)).toEqual(["g-b"]);
   });
 });
+
+describe("promoção: imagens", () => {
+  async function runAprovavel(tt: T) {
+    const { importacaoId } = await tt.mutation(api.importacoes.criarImportacao, {
+      secret: SECRET, marca: "hisense", ano: 2026, tabelaOrigem: "hisense-2026", ficheiro: "t.pdf",
+    });
+    await tt.mutation(api.importacoes.carregarSkus, {
+      secret: SECRET, importacaoId,
+      skus: [
+        staged("A1", { grupoModelo: "g-a" }),
+        staged("A2", { grupoModelo: "g-a" }),
+        staged("B1", { grupoModelo: "g-b", nomeGrupo: "B" }),
+      ],
+    });
+    await tt.mutation(api.importacoes.concluirCarregamento, { secret: SECRET, importacaoId });
+    return importacaoId;
+  }
+  const f = (tt: T, s: string) => tt.run(async (ctx) => ctx.storage.store(new Blob([s])));
+
+  it("applies the group list and the porRef override, keeps groups without decision, cleans candidates", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const capa = await f(tt, "capa");
+    const preta = await f(tt, "preta");
+    const lixo = await f(tt, "lixo");
+    const viva = await f(tt, "viva");
+    // B1 already exists with a photo and gets no decision.
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("produtos", {
+        ref: "B1", marca: "hisense", nome: "B1", nomeGrupo: "B", familia: "ar-condicionado", componente: "conjunto",
+        grupoModelo: "g-b", atributos: [], pvpCents: 50000, ivaIncluido: false, tabelaOrigem: "hisense-2025",
+        pdfPaginas: [1], imagens: [viva], estado: "publicado",
+      });
+    });
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET,
+      candidatas: [
+        { marca: "hisense", grupoModelo: "g-a", ficheiro: capa, fonte: "site", hash: "h1", largura: 1, altura: 1 },
+        { marca: "hisense", grupoModelo: "g-a", ficheiro: preta, fonte: "site", hash: "h2", largura: 1, altura: 1 },
+        { marca: "hisense", grupoModelo: "g-a", ficheiro: lixo, fonte: "pdf", hash: "h3", largura: 1, altura: 1 },
+        { marca: "hisense", grupoModelo: "g-b", ficheiro: viva, fonte: "site", hash: "h4", largura: 1, altura: 1 },
+      ],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [capa], porRef: [{ ref: "A2", imagens: [preta] }],
+      refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const porRef = async (ref: string) =>
+      tt.run(async (ctx) => (await ctx.db.query("produtos").withIndex("by_ref", (q) => q.eq("ref", ref)).unique())?.imagens);
+    expect(await porRef("A1")).toEqual([capa]);
+    expect(await porRef("A2")).toEqual([preta]);
+    expect(await porRef("B1")).toEqual([viva]);
+    const existe = (id: Id<"_storage">) => tt.run(async (ctx) => (await ctx.db.system.get(id)) !== null);
+    expect(await existe(lixo)).toBe(false); // unchosen candidate removed
+    expect(await existe(viva)).toBe(true); // nunca apaga ficheiro em uso (live product)
+    expect(await existe(capa)).toBe(true);
+    const run = await tt.run(async (ctx) => ctx.db.get(importacaoId));
+    expect(run?.estado).toBe("aprovada");
+    expect(run?.numImagensAplicadas).toBe(2);
+    expect(run?.numCandidatasRemovidas).toBe(1);
+    const restantes = await tt.run(async (ctx) => ctx.db.query("imagensCandidatas").collect());
+    expect(restantes.map((c) => c.hash).sort()).toEqual(["h1", "h2", "h4"]);
+  });
+});

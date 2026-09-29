@@ -14,7 +14,11 @@ import {
 } from "./schema";
 import { requireStaff } from "./lib/auth";
 import { conferirSegredo } from "./lib/importSecret";
-import { ficheirosEscolhidos } from "./lib/imagensGrupo";
+import {
+  candidatasARemover,
+  ficheirosEscolhidos,
+  listaParaRef,
+} from "./lib/imagensGrupo";
 import { validarAtributos } from "./lib/specRegistry";
 import { upsertProdutoPorRef, type ProdutoImport } from "./produtos";
 import { upsertPaginaImagem } from "./paginasCatalogo";
@@ -506,6 +510,7 @@ export const promoverLote = internalMutation({
 
     if (pendentes.length > 0) {
       let reativados = 0;
+      let aplicadas = 0;
       for (const linha of pendentes) {
         const anterior = await ctx.db
           .query("produtos")
@@ -516,12 +521,29 @@ export const promoverLote = internalMutation({
           await ctx.db.patch(r.produtoId, { estado: "rascunho" });
           reativados++;
         }
+        const decisao = await ctx.db
+          .query("imagensGrupo")
+          .withIndex("by_grupo", (q) => q.eq("grupoModelo", linha.grupoModelo))
+          .unique();
+        if (decisao) {
+          const lista = listaParaRef(decisao, linha.ref);
+          const produto = await ctx.db.get(r.produtoId);
+          const igual =
+            produto !== null &&
+            produto.imagens.length === lista.length &&
+            produto.imagens.every((f, i) => f === lista[i]);
+          if (!igual) {
+            await ctx.db.patch(r.produtoId, { imagens: lista });
+            aplicadas++;
+          }
+        }
         await ctx.db.patch(linha._id, { promovido: true });
       }
       await sincronizarGrupos(ctx, tocados);
       await ctx.db.patch(run._id, {
         numPromovidos: (run.numPromovidos ?? 0) + pendentes.length,
         numReativados: (run.numReativados ?? 0) + reativados,
+        numImagensAplicadas: (run.numImagensAplicadas ?? 0) + aplicadas,
       });
       await ctx.scheduler.runAfter(0, internal.importacoes.promoverLote, {
         importacaoId: run._id,
@@ -555,6 +577,48 @@ export const promoverLote = internalMutation({
       estado: "aprovada",
       numDescontinuados: descontinuados,
     });
+    await ctx.scheduler.runAfter(0, internal.importacoes.limparCandidatasDaRun, {
+      importacaoId: run._id,
+    });
+    return null;
+  },
+});
+
+/**
+ * After approval: delete every candidate of the run's groups whose file is
+ * not chosen (group list or porRef) and not on any live product of the brand.
+ * Runs in its own transaction so a Daikin-sized run stays under limits.
+ */
+export const limparCandidatasDaRun = internalMutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await obterRun(ctx, args.importacaoId);
+    const grupos = new Set((await linhasDaRun(ctx, run._id)).map((l) => l.grupoModelo));
+    const emUso = new Set<Id<"_storage">>();
+    const produtos = await ctx.db
+      .query("produtos")
+      .withIndex("by_marca", (q) => q.eq("marca", run.marca))
+      .collect();
+    for (const p of produtos) for (const f of p.imagens) emUso.add(f);
+    let removidas = 0;
+    for (const grupoModelo of grupos) {
+      const decisao = await ctx.db
+        .query("imagensGrupo")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo))
+        .unique();
+      const mantidos = new Set<Id<"_storage">>([...emUso, ...ficheirosEscolhidos(decisao)]);
+      const candidatas = await ctx.db
+        .query("imagensCandidatas")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo))
+        .collect();
+      for (const c of candidatasARemover(candidatas, mantidos)) {
+        if ((await ctx.db.system.get(c.ficheiro)) !== null) await ctx.storage.delete(c.ficheiro);
+        await ctx.db.delete(c._id);
+        removidas++;
+      }
+    }
+    await ctx.db.patch(run._id, { numCandidatasRemovidas: removidas });
     return null;
   },
 });
