@@ -125,3 +125,19 @@ export function paraGuardar(e: Estado): { imagens: Array<string>; porRef?: Array
     ? { imagens: e.grupo.map((i) => i.ficheiro), porRef }
     : { imagens: e.grupo.map((i) => i.ficheiro) }
 }
+
+// The panel is scoped to the run's SKUs: per-ref entries for refs outside it
+// (discontinued products, refs dropped by a re-extraction) are ignored when
+// seeding and never sent on save, where the server would reject them.
+export function apenasRefs<T extends { ref: string }>(lista: Array<T>, refs: ReadonlyArray<string>): Array<T> {
+  const validas = new Set(refs)
+  return lista.filter((p) => validas.has(p.ref))
+}
+
+export function decisaoParaRefs(
+  decisao: ReturnType<typeof paraGuardar>,
+  refs: ReadonlyArray<string>,
+): ReturnType<typeof paraGuardar> {
+  const porRef = apenasRefs(decisao.porRef ?? [], refs)
+  return porRef.length > 0 ? { imagens: decisao.imagens, porRef } : { imagens: decisao.imagens }
+}

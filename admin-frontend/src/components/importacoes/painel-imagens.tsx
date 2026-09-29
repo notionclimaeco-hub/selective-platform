@@ -13,6 +13,8 @@ import { ZonaUpload } from "@/components/imagens/zona-upload"
 import { Button } from "@/components/ui/button"
 import {
   ESTADO_INICIAL,
+  apenasRefs,
+  decisaoParaRefs,
   listaAtiva,
   paraGuardar,
   reduzir,
@@ -46,19 +48,19 @@ function candidatasDe(dados: Dados): Array<Candidata> {
   )
 }
 
-function iniciarDeDados(dados: Dados): Acao {
+function iniciarDeDados(dados: Dados, refs: Array<string>): Acao {
   return {
     tipo: "iniciar",
     escolhidas: dados.escolhidas
       ? {
           imagens: soComUrl(dados.escolhidas.imagens),
-          porRef: dados.escolhidas.porRef.map((p) => ({
+          porRef: apenasRefs(dados.escolhidas.porRef, refs).map((p) => ({
             ref: p.ref,
             imagens: soComUrl(p.imagens),
           })),
         }
       : null,
-    atuais: dados.atuais.map((a) => ({
+    atuais: apenasRefs(dados.atuais, refs).map((a) => ({
       ref: a.ref,
       imagens: soComUrl(a.imagens),
     })),
@@ -128,6 +130,8 @@ export function PainelImagens({
   const previews = useObjectUrls()
 
   const iniciado = useRef(false)
+  // Guardar and Reverter share one in-flight guard so their writes can't race.
+  const aGravar = useRef(false)
   // The decision as last saved (or loaded): what "Reverter" goes back to.
   const guardado = useRef<Estado>(ESTADO_INICIAL)
   // Latest values for async handlers (upload loop, toast action).
@@ -139,11 +143,11 @@ export function PainelImagens({
   // Seed once per group, when the server data first arrives.
   useEffect(() => {
     if (iniciado.current || dados === undefined) return
-    const acao = iniciarDeDados(dados)
+    const acao = iniciarDeDados(dados, refs)
     despachar(acao)
     guardado.current = reduzir(ESTADO_INICIAL, acao)
     iniciado.current = true
-  }, [dados])
+  }, [dados, refs])
 
   const lista = listaAtiva(estado)
   const escolhidos = new Set(lista.map((i) => i.ficheiro))
@@ -206,7 +210,7 @@ export function PainelImagens({
   }
 
   async function gravar(e: Estado) {
-    const { imagens, porRef } = paraGuardar(e)
+    const { imagens, porRef } = decisaoParaRefs(paraGuardar(e), refs)
     await definir({
       grupoModelo,
       marca,
@@ -220,6 +224,9 @@ export function PainelImagens({
   }
 
   async function reverter(anterior: Estado) {
+    if (aGravar.current) return
+    aGravar.current = true
+    setAGuardar(true)
     try {
       await gravar(anterior)
       guardado.current = anterior
@@ -227,10 +234,15 @@ export function PainelImagens({
       toast("Imagens revertidas.")
     } catch (err) {
       toast.error(mensagem(err, "Não foi possível reverter."))
+    } finally {
+      aGravar.current = false
+      setAGuardar(false)
     }
   }
 
   async function guardar() {
+    if (aGravar.current) return
+    aGravar.current = true
     const anterior = guardado.current
     const atual = estado
     setAGuardar(true)
@@ -247,6 +259,7 @@ export function PainelImagens({
     } catch (err) {
       setErro(mensagem(err, "Erro ao guardar."))
     } finally {
+      aGravar.current = false
       setAGuardar(false)
     }
   }

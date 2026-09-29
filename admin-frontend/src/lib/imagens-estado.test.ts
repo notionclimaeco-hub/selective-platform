@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ESTADO_INICIAL, listaAtiva, paraGuardar, reduzir } from "./imagens-estado"
+import { ESTADO_INICIAL, apenasRefs, decisaoParaRefs, listaAtiva, paraGuardar, reduzir } from "./imagens-estado"
 import type { Candidata } from "./imagens-estado"
 
 const c = (id: string, extra: Partial<Candidata> = {}): Candidata => ({
@@ -86,5 +86,24 @@ describe("candidata-nova / trocar-recorte", () => {
     e = reduzir(e, { tipo: "trocar-recorte", ficheiro: "a", recorte })
     expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["a-cut", "b"])
     expect(e.grupo.map((i) => i.ficheiro)).toEqual(["a"])
+  })
+})
+
+describe("apenasRefs / decisaoParaRefs", () => {
+  it("keeps only entries of the given refs", () => {
+    const lista = [{ ref: "R1", imagens: [] }, { ref: "OLD", imagens: [] }, { ref: "R2", imagens: [] }]
+    expect(apenasRefs(lista, ["R1", "R2"]).map((p) => p.ref)).toEqual(["R1", "R2"])
+  })
+  it("drops porRef entries outside the refs, and porRef itself when it empties", () => {
+    const decisao = { imagens: ["a"], porRef: [{ ref: "OLD", imagens: ["b"] }, { ref: "R2", imagens: ["c"] }] }
+    expect(decisaoParaRefs(decisao, ["R1", "R2"])).toEqual({ imagens: ["a"], porRef: [{ ref: "R2", imagens: ["c"] }] })
+    expect(decisaoParaRefs(decisao, ["R1"])).toEqual({ imagens: ["a"] })
+    expect(decisaoParaRefs({ imagens: [] }, ["R1"])).toEqual({ imagens: [] })
+  })
+  it("seeding from filtered atuais ignores a discontinued ref as the group list", () => {
+    const atuais = [{ ref: "OLD", imagens: [{ ficheiro: "x", url: "u/x" }] }, { ref: "R1", imagens: [{ ficheiro: "y", url: "u/y" }] }]
+    const e = reduzir(ESTADO_INICIAL, { tipo: "iniciar", candidatas: [], escolhidas: null, atuais: apenasRefs(atuais, ["R1"]) })
+    expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["y"])
+    expect(paraGuardar(e)).toEqual({ imagens: ["y"] })
   })
 })
