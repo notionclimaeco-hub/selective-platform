@@ -1,4 +1,4 @@
-# Standards de produto (v3)
+# Standards de produto (v4)
 
 Taxonomia inspirada no catálogo Megaclima (megaclima.pt) — mantendo o que fazem bem (taxonomia ortogonal, specs normalizadas entre marcas, nomes funcionais legíveis) e corrigindo o que fazem mal (sem refrigerante/SEER/SCOP/kW, cores como séries duplicadas, mono/multi implícito). Alargada a **todo o nosso portefólio**, não só AC.
 
@@ -29,8 +29,8 @@ Hierarquia: **família → segmento → sistema → tipo de unidade → gama →
 
 ## Modelo produto → variantes
 
-- Cada linha do CSV = **1 SKU comprável** (`ref`). Cada `grupoModelo` = **1 produto no site**: é a página de produto, e as linhas do grupo são as variantes selecionáveis.
-- `grupoModelo` = slug `{marca}-{gama}` (ex.: `mitsubishi-msz-ef`, `midea-m-thermal-arctic`). Produto sem variantes → grupo de 1, com `grupoModelo` = slug da ref (**fallback genérico** — tudo cabe no modelo).
+- Cada SKU em staging = **1 SKU comprável** (`ref`). Cada `grupoModelo` = **1 produto no site**: é a página de produto, e as linhas do grupo são as variantes selecionáveis.
+- `grupoModelo` é **determinístico** (v4), calculado por `grupoModeloDeterministico` em `convex/lib/stagedSku.ts`: `{marca}-{gama-slug}` para `conjunto`, `{marca}-{gama-slug}-{componente}` para os restantes componentes (ex.: `mitsubishi-msz-ef`, `hisense-air-master-unidade-interior`, `daikin-brc1h-comando`). O slug da gama é ASCII minúsculo com hífens simples. Assim as fotos de um grupo sobrevivem a recargas anuais. Produto sem gama → o slug da ref faz de série (grupo de 1, **último recurso**).
 - **Grupo de 1 é o último recurso, nunca o default.** A unidade natural de agrupamento é a **série/gama**, não a ref. Se duas refs diferem apenas no código de capacidade (ex.: `AUC105UR4RKC8` / `AUC125UR4RKC8` / `AUC140UR4RKC8`), pertencem **obrigatoriamente** ao mesmo `grupoModelo` com `capacidade=`/`frio-kw=` a distingui-las em `atributos`. Isto aplica-se a **todos os componentes** — conjuntos, unidades interiores vendidas à parte, unidades exteriores, módulos hidráulicos, depósitos — mesmo quando o PDF as lista como linhas soltas sem cabeçalho de série.
   - Teste mecânico (o `scripts/review.py` verifica isto): substituir cada sequência de dígitos da `ref` por `#` dá o "esqueleto" da série (`AUC105UR4RKC8` → `AUC#UR#RKC#`). Refs da mesma marca+família com o mesmo esqueleto e o mesmo `componente` → mesmo grupo, salvo justificação explícita.
   - UI e UE da mesma série vendidas à parte são **grupos separados** (um por `componente`), cada um com as suas variantes de capacidade — nunca misturar componentes no mesmo grupo.
@@ -39,6 +39,15 @@ Hierarquia: **família → segmento → sistema → tipo de unidade → gama →
 
 ## Atributos (`atributos`)
 
+**Registo de specs (v4).** As chaves permitidas por `familia` vivem em `convex/lib/specRegistry.ts` (`REGISTO_SPECS`), com tipo (`numero` | `texto` | `enum` | `booleano`), unidade, rótulo português, componentes onde se aplicam, componentes onde são obrigatórias e as **três hero specs** por família (cartão do catálogo e topo da página de produto no telemóvel). `pnpm registry:json` exporta o registo para `product-scaffold/spec-registry.json`, que os scripts Python leem. **Este documento não repete a lista de chaves — o registo é a fonte de verdade.**
+
+`validarAtributos(familia, componente, atributos)` devolve `{ erros, avisos }`:
+
+- **Erro (SKU rejeitado):** tipo errado (`numero` sem ponto decimal ou com unidade), valor fora do enum, `texto` que falha o padrão (`classe-energetica`, `dimensoes*`, `compativel-com`), chave duplicada, família desconhecida.
+- **Aviso (obriga a abrir na revisão):** chave desconhecida para a família, chave fora dos componentes onde se aplica (ex.: `unidades-max` numa UI), chave obrigatória em falta.
+
+Convenções de valor que o registo assume: números com `.` decimal e sem unidades; `classe-energetica` = `frio/calor` (ex.: `A+++/A++`, `-` num lado em falta); `dimensoes*` = `AxLxP` em mm (`295x798x225`); `compativel-com` = lista de refs ou códigos de série separada por vírgulas, **sem `;`**; `booleano` = `sim` | `nao`; `cor` usa o vocabulário fechado do registo.
+
 O produto **não tem colunas fixas de specs** — tem uma lista ordenada de pares `chave=valor` que carrega tanto os **eixos de variação** como as **especificações**. O UI decide a apresentação por grupo:
 
 - Chaves cujos valores **variam** entre as linhas do grupo → **colunas da tabela de modelos** na página de produto (o cliente escolhe a linha/SKU).
@@ -46,7 +55,7 @@ O produto **não tem colunas fixas de specs** — tem uma lista ordenada de pare
 
 Regras:
 
-- Formato CSV: pares `chave=valor` unidos por `;`, divididos pelo **primeiro** `=`. A ordem é a ordem de apresentação: **eixos de variação primeiro, specs depois**.
+- Ordem = ordem de apresentação: **eixos de variação primeiro, specs depois** (no CSV opcional: pares `chave=valor` unidos por `;`, divididos pelo **primeiro** `=`).
 - **Specs importantes — procurar sempre no PDF** e emitir quando existirem: `frio-kw` (arrefecimento nominal, kW), `calor-kw` (aquecimento nominal, kW), `btu` (arrefecimento, ≈ kW×3412 arredondado às centenas — só quando o PDF o dá ou a família o usa comercialmente), `classe-energetica`, `seer`, `scop`, `refrigerante` (R32, R290…), `wifi` (`sim` | `opcional` | `nao`), e o preço (coluna própria `pvpCents`). **Se o PDF não os der, omitem-se — nunca inventar.**
 - **`classe-energetica` (padrão único, todas as marcas):** um só atributo com valor `frio/calor` (ex.: `A+++/A++`). O lado esquerdo é a classe de arrefecimento (SEER); o direito, a de aquecimento (SCOP). Normalizar `A⁺⁺⁺` → `A+++`. Se o PDF só der um dos lados, usar `-` no outro (`A+++/-` ou `-/A++`) — **nunca** emitir `classe-frio` / `classe-calor` separados.
 - Eixos de variação típicos: `capacidade` (kW nominal — usar apenas quando o PDF não separa frio/calor, ex.: depósitos, AQS), `cor` (vocabulário fechado: `branco`, `branco-perola`, `preto`, `prateado`, `vermelho`, `cinzento`, `inox`), `unidades-max` (UE multi/VRF), `deposito` (ex.: `260L`), `pressao-estatica` (`baixa`|`media`|`alta`), `comando` (`infra`|`cabo`|`wifi`), `alimentacao` (`monofasica`|`trifasica`), `modo`… Eixo novo = chave nova, sem mudar o schema.
@@ -64,26 +73,62 @@ Regras:
 - **AQS** = água quente sanitária · **UTA** = unidade de tratamento de ar · **VMC** = ventilação mecânica controlada · **ventiloconvector** = fan coil.
 - **Cassete**: 1 via ou 4 vias · **Conduta**: baixa/média/alta pressão estática · **Comando**: infra | cabo | wifi.
 
-## Schema CSV v3
+## Contrato do SKU em staging (JSON v4)
 
-**18 colunas**, ordem fixa (1 linha = 1 SKU comprável; `ref` é única e serve de chave de upsert):
+O artefacto canónico de uma extração é **um JSON por import run** (`{marca}-{ano}-staged.json`), tipado em `convex/lib/stagedSku.ts` (`ImportRunJson` / `StagedSkuJson`):
+
+```json
+{
+  "marca": "hisense",
+  "ano": 2026,
+  "tabelaOrigem": "hisense-2026",
+  "ficheiro": "hisense-tabela-precos-2026.pdf",
+  "skus": [
+    {
+      "ref": "AUC125UR4RKC8",
+      "ean": "…",
+      "nome": "Cassete 4 vias | Unidade Interior 12.5 kW",
+      "nomeGrupo": "Cassete 4 vias | Unidade Interior",
+      "marca": "hisense",
+      "familia": "ar-condicionado",
+      "segmento": "comercial",
+      "sistema": "mono-split",
+      "tipoUnidade": "cassete-4-vias",
+      "componente": "unidade-interior",
+      "gama": "AUC",
+      "atributos": [{ "chave": "frio-kw", "valor": "12.5" }, { "chave": "calor-kw", "valor": "14.0" }],
+      "descricao": "…",
+      "pvpCents": 189900,
+      "ivaIncluido": false,
+      "tabelaOrigem": "hisense-2026",
+      "grupoModelo": "hisense-auc-unidade-interior",
+      "pdfPaginas": [26, 30],
+      "compativelCom": ["AUW125U4R…"],
+      "avisos": []
+    }
+  ]
+}
+```
+
+- Cada SKU leva os **18 campos v3** como JSON: `atributos` é um array ordenado de `{chave, valor}`, `pdfPaginas` são números, `pvpCents` é inteiro em cêntimos **s/IVA** (`ivaIncluido: false` em todas as tabelas de marca).
+- Campos novos: `ean?`, `compativelCom?: string[]` (refs ou códigos de série aceites — UE multi/VRF, comandos) e `avisos: string[]` (avisos do registo + dúvidas do extractor; o revisor tem de abrir todo o grupo com avisos).
+- **Obrigatórios:** `ref`, `nome`, `nomeGrupo`, `marca`, `familia`, `componente`, `atributos`, `pvpCents`, `ivaIncluido`, `tabelaOrigem`, `grupoModelo`, `pdfPaginas`, `avisos`. Restantes: **omitidos quando desconhecidos — nunca inventar**.
+- `marca` é **slug minúsculo**; `familia`, `sistema`, `componente` e `segmento` validam contra a Taxonomia (valor inválido = SKU rejeitado).
+- Sem `imagens` / `estado`: são geridos pela app (SKUs novos entram como `rascunho`; imagens vêm do pipeline de packshots).
+- **Sem grupos cross-brand** — todos os SKUs de um `grupoModelo` têm a mesma `marca`.
+- **Descontinuados, não apagados (v4):** ao aprovar um import run, as refs da mesma `tabelaOrigem`/marca ausentes do run aprovado passam a `estado: descontinuado` (linhas de encomenda referenciam refs). A regra `removerAusentes` do v3 deixa de existir.
+
+### CSV v3 (export opcional)
+
+O CSV de 18 colunas mantém-se apenas como **export de conveniência** (folha de cálculo, diff rápido); nunca é a fonte de import. Ordem fixa, UTF-8, QUOTE_ALL, CRLF:
 
 ```
 ref,ean,nome,nomeGrupo,marca,familia,segmento,sistema,tipoUnidade,componente,gama,atributos,descricao,pvpCents,ivaIncluido,tabelaOrigem,grupoModelo,pdfPaginas
 ```
 
-- Formato: UTF-8, QUOTE_ALL, terminadores CRLF (`\r\n`).
-- **Obrigatórios:** `ref`, `nome`, `nomeGrupo`, `marca`, `familia`, `componente`, `pvpCents`, `ivaIncluido`, `tabelaOrigem`, `grupoModelo`. Restantes campos: **vazio quando desconhecido — nunca inventar** (no import, string vazia → campo omitido; `atributos`/`pdfPaginas` vazios → `[]`).
-- `marca` é **slug minúsculo**: `hisense`, `daikin`, `mitsubishi`, `nipon`, `midea`…
-- **Enums validados no import** (linha rejeitada se o valor for inválido): `familia`, `sistema` e `componente` (valores exatos da Taxonomia acima) e `segmento` (`domestico` | `comercial` | `industrial`).
-- `pvpCents`: inteiro em cêntimos, **s/IVA**. `ivaIncluido`: `"1"`/`"true"` → true; as tabelas de marca são s/IVA → usar `0`/`false`.
-- `atributos`: ver secção *Atributos* — pares `chave=valor` unidos por `;`, ordem preservada no import.
-- `nomeGrupo` = nome do produto no site (sem capacidade nem cor); `nome` = nome da variante. `descricao` pode conter Markdown.
-- `pdfPaginas`: inteiros positivos separados por vírgula (ex.: `26,30,36`); é a última coluna.
-- **Sem colunas `fotoUrls` / `imagens` / `estado`** — as imagens seguem pelo pipeline de crawl/upload existente (Convex storage) e o `estado` é gerido pela app (imports novos entram como `rascunho`).
-- `grupoModelo` obrigatório em **todos** os SKUs: produto isolado = grupo de 1 (os seus atributos aparecem como chips de specs). **Sem grupos cross-brand** — todos os SKUs de um `grupoModelo` têm a mesma `marca`.
-- **Full rebuilds, não deltas:** depois do upsert das linhas de uma marca, chamar `importData.removerAusentes({ secret, tabelaOrigem, refsMantidos })` para apagar as refs que saíram do CSV mais recente.
-- Migração v2→v3: `atributosVariante` + colunas fixas de specs (`capacidadeFrioKw`, `capacidadeCalorKw`, `capacidadeBtu`, `classeEnergeticaFrio`, `classeEnergeticaCalor`, `seer`, `scop`, `refrigerante`, `wifi`, `maxUnidadesInteriores`) fundem-se na coluna única `atributos` (eixos primeiro, specs depois, chaves: `frio-kw`, `calor-kw`, `btu`, `classe-energetica`, `seer`, `scop`, `refrigerante`, `wifi`, `unidades-max`). `classeEnergeticaFrio`+`classeEnergeticaCalor` (ou um `classeEnergetica` legado só de frio) → `classe-energetica=frio/calor`. No Convex: `migrations:migrarParaAtributos` + `migrations:unificarClasseEnergetica`.
+`atributos` = pares `chave=valor` unidos por `;` (por isso `compativel-com` não pode conter `;`); `pdfPaginas` = inteiros separados por vírgula; string vazia = campo omitido. `compativelCom` e `avisos` não têm coluna — vivem só no JSON.
+
+Histórico: v2→v3 fundiu as colunas fixas de specs em `atributos` (`migrations:migrarParaAtributos`, `migrations:unificarClasseEnergetica`); v3→v4 acrescenta o registo de specs, o JSON de staging, o `grupoModelo` determinístico e a regra de descontinuados. O armazenamento em `produtos` não muda.
 
 ## Convenção de nomes (`nomeGrupo` e `nome`)
 
@@ -94,7 +139,7 @@ ref,ean,nome,nomeGrupo,marca,familia,segmento,sistema,tipoUnidade,componente,gam
 - Sempre em português; nunca usar a ref crua como nome (a ref tem coluna própria).
 - **Artefactos proibidos em `nomeGrupo`:** `… 6.2 kW`, `… 24000 BTU`, `… 80L`, cores (`branco`, `preto`…). O `scripts/review.py` valida isto automaticamente.
 
-## Regras de extração (PDF → CSV)
+## Regras de extração (PDF → JSON)
 
 - Antes de extrair linhas, mapear cada secção/página do PDF para `familia`+`segmento`+`sistema`+`tipoUnidade` usando os cabeçalhos das páginas; **nunca herdar a classificação da secção anterior sem confirmar o cabeçalho**.
 - UE de multi nunca herda o tipoUnidade das UI da mesma secção (é `exterior`).
