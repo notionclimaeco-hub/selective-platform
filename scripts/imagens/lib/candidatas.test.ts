@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { cobertura, coberturaMarkdown, lerManifesto } from "./candidatas.mjs";
+import sharp from "sharp";
+import { cobertura, coberturaMarkdown, lerManifesto, prepararFicheiro } from "./candidatas.mjs";
 
 const alvos = {
   marca: "hisense",
@@ -63,5 +64,17 @@ describe("cobertura", () => {
     ]);
     const ueMultiple = c3.porGrupo.find((g) => g.grupoModelo === "hisense-air-master-unidade-exterior");
     expect(ueMultiple).toMatchObject({ pdf: 2, soInterior: true });
+  });
+});
+
+describe("prepararFicheiro", () => {
+  it("resizes to 1600 px max, keeps alpha as PNG, hashes the output", async () => {
+    const grande = await sharp({ create: { width: 3200, height: 1600, channels: 3, background: "#fff" } }).jpeg().toBuffer();
+    const r = await prepararFicheiro(grande);
+    expect([r.largura, r.altura]).toEqual([1600, 800]);
+    expect(r.contentType).toBe("image/jpeg");
+    expect(r.hash).toMatch(/^[a-f0-9]{64}$/);
+    const alfa = await sharp({ create: { width: 10, height: 10, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();
+    expect((await prepararFicheiro(alfa)).contentType).toBe("image/png");
   });
 });

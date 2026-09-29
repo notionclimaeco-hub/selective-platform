@@ -1,4 +1,7 @@
-// Pure helpers for candidatas.mjs: manifest parsing and the coverage report.
+// Helpers for candidatas.mjs: manifest parsing, coverage report and image preparation.
+import { createHash } from "node:crypto"
+import sharp from "sharp"
+
 export const FONTES = ["site", "megaclima", "pdf", "upload", "recorte"]
 
 /** manifest {grupoModelo: [{ficheiro, fonte, origemUrl?, cor?}]} → flat entries. */
@@ -55,4 +58,20 @@ export function coberturaMarkdown(c) {
   linhas.push("", `## Equipamento sem foto do site nem Megaclima (${c.equipamentoSemSiteNemMegaclima.length})`,
     ...c.equipamentoSemSiteNemMegaclima.map((g) => `- ${g}`))
   return linhas.join("\n") + "\n"
+}
+
+export const MAX_PX = 1600
+
+/** Resize (max 1600 px), JPEG q85 or PNG when there is alpha; sha256 of the result. */
+export async function prepararFicheiro(buffer) {
+  const img = sharp(buffer).rotate()
+  const meta = await img.metadata()
+  const comAlfa = meta.hasAlpha === true
+  const pipeline = img.resize({ width: MAX_PX, height: MAX_PX, fit: "inside", withoutEnlargement: true })
+  const bytes = comAlfa ? await pipeline.png().toBuffer() : await pipeline.jpeg({ quality: 85 }).toBuffer()
+  const out = await sharp(bytes).metadata()
+  return {
+    bytes, hash: createHash("sha256").update(bytes).digest("hex"),
+    largura: out.width, altura: out.height, contentType: comAlfa ? "image/png" : "image/jpeg",
+  }
 }
