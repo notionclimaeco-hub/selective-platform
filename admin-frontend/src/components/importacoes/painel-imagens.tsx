@@ -1,5 +1,4 @@
 import { useEffect, useReducer, useRef, useState } from "react"
-import type { ReactNode } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { Check, ExternalLink, Loader2, X } from "lucide-react"
@@ -7,6 +6,7 @@ import { toast } from "sonner"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
+import { BotaoRecorte } from "@/components/importacoes/botao-recorte"
 import { FaixaOrdenavel } from "@/components/imagens/faixa-ordenavel"
 import { useObjectUrls } from "@/components/imagens/use-object-urls"
 import { ZonaUpload } from "@/components/imagens/zona-upload"
@@ -27,6 +27,8 @@ import {
   sha256,
 } from "@/lib/imagens-ficheiro"
 import { FONTES, rotuloFonte } from "@/lib/labels"
+import { recortarFundo } from "@/lib/recorte"
+import type { EtapaRecorte } from "@/lib/recorte"
 import { rotuloValor } from "@/lib/revisao"
 import { cn } from "@/lib/utils"
 
@@ -88,14 +90,30 @@ function mensagem(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback
 }
 
-// Per-image actions in the strip; the background-removal button (or the
-// before/after toggle when a cutout exists) plugs in here.
-function acoesDaImagem(
-  _item: Imagem,
-  _candidata: Candidata | undefined
-): ReactNode {
-  return null
-}
+// Checkerboard behind transparent images (cutouts). On the strip it sits on
+// every <img>: object-cover fills the box, so it only shows through alpha.
+const XADREZ =
+  "bg-white bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] bg-[image:linear-gradient(45deg,#e5e5e5_25%,transparent_25%),linear-gradient(-45deg,#e5e5e5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e5e5e5_75%),linear-gradient(-45deg,transparent_75%,#e5e5e5_75%)]"
+const XADREZ_IMGS =
+  "[&_img]:bg-white [&_img]:bg-[length:16px_16px] [&_img]:bg-[position:0_0,0_8px,8px_-8px,-8px_0] [&_img]:bg-[image:linear-gradient(45deg,#e5e5e5_25%,transparent_25%),linear-gradient(-45deg,#e5e5e5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#e5e5e5_75%),linear-gradient(-45deg,transparent_75%,#e5e5e5_75%)]"
+
+// One background removal at a time: running (with progress), then a preview
+// shown in place of the strip image until "Usar recorte" / "Manter original".
+type Recorte =
+  | {
+      fase: "a-processar"
+      ficheiro: string
+      etapa: EtapaRecorte
+      pct: number
+    }
+  | {
+      fase: "pre-visualizar"
+      ficheiro: string
+      origem: Candidata
+      blob: Blob
+      url: string
+      aEnviar: boolean
+    }
 
 /**
  * The group's photo decision on the review page: an ordered strip (the
@@ -127,6 +145,7 @@ export function PainelImagens({
   const [aGuardar, setAGuardar] = useState(false)
   const [aEnviar, setAEnviar] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [recorte, setRecorte] = useState<Recorte | null>(null)
   const previews = useObjectUrls()
 
   const iniciado = useRef(false)
@@ -139,6 +158,15 @@ export function PainelImagens({
   estadoAtual.current = estado
   const dadosAtuais = useRef(dados)
   dadosAtuais.current = dados
+  // Set synchronously so a double click can't start a second cutout.
+  const emRecorte = useRef(false)
+  const montado = useRef(true)
+  useEffect(() => {
+    montado.current = true
+    return () => {
+      montado.current = false
+    }
+  }, [])
 
   // Seed once per group, when the server data first arrives.
   useEffect(() => {
@@ -152,7 +180,25 @@ export function PainelImagens({
   const lista = listaAtiva(estado)
   const escolhidos = new Set(lista.map((i) => i.ficheiro))
   const semOverrides = paraGuardar(estado).porRef === undefined
-  const ocupado = aEnviar || aGuardar
+  const ocupado = aEnviar || aGuardar || recorte !== null
+  // The strip shows the cutout preview in place of its original.
+  const itens =
+    recorte?.fase === "pre-visualizar"
+      ? lista.map((i) =>
+          i.ficheiro === recorte.ficheiro ? { ...i, url: recorte.url } : i
+        )
+      : lista
+
+  // adicionarCandidata dedupes per (group, hash): an id may name a candidate
+  // we already hold, whose file the server kept instead of the new upload.
+  function candidataConhecida(id: string): Candidata | undefined {
+    return (
+      estadoAtual.current.candidatas.find((c) => c._id === id) ??
+      (dadosAtuais.current
+        ? candidatasDe(dadosAtuais.current).find((c) => c._id === id)
+        : undefined)
+    )
+  }
 
   async function enviar(files: Array<File>) {
     setErro(null)
@@ -176,13 +222,7 @@ export function PainelImagens({
         })
         // Same bytes already a candidate of this group: the server kept the
         // existing file and dropped this upload.
-        const existente =
-          estadoAtual.current.candidatas.find((c) => c._id === candidataId) ??
-          (dadosAtuais.current
-            ? candidatasDe(dadosAtuais.current).find(
-                (c) => c._id === candidataId
-              )
-            : undefined)
+        const existente = candidataConhecida(candidataId)
         despachar({
           tipo: "candidata-nova",
           candidata: existente ?? {
@@ -207,6 +247,81 @@ export function PainelImagens({
       return
     }
     void enviar(files)
+  }
+
+  async function recortar(item: Imagem, candidata: Candidata) {
+    if (emRecorte.current) return
+    emRecorte.current = true
+    setErro(null)
+    const ficheiro = item.ficheiro
+    setRecorte({ fase: "a-processar", ficheiro, etapa: "recorte", pct: 0 })
+    try {
+      const blob = await recortarFundo(item.url, (etapa, pct) =>
+        setRecorte({ fase: "a-processar", ficheiro, etapa, pct })
+      )
+      if (!montado.current) return
+      setRecorte({
+        fase: "pre-visualizar",
+        ficheiro,
+        origem: candidata,
+        blob,
+        url: previews.criar(blob),
+        aEnviar: false,
+      })
+    } catch (err) {
+      setErro(mensagem(err, "Não foi possível recortar o fundo."))
+      setRecorte(null)
+      emRecorte.current = false
+    }
+  }
+
+  function manterOriginal() {
+    if (recorte?.fase !== "pre-visualizar" || recorte.aEnviar) return
+    previews.revogar(recorte.url)
+    setRecorte(null)
+    emRecorte.current = false
+  }
+
+  async function usarRecorte() {
+    if (recorte?.fase !== "pre-visualizar" || recorte.aEnviar) return
+    const r = recorte
+    setRecorte({ ...r, aEnviar: true })
+    setErro(null)
+    try {
+      const [hash, medidas] = await Promise.all([
+        sha256(r.blob),
+        dimensoes(r.blob),
+      ])
+      const ficheiro = await enviarParaStorage(r.blob, () => gerarUploadUrl({}))
+      const { candidataId } = await adicionar({
+        marca,
+        grupoModelo,
+        ficheiro: ficheiro as Id<"_storage">,
+        fonte: "recorte",
+        origem: r.origem._id as Id<"imagensCandidatas">,
+        largura: medidas.largura,
+        altura: medidas.altura,
+        hash,
+      })
+      const existente = candidataConhecida(candidataId)
+      if (existente) previews.revogar(r.url)
+      despachar({
+        tipo: "trocar-recorte",
+        ficheiro: r.ficheiro,
+        recorte: existente ?? {
+          _id: candidataId,
+          ficheiro,
+          url: r.url,
+          fonte: "recorte",
+          origem: r.origem._id,
+        },
+      })
+      setRecorte(null)
+      emRecorte.current = false
+    } catch (err) {
+      setErro(mensagem(err, "Erro ao enviar o recorte."))
+      setRecorte({ ...r, aEnviar: false })
+    }
   }
 
   async function gravar(e: Estado) {
@@ -321,25 +436,87 @@ export function PainelImagens({
             <span className="text-xs text-muted-foreground">
               A primeira imagem é a capa. Arraste para reordenar.
             </span>
-            <FaixaOrdenavel
-              itens={lista}
-              onReordenar={(de, para) =>
-                despachar({ tipo: "reordenar", de, para })
-              }
-              onRemover={(ficheiro) => despachar({ tipo: "remover", ficheiro })}
-              onCapa={(ficheiro) => despachar({ tipo: "capa", ficheiro })}
-              acoesExtra={(item) =>
-                acoesDaImagem(
-                  item,
-                  estado.candidatas.find((c) => c.ficheiro === item.ficheiro)
-                )
-              }
-              vazio={
-                <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-                  Escolha candidatas abaixo ou adicione imagens.
-                </p>
-              }
-            />
+            <div className={XADREZ_IMGS}>
+              <FaixaOrdenavel
+                itens={itens}
+                onReordenar={(de, para) =>
+                  despachar({ tipo: "reordenar", de, para })
+                }
+                onRemover={(ficheiro) =>
+                  despachar({ tipo: "remover", ficheiro })
+                }
+                onCapa={(ficheiro) => despachar({ tipo: "capa", ficheiro })}
+                acoesExtra={(item) => {
+                  const candidata = estado.candidatas.find(
+                    (c) => c.ficheiro === item.ficheiro
+                  )
+                  if (!candidata) return null
+                  return (
+                    <BotaoRecorte
+                      candidata={candidata}
+                      candidatas={estado.candidatas}
+                      escolhidos={escolhidos}
+                      aRecortar={
+                        recorte?.fase === "a-processar" &&
+                        recorte.ficheiro === item.ficheiro
+                      }
+                      podeRecortar={podeEditar}
+                      desativado={ocupado}
+                      onRecortar={() => void recortar(item, candidata)}
+                      onTrocar={(para) =>
+                        despachar({
+                          tipo: "trocar-recorte",
+                          ficheiro: item.ficheiro,
+                          recorte: para,
+                        })
+                      }
+                    />
+                  )
+                }}
+                vazio={
+                  <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                    Escolha candidatas abaixo ou adicione imagens.
+                  </p>
+                }
+              />
+            </div>
+            {recorte && (
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+              >
+                {recorte.fase === "a-processar" ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    {recorte.etapa === "modelo"
+                      ? `A descarregar o modelo… ${recorte.pct} %`
+                      : "A recortar…"}
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-auto text-muted-foreground">
+                      Recorte pronto: pré-visualização na faixa.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={manterOriginal}
+                      disabled={recorte.aEnviar}
+                    >
+                      Manter original
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => void usarRecorte()}
+                      disabled={recorte.aEnviar}
+                    >
+                      {recorte.aEnviar && <Loader2 className="animate-spin" />}
+                      {recorte.aEnviar ? "A enviar…" : "Usar recorte"}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Swallow drops that miss the upload zone so the browser doesn't
@@ -442,7 +619,11 @@ function MiniaturaCandidata({
           alt=""
           loading="lazy"
           draggable={false}
-          className={cn("size-full object-contain", escolhida && "opacity-60")}
+          className={cn(
+            "size-full object-contain",
+            candidata.fonte === "recorte" && XADREZ,
+            escolhida && "opacity-60"
+          )}
         />
         {escolhida && (
           <span className="absolute inset-0 flex items-center justify-center">
