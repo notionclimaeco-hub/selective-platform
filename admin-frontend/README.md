@@ -19,3 +19,15 @@ To use the components in your app, import them as follows:
 ```tsx
 import { Button } from "@/components/ui/button";
 ```
+
+## Background-removal assets
+
+"Recortar fundo" runs `@imgly/background-removal` in the browser and loads its
+ONNX runtime and model (~96 MB) from this app's own `/imgly/` path. `pnpm build`
+mirrors them first (`prebuild` → `scripts/imgly-assets.mjs`) from IMG.LY's CDN
+into `public/imgly/` (git-ignored; only chunks missing on disk are fetched). In
+dev the button falls back to the CDN until you run the script once:
+
+```bash
+node scripts/imgly-assets.mjs
+```

@@ -181,8 +181,9 @@ drag via the long-press pointer sensor already used on the products page.
 ## Background removal in the browser
 
 - Library `@imgly/background-removal` (WASM, Apache-2). Model (~80 MB, default model)
-  downloads on first use per browser and is cached; the button shows "a
-  descarregar o modelo" the first time, then "a recortar".
+  downloads on first use per browser from the admin's own `/imgly/` and is
+  cached; the button shows "a descarregar o modelo" the first time, then "a
+  recortar".
 - Flow: fetch the storage URL → run the model → PNG with alpha → preview in
   place with "Manter original" → on confirm, upload through
   `imagens.gerarUploadUrl` and `adicionarCandidata({ fonte: "recorte",
@@ -249,10 +250,17 @@ drag via the long-press pointer sensor already used on the products page.
 - `redimensionar` keeps WebP as WebP; the strip's sensors are Mouse, Touch
   (long press) and Keyboard; object URLs come from `useObjectUrls`.
 - The panel scopes `atuais` and `porRef` to the run's staged refs.
-- `@imgly/background-removal`'s default model is ~80 MB (not ~40 MB) and its
-  assets load from IMG.LY's CDN (decided 2026-09-29: keep the better model and
-  the CDN; self-hosting on Vercel is a follow-up). The unused ~24 MB
-  `ort-wasm` asset Vite would emit is dropped by `vite-plugins/drop-ort-wasm.ts`.
+- `@imgly/background-removal`'s default model is ~80 MB (not ~40 MB). Since
+  #63 its runtime and model are served from the admin's own origin: IMG.LY
+  never published the 1.7.x data package to npm, so
+  `admin-frontend/scripts/imgly-assets.mjs` (`prebuild`) mirrors the CDN
+  dist for the installed library version into `public/imgly/` (only the CPU
+  runtime and `isnet_fp16`, ~96 MB, git-ignored) and `recorte.ts` passes
+  `publicPath: <origin>/imgly/`; in dev it falls back to the CDN until the
+  script has run. COOP/COEP for multi-threaded wasm was left out: it would
+  break Clerk's cross-origin frames and ORT runs single-threaded on the same
+  file. The unused ~24 MB `ort-wasm` asset Vite would emit is still dropped
+  by `vite-plugins/drop-ort-wasm.ts`.
 - `cobertura.md` "só interior" ignores neutral filenames and matches UI/UE
   as delimited tokens.
 - `limparCandidatasDaRun` uses the brand-wide kept set.

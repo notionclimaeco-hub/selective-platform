@@ -16,3 +16,7 @@ todos.json
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# background-removal model + runtime mirrored from IMG.LY's CDN at build time
+# (scripts/imgly-assets.mjs, ~96 MB)
+/public/imgly/
