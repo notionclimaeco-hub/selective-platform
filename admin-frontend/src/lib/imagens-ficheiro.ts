@@ -1,22 +1,41 @@
 // Browser-side helpers for image files: resize before upload, hash, measure,
 // and POST to a Convex storage upload URL.
 
-// Scales the image down so its longest side is at most maxPx. PNG stays PNG;
-// everything else becomes JPEG 0.85. Small JPEG/PNG files are returned as-is.
+const FORMATO_NAO_SUPORTADO =
+  "Formato de imagem não suportado (use JPEG, PNG ou WebP)."
+
+async function descodificar(blob: Blob): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(blob)
+  } catch {
+    throw new Error(FORMATO_NAO_SUPORTADO)
+  }
+}
+
+// Scales the image down so its longest side is at most maxPx. PNG stays PNG,
+// WebP stays WebP (both keep transparency); everything else becomes JPEG 0.85.
+// JPEG/PNG/WebP files that are already small enough are returned as-is.
+// Undecodable files reject with a Portuguese message.
 export async function redimensionar(file: File, maxPx = 1600): Promise<Blob> {
-  const bitmap = await createImageBitmap(file)
+  const bitmap = await descodificar(file)
   const escala = Math.min(1, maxPx / Math.max(bitmap.width, bitmap.height))
-  if (escala === 1 && (file.type === "image/jpeg" || file.type === "image/png"))
+  const tipo =
+    file.type === "image/png" || file.type === "image/webp"
+      ? file.type
+      : "image/jpeg"
+  if (escala === 1 && file.type === tipo) {
+    bitmap.close()
     return file
+  }
   const canvas = document.createElement("canvas")
   canvas.width = Math.round(bitmap.width * escala)
   canvas.height = Math.round(bitmap.height * escala)
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  const png = file.type === "image/png"
+  bitmap.close()
   return await new Promise((resolve, reject) =>
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("canvas vazio"))),
-      png ? "image/png" : "image/jpeg",
+      tipo,
       0.85
     )
   )
@@ -32,8 +51,10 @@ export async function sha256(blob: Blob): Promise<string> {
 export async function dimensoes(
   blob: Blob
 ): Promise<{ largura: number; altura: number }> {
-  const bitmap = await createImageBitmap(blob)
-  return { largura: bitmap.width, altura: bitmap.height }
+  const bitmap = await descodificar(blob)
+  const medidas = { largura: bitmap.width, altura: bitmap.height }
+  bitmap.close()
+  return medidas
 }
 
 // Returns the storage id of the uploaded blob.

@@ -63,7 +63,7 @@ export function ZonaUpload({
         {rotulo}
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           multiple
           className="hidden"
           disabled={ocupado}

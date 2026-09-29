@@ -8,6 +8,7 @@ import type { Id } from "@convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import { FaixaOrdenavel } from "@/components/imagens/faixa-ordenavel"
 import { ZonaUpload } from "@/components/imagens/zona-upload"
+import { useObjectUrls } from "@/components/imagens/use-object-urls"
 import { enviarParaStorage, redimensionar } from "@/lib/imagens-ficheiro"
 import type { ImagemItem } from "./sortable-image"
 
@@ -39,8 +40,8 @@ export function ImageManager({
   const [erro, setErro] = useState<string | null>(null)
 
   const inicializado = useRef(false)
-  // Object URLs created for fresh uploads, revoked on unmount to avoid leaks.
-  const objectUrls = useRef<Array<string>>([])
+  // Previews for fresh uploads; revoked on removal and on unmount.
+  const previews = useObjectUrls()
 
   // Seed local state once, when the server list first arrives for this ref.
   useEffect(() => {
@@ -56,12 +57,6 @@ export function ImageManager({
     }
     inicializado.current = true
   }, [dados])
-
-  useEffect(() => {
-    return () => {
-      for (const url of objectUrls.current) URL.revokeObjectURL(url)
-    }
-  }, [])
 
   function reordenar(de: string, para: string) {
     setItens((prev) => {
@@ -82,8 +77,7 @@ export function ImageManager({
         const storageId = await enviarParaStorage(blob, () =>
           gerarUploadUrl({})
         )
-        const preview = URL.createObjectURL(blob)
-        objectUrls.current.push(preview)
+        const preview = previews.criar(blob)
         setItens((prev) =>
           prev.some((i) => i.ficheiro === storageId)
             ? prev
@@ -114,6 +108,8 @@ export function ImageManager({
   }
 
   function remover(ficheiro: string) {
+    const item = itens.find((i) => i.ficheiro === ficheiro)
+    if (item) previews.revogar(item.url)
     setItens((prev) => prev.filter((i) => i.ficheiro !== ficheiro))
   }
 

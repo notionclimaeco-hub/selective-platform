@@ -64,7 +64,7 @@ export function SortableImage({
       <button
         type="button"
         aria-label="Arrastar para reordenar"
-        className="absolute top-1.5 right-1.5 flex size-7 cursor-grab items-center justify-center rounded-md bg-background/80 text-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 active:cursor-grabbing pointer-coarse:opacity-100"
+        className="absolute top-1.5 right-1.5 flex size-7 cursor-grab touch-none items-center justify-center rounded-md bg-background/80 text-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 active:cursor-grabbing pointer-coarse:opacity-100"
         {...attributes}
         {...listeners}
       >
