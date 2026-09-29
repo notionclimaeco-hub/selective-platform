@@ -124,6 +124,20 @@ export const diffValidator = v.union(
   v.literal("igual"),
 );
 
+// Where a candidate photo came from (#images-in-review spec).
+export const fonteCandidataValidator = v.union(
+  v.literal("site"),
+  v.literal("megaclima"),
+  v.literal("pdf"),
+  v.literal("upload"),
+  v.literal("recorte"),
+);
+
+// Per-variant override inside a group's image decision.
+export const porRefValidator = v.array(
+  v.object({ ref: v.string(), imagens: v.array(v.id("_storage")) }),
+);
+
 // Shared field validators for an imported product row (v4 JSON / v3 CSV).
 // Reused by the internal upsert, the bulk importer and the staged-SKU table
 // so all accept exactly the same shape. `imagens`/`estado` are app-managed
@@ -291,6 +305,8 @@ export default defineSchema({
     numPromovidos: v.optional(v.number()),
     numReativados: v.optional(v.number()),
     numDescontinuados: v.optional(v.number()),
+    numImagensAplicadas: v.optional(v.number()),
+    numCandidatasRemovidas: v.optional(v.number()),
     criadoEm: v.number(),
     decididoEm: v.optional(v.number()),
     decididoPor: v.optional(v.string()),
@@ -317,6 +333,40 @@ export default defineSchema({
     .index("by_importacao_ref", ["importacaoId", "ref"])
     .index("by_importacao_grupo", ["importacaoId", "grupoModelo"])
     .index("by_importacao_promovido", ["importacaoId", "promovido"]),
+
+  // Candidate photos gathered for a product page (brand-wide, keyed by the
+  // deterministic grupoModelo). Filled by scripts/imagens/candidatas.mjs and
+  // by uploads/cutouts from the review page. Unchosen rows are deleted when
+  // the brand's run is approved.
+  imagensCandidatas: defineTable({
+    marca: v.string(),
+    grupoModelo: v.string(),
+    ficheiro: v.id("_storage"),
+    fonte: fonteCandidataValidator,
+    origemUrl: v.optional(v.string()), // page URL, or "pdf:<pagina>"
+    hash: v.string(), // sha256 of the stored bytes; dedupe key
+    largura: v.number(),
+    altura: v.number(),
+    cor: v.optional(v.string()), // registry colour value when known
+    origem: v.optional(v.id("imagensCandidatas")), // recorte: source candidate
+    criadoEm: v.number(),
+  })
+    .index("by_grupo", ["grupoModelo"])
+    .index("by_hash", ["hash"])
+    .index("by_marca", ["marca"]),
+
+  // The ordered image decision for a product page; applied to every SKU of
+  // the group on approval (porRef wins for its ref).
+  imagensGrupo: defineTable({
+    grupoModelo: v.string(),
+    marca: v.string(),
+    imagens: v.array(v.id("_storage")),
+    porRef: v.optional(porRefValidator),
+    atualizadoEm: v.number(),
+    atualizadoPor: v.string(),
+  })
+    .index("by_grupo", ["grupoModelo"])
+    .index("by_marca", ["marca"]),
 
   marcas: defineTable({
     slug: v.string(),

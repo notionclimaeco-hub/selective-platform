@@ -62,6 +62,8 @@ export const importacaoValidator = v.object({
   numPromovidos: v.optional(v.number()),
   numReativados: v.optional(v.number()),
   numDescontinuados: v.optional(v.number()),
+  numImagensAplicadas: v.optional(v.number()),
+  numCandidatasRemovidas: v.optional(v.number()),
   criadoEm: v.number(),
   decididoEm: v.optional(v.number()),
   decididoPor: v.optional(v.string()),
