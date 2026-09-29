@@ -50,6 +50,14 @@ describe("escolher / remover / reordenar / capa", () => {
     expect(e.grupo.map((i) => i.ficheiro)).toEqual(["a"])
     expect(paraGuardar(e)).toEqual({ imagens: ["a"], porRef: [{ ref: "R2", imagens: ["a", "b"] }] })
   })
+  it("ref selection without edits does not create stale override (regression)", () => {
+    let e = reduzir(base, { tipo: "escolher", ficheiro: "a" })
+    e = reduzir(e, { tipo: "ativar-ref", ref: "R2" })
+    e = reduzir(e, { tipo: "ativar-ref", ref: null })
+    e = reduzir(e, { tipo: "escolher", ficheiro: "b" })
+    expect(paraGuardar(e)).toEqual({ imagens: ["a", "b"] })
+    expect(listaAtiva(reduzir(e, { tipo: "ativar-ref", ref: "R2" })).map((i) => i.ficheiro)).toEqual(["a", "b"])
+  })
 })
 
 describe("candidata-nova / trocar-recorte", () => {
@@ -67,5 +75,16 @@ describe("candidata-nova / trocar-recorte", () => {
     // toggling back swaps the original into the same slot
     e = reduzir(e, { tipo: "trocar-recorte", ficheiro: "a-cut", recorte: c("a") })
     expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["a", "up"])
+  })
+  it("trocar-recorte swaps only in the active list under per-ref override", () => {
+    let e = reduzir(ESTADO_INICIAL, { tipo: "iniciar", candidatas: [c("a"), c("b")], escolhidas: { imagens: [{ ficheiro: "a", url: "u/a" }], porRef: [] }, atuais: [] })
+    expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["a"])
+    e = reduzir(e, { tipo: "ativar-ref", ref: "R2" })
+    e = reduzir(e, { tipo: "escolher", ficheiro: "b" })
+    expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["a", "b"])
+    const recorte = c("a-cut", { fonte: "recorte", origem: "id-a" })
+    e = reduzir(e, { tipo: "trocar-recorte", ficheiro: "a", recorte })
+    expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["a-cut", "b"])
+    expect(e.grupo.map((i) => i.ficheiro)).toEqual(["a"])
   })
 })

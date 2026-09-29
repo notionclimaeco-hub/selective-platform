@@ -34,7 +34,7 @@ export type Acao =
 export const ESTADO_INICIAL: Estado = { grupo: [], porRef: {}, refAtiva: null, candidatas: [] }
 
 export function listaAtiva(e: Estado): Array<Imagem> {
-  if (e.refAtiva !== null && e.refAtiva in e.porRef) return e.porRef[e.refAtiva]
+  if (e.refAtiva !== null && Object.hasOwn(e.porRef, e.refAtiva)) return e.porRef[e.refAtiva]
   return e.grupo
 }
 
@@ -67,9 +67,7 @@ export function reduzir(e: Estado, a: Acao): Estado {
       return { grupo, porRef, refAtiva: null, candidatas: a.candidatas }
     }
     case "ativar-ref": {
-      if (a.ref === null) return { ...e, refAtiva: null }
-      const porRef = a.ref in e.porRef ? e.porRef : { ...e.porRef, [a.ref]: e.grupo.slice() }
-      return { ...e, refAtiva: a.ref, porRef }
+      return { ...e, refAtiva: a.ref }
     }
     case "escolher": {
       const lista = listaAtiva(e)
@@ -103,6 +101,7 @@ export function reduzir(e: Estado, a: Acao): Estado {
     case "trocar-recorte": {
       const lista = listaAtiva(e)
       const idx = lista.findIndex((i) => i.ficheiro === a.ficheiro)
+      if (lista.some((i) => i.ficheiro === a.recorte.ficheiro)) return e
       const candidatas = e.candidatas.some((x) => x._id === a.recorte._id)
         ? e.candidatas
         : [...e.candidatas, a.recorte]
