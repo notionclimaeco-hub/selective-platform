@@ -344,7 +344,7 @@ export default defineSchema({
     ficheiro: v.id("_storage"),
     fonte: fonteCandidataValidator,
     origemUrl: v.optional(v.string()), // page URL, or "pdf:<pagina>"
-    hash: v.string(), // sha256 of the stored bytes; dedupe key
+    hash: v.string(), // sha256 of the stored bytes; dedupe key within a grupoModelo
     largura: v.number(),
     altura: v.number(),
     cor: v.optional(v.string()), // registry colour value when known
@@ -353,6 +353,7 @@ export default defineSchema({
   })
     .index("by_grupo", ["grupoModelo"])
     .index("by_hash", ["hash"])
+    .index("by_grupo_hash", ["grupoModelo", "hash"])
     .index("by_marca", ["marca"]),
 
   // The ordered image decision for a product page; applied to every SKU of

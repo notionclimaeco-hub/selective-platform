@@ -233,6 +233,46 @@ describe("staff: obterGrupoImagens / definirImagensGrupo / candidatas", () => {
     expect(await existe(tt, velha)).toBe(true);
   });
 
+  it("definirImagens keeps a file that is a candidate or decision in a sibling group of the same brand", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const partilhada = await ficheiro(tt, "partilhada");
+    const decidida = await ficheiro(tt, "decidida");
+    const nova = await ficheiro(tt, "nova");
+    await seedProduto(tt, "R1", "g1", [partilhada, decidida]);
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET, candidatas: [candidata(partilhada, "hp", { grupoModelo: "g2" })],
+    });
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("imagensGrupo", {
+        grupoModelo: "g2", marca: "hisense", imagens: [decidida], atualizadoEm: 1, atualizadoPor: "user_staff",
+      });
+    });
+    const r = await staff.mutation(api.imagens.definirImagens, { ref: "R1", imagens: [nova] });
+    expect(r.ficheirosRemovidos).toBe(0);
+    expect(await existe(tt, partilhada)).toBe(true);
+    expect(await existe(tt, decidida)).toBe(true);
+  });
+
+  it("candidate dedupe is per group: same hash in two groups keeps both files; same group dedupes", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const a = await ficheiro(tt, "a");
+    const b = await ficheiro(tt, "a");
+    const c = await ficheiro(tt, "a");
+    const args = { fonte: "upload" as const, largura: 10, altura: 10, hash: "h" };
+    const r1 = await staff.mutation(api.imagens.adicionarCandidata, { marca: "hisense", grupoModelo: "g1", ficheiro: a, ...args });
+    const r2 = await staff.mutation(api.imagens.adicionarCandidata, { marca: "hisense", grupoModelo: "g2", ficheiro: b, ...args });
+    expect(r2.candidataId).not.toBe(r1.candidataId);
+    expect(await existe(tt, a)).toBe(true);
+    expect(await existe(tt, b)).toBe(true);
+    const r3 = await staff.mutation(api.imagens.adicionarCandidata, { marca: "hisense", grupoModelo: "g2", ficheiro: c, ...args });
+    expect(r3.candidataId).toBe(r2.candidataId);
+    expect(await existe(tt, c)).toBe(false);
+    const g2 = await staff.query(api.imagens.obterGrupoImagens, { grupoModelo: "g2" });
+    expect(g2.candidatas).toHaveLength(1);
+  });
+
   it("staff functions reject non-staff", async () => {
     const tt = t();
     await expect(tt.query(api.imagens.obterGrupoImagens, { grupoModelo: "g" })).rejects.toThrow();

@@ -95,16 +95,18 @@ export async function definirImagensProduto(
       for (const ficheiro of p.imagens) referenciados.add(ficheiro);
     }
     // Files still held as candidates or by a group decision are not orphans.
+    // Scoped by brand, not group: sibling groups (conjunto vs unidade-interior)
+    // can hold the same packshot.
     const candidatas = await ctx.db
       .query("imagensCandidatas")
-      .withIndex("by_grupo", (q) => q.eq("grupoModelo", produto.grupoModelo))
+      .withIndex("by_marca", (q) => q.eq("marca", produto.marca))
       .collect();
     for (const c of candidatas) referenciados.add(c.ficheiro);
-    const decisao = await ctx.db
+    const decisoes = await ctx.db
       .query("imagensGrupo")
-      .withIndex("by_grupo", (q) => q.eq("grupoModelo", produto.grupoModelo))
-      .unique();
-    for (const f of ficheirosEscolhidos(decisao)) referenciados.add(f);
+      .withIndex("by_marca", (q) => q.eq("marca", produto.marca))
+      .collect();
+    for (const d of decisoes) for (const f of ficheirosEscolhidos(d)) referenciados.add(f);
     for (const ficheiro of candidatos) {
       if (referenciados.has(ficheiro)) continue;
       await ctx.storage.delete(ficheiro);
@@ -216,16 +218,17 @@ const candidataEntradaValidator = v.object({
   origemHash: v.optional(v.string()),
 });
 
-async function candidataPorHash(ctx: MutationCtx, hash: string) {
+/** A candidate is identified by (grupoModelo, hash): the same bytes may be a candidate in several groups. */
+async function candidataPorHash(ctx: MutationCtx, grupoModelo: string, hash: string) {
   return await ctx.db
     .query("imagensCandidatas")
-    .withIndex("by_hash", (q) => q.eq("hash", hash))
+    .withIndex("by_grupo_hash", (q) => q.eq("grupoModelo", grupoModelo).eq("hash", hash))
     .first();
 }
 
 /**
- * Upsert candidate photos by hash. A hash already known keeps its original
- * file (the new upload is deleted) and only refreshes origemUrl/cor. Batches
+ * Upsert candidate photos by (grupoModelo, hash). A hash already known in the
+ * group keeps its original file (the new upload is deleted) and only refreshes origemUrl/cor. Batches
  * of ≤ 50 from the upload script.
  */
 export const registarCandidatas = mutation({
@@ -243,7 +246,7 @@ export const registarCandidatas = mutation({
       if ((await ctx.db.system.get(c.ficheiro)) === null) {
         throw new Error(`candidata ${c.hash}: ficheiro ${c.ficheiro} não existe.`);
       }
-      const existente = await candidataPorHash(ctx, c.hash);
+      const existente = await candidataPorHash(ctx, c.grupoModelo, c.hash);
       if (existente) {
         repetidas++;
         const patch: { origemUrl?: string; cor?: string } = {};
@@ -255,7 +258,7 @@ export const registarCandidatas = mutation({
       }
       const origem =
         c.origemHash !== undefined
-          ? ((await candidataPorHash(ctx, c.origemHash))?._id ?? undefined)
+          ? ((await candidataPorHash(ctx, c.grupoModelo, c.origemHash))?._id ?? undefined)
           : undefined;
       await ctx.db.insert("imagensCandidatas", {
         marca: c.marca,
@@ -460,7 +463,7 @@ export const adicionarCandidata = mutation({
     if ((await ctx.db.system.get(args.ficheiro)) === null) {
       throw new Error(`Ficheiro ${args.ficheiro} não existe no storage.`);
     }
-    const existente = await candidataPorHash(ctx, args.hash);
+    const existente = await candidataPorHash(ctx, args.grupoModelo, args.hash);
     if (existente) {
       if (existente.ficheiro !== args.ficheiro) await ctx.storage.delete(args.ficheiro);
       return { candidataId: existente._id };
