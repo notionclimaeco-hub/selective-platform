@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -276,5 +276,194 @@ describe("staff: obterGrupoImagens / definirImagensGrupo / candidatas", () => {
   it("staff functions reject non-staff", async () => {
     const tt = t();
     await expect(tt.query(api.imagens.obterGrupoImagens, { grupoModelo: "g" })).rejects.toThrow();
+  });
+});
+
+async function decisao(tt: T, grupoModelo: string) {
+  return await tt.run(async (ctx) =>
+    ctx.db.query("imagensGrupo").withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo)).unique(),
+  );
+}
+async function seedDecisao(tt: T, grupoModelo: string, imagens: Array<Id<"_storage">>, marca = "hisense") {
+  await tt.run(async (ctx) => {
+    await ctx.db.insert("imagensGrupo", { grupoModelo, marca, imagens, atualizadoEm: 1, atualizadoPor: "user_staff" });
+  });
+}
+
+describe("cleanup paths keep files held by candidates or decisions", () => {
+  it("produtos.remover keeps a file a decision or a candidate still holds, deletes a true orphan", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const daDecisao = await ficheiro(tt, "decisao");
+    const daCandidata = await ficheiro(tt, "candidata");
+    const orfa = await ficheiro(tt, "orfa");
+    await seedProduto(tt, "R1", "g", [daDecisao, daCandidata, orfa]);
+    await seedDecisao(tt, "outro-grupo", [daDecisao], "daikin");
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET, candidatas: [candidata(daCandidata, "hc", { grupoModelo: "g" })],
+    });
+    const r = await staff.mutation(api.produtos.remover, { ref: "R1" });
+    expect(r).toEqual({ removidos: 1, ficheirosRemovidos: 1 });
+    expect(await existe(tt, daDecisao)).toBe(true);
+    expect(await existe(tt, daCandidata)).toBe(true);
+    expect(await existe(tt, orfa)).toBe(false);
+  });
+
+  it("importData.removerAusentes keeps a candidate's file", async () => {
+    const tt = t();
+    const partilhada = await ficheiro(tt, "p");
+    await seedProduto(tt, "R1", "g", [partilhada]);
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET, candidatas: [candidata(partilhada, "hp", { grupoModelo: "g" })],
+    });
+    const r = await tt.mutation(api.importData.removerAusentes, {
+      secret: SECRET, tabelaOrigem: "hisense-2025", refsMantidos: [],
+    });
+    expect(r).toEqual({ removidos: 1, ficheirosRemovidos: 0 });
+    expect(await existe(tt, partilhada)).toBe(true);
+  });
+
+  it("migrations.limparImagensOrfas keeps candidate, decision and run PDF files", async () => {
+    const tt = t();
+    const cand = await ficheiro(tt, "c");
+    const dec = await ficheiro(tt, "d");
+    const pdf = await ficheiro(tt, "pdf");
+    const orfa = await ficheiro(tt, "o");
+    await tt.mutation(api.imagens.registarCandidatas, { secret: SECRET, candidatas: [candidata(cand, "hc")] });
+    await seedDecisao(tt, "g", [dec]);
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("importacoes", {
+        marca: "hisense", ano: 2026, tabelaOrigem: "hisense-2026", ficheiro: "t.pdf", pdf, estado: "em-revisao",
+        numSkus: 0, numGrupos: 0, numNovos: 0, numAlterados: 0, numIguais: 0, numComAvisos: 0, criadoEm: 1,
+      });
+    });
+    const r = await tt.mutation(internal.migrations.limparImagensOrfas, {});
+    expect(r.deleted).toBe(1);
+    expect(await existe(tt, orfa)).toBe(false);
+    for (const f of [cand, dec, pdf]) expect(await existe(tt, f)).toBe(true);
+  });
+
+  it("importData.limparCatalogo also wipes candidates and decisions, with their files", async () => {
+    const tt = t();
+    const naFoto = await ficheiro(tt, "foto");
+    const soCandidata = await ficheiro(tt, "cand");
+    const soDecisao = await ficheiro(tt, "dec");
+    await seedProduto(tt, "R1", "g", [naFoto]);
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET, candidatas: [candidata(naFoto, "h1", { grupoModelo: "g" }), candidata(soCandidata, "h2", { grupoModelo: "g" })],
+    });
+    await seedDecisao(tt, "g", [naFoto, soDecisao]);
+
+    const r1 = await tt.mutation(api.importData.limparCatalogo, { secret: SECRET });
+    expect(r1).toMatchObject({ produtosApagados: 1, imagensApagadas: 0, done: false });
+    expect(await existe(tt, naFoto)).toBe(true); // still a candidate and a decision file
+    const r2 = await tt.mutation(api.importData.limparCatalogo, { secret: SECRET });
+    expect(r2).toMatchObject({ candidatasApagadas: 2, decisoesApagadas: 1, imagensApagadas: 3, done: false });
+    const r3 = await tt.mutation(api.importData.limparCatalogo, { secret: SECRET });
+    expect(r3.done).toBe(true);
+    for (const f of [naFoto, soCandidata, soDecisao]) expect(await existe(tt, f)).toBe(false);
+    const restos = await tt.run(async (ctx) => ({
+      c: await ctx.db.query("imagensCandidatas").collect(),
+      d: await ctx.db.query("imagensGrupo").collect(),
+    }));
+    expect(restos).toEqual({ c: [], d: [] });
+  });
+});
+
+describe("products-page edits keep the group decision in step", () => {
+  it("definirImagens on one variant writes that ref's override when a decision exists", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const capa = await ficheiro(tt, "capa");
+    const preta = await ficheiro(tt, "preta");
+    await seedProduto(tt, "R1", "g", [capa]);
+    await seedProduto(tt, "R2", "g", [capa]);
+    await seedDecisao(tt, "g", [capa]);
+
+    await staff.mutation(api.imagens.definirImagens, { ref: "R2", imagens: [preta] });
+    expect((await decisao(tt, "g"))?.porRef).toEqual([{ ref: "R2", imagens: [preta] }]);
+    expect((await decisao(tt, "g"))?.imagens).toEqual([capa]);
+    expect(await existe(tt, capa)).toBe(true);
+
+    // Back to the group list: the override is dropped; "preta" is orphaned.
+    await staff.mutation(api.imagens.definirImagens, { ref: "R2", imagens: [capa], aplicarAoGrupo: false });
+    expect((await decisao(tt, "g"))?.porRef).toBeUndefined();
+    expect(await existe(tt, preta)).toBe(false);
+  });
+
+  it("definirImagens on one variant without a decision creates none", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const a = await ficheiro(tt, "a");
+    await seedProduto(tt, "R1", "g", []);
+    await staff.mutation(api.imagens.definirImagens, { ref: "R1", imagens: [a] });
+    expect(await decisao(tt, "g")).toBeNull();
+  });
+
+  it("importData.definirImagensPorRef: variant edit becomes an override; group edit updates an existing decision only", async () => {
+    const tt = t();
+    const capa = await ficheiro(tt, "capa");
+    const preta = await ficheiro(tt, "preta");
+    const nova = await ficheiro(tt, "nova");
+    await seedProduto(tt, "R1", "g", [capa]);
+    await seedProduto(tt, "R2", "g", [capa]);
+    await seedProduto(tt, "S1", "sem-decisao", []);
+    await seedDecisao(tt, "g", [capa]);
+
+    await tt.mutation(api.importData.definirImagensPorRef, { secret: SECRET, ref: "R2", imagens: [preta] });
+    expect((await decisao(tt, "g"))?.porRef).toEqual([{ ref: "R2", imagens: [preta] }]);
+
+    await tt.mutation(api.importData.definirImagensPorRef, {
+      secret: SECRET, ref: "R1", imagens: [nova], aplicarAoGrupo: true,
+    });
+    const d = await decisao(tt, "g");
+    expect(d?.imagens).toEqual([nova]);
+    expect(d?.porRef).toBeUndefined();
+    // Nothing holds the old group photo or the old override any more.
+    expect(await existe(tt, capa)).toBe(false);
+    expect(await existe(tt, preta)).toBe(false);
+
+    await tt.mutation(api.importData.definirImagensPorRef, {
+      secret: SECRET, ref: "S1", imagens: [nova], aplicarAoGrupo: true,
+    });
+    expect(await decisao(tt, "sem-decisao")).toBeNull();
+  });
+});
+
+describe("adicionarCandidata: dedupe and recorte checks", () => {
+  it("dedupe keeps the new file when something else references it", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const a = await ficheiro(tt, "a");
+    const viva = await ficheiro(tt, "a");
+    await seedProduto(tt, "R1", "outro", [viva]);
+    const args = { marca: "hisense", grupoModelo: "g", fonte: "upload" as const, largura: 10, altura: 10, hash: "h" };
+    await staff.mutation(api.imagens.adicionarCandidata, { ...args, ficheiro: a });
+    await staff.mutation(api.imagens.adicionarCandidata, { ...args, ficheiro: viva });
+    expect(await existe(tt, viva)).toBe(true);
+    // Same file as the existing candidate: nothing deleted.
+    await staff.mutation(api.imagens.adicionarCandidata, { ...args, ficheiro: a });
+    expect(await existe(tt, a)).toBe(true);
+  });
+
+  it("a recorte needs an origem candidate of the same group", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const src = await ficheiro(tt, "src");
+    const cut = await ficheiro(tt, "cut");
+    const base = { marca: "hisense", largura: 10, altura: 10 };
+    const { candidataId: origem } = await staff.mutation(api.imagens.adicionarCandidata, {
+      ...base, grupoModelo: "g1", ficheiro: src, fonte: "upload", hash: "hs",
+    });
+    await expect(staff.mutation(api.imagens.adicionarCandidata, {
+      ...base, grupoModelo: "g1", ficheiro: cut, fonte: "recorte", hash: "hc",
+    })).rejects.toThrow(/origem/);
+    await expect(staff.mutation(api.imagens.adicionarCandidata, {
+      ...base, grupoModelo: "g2", ficheiro: cut, fonte: "recorte", origem, hash: "hc",
+    })).rejects.toThrow(/origem/);
+    const ok = await staff.mutation(api.imagens.adicionarCandidata, {
+      ...base, grupoModelo: "g1", ficheiro: cut, fonte: "recorte", origem, hash: "hc",
+    });
+    expect(ok.candidataId).toBeDefined();
   });
 });

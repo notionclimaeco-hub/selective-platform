@@ -14,6 +14,7 @@ import {
 
 export { produtoImportFields };
 import { requireStaff } from "./lib/auth";
+import { apagarSemReferencia } from "./imagens";
 import {
   escolherCanonica,
   sincronizarGrupo,
@@ -682,27 +683,6 @@ async function alvosDoRef(
   return [produto];
 }
 
-// Delete storage files in `candidatos` that are no longer referenced by any
-// remaining product. The catalog is small so a full scan is fine.
-async function limparFicheirosOrfaos(
-  ctx: MutationCtx,
-  candidatos: Set<Id<"_storage">>,
-): Promise<number> {
-  if (candidatos.size === 0) return 0;
-  const referenciados = new Set<Id<"_storage">>();
-  const todos = await ctx.db.query("produtos").collect();
-  for (const p of todos) {
-    for (const ficheiro of p.imagens) referenciados.add(ficheiro);
-  }
-  let removidos = 0;
-  for (const ficheiro of candidatos) {
-    if (referenciados.has(ficheiro)) continue;
-    await ctx.storage.delete(ficheiro);
-    removidos++;
-  }
-  return removidos;
-}
-
 /**
  * Staff-only: change a product's estado (rascunho/publicado/descontinuado).
  * With `aplicarAoGrupo` applies to every variant of the family. Idempotent —
@@ -797,8 +777,8 @@ export const atualizar = mutation({
 
 /**
  * Staff-only: delete a product. With `removerGrupo` deletes every variant of
- * the family. Image files left unreferenced by any remaining product are
- * removed from storage.
+ * the family. Image files nothing references any more (products, candidates,
+ * group decisions) are removed from storage.
  */
 export const remover = mutation({
   args: {
@@ -825,7 +805,7 @@ export const remover = mutation({
     }
     await sincronizarGrupos(ctx, alvos.map((a) => a.grupoModelo));
 
-    const ficheirosRemovidos = await limparFicheirosOrfaos(ctx, candidatos);
+    const ficheirosRemovidos = await apagarSemReferencia(ctx, candidatos);
     return { removidos, ficheirosRemovidos };
   },
 });

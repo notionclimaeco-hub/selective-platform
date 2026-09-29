@@ -28,6 +28,10 @@ export async function definirImagensProduto(
     ref: string;
     imagens: Array<Id<"_storage">>;
     aplicarAoGrupo?: boolean;
+    // Who edits (decision's atualizadoPor) and whether a group edit may
+    // create the group's decision when none exists yet.
+    por: string;
+    criarDecisao: boolean;
   },
 ): Promise<{ produtosAtualizados: number; ficheirosRemovidos: number }> {
   const produto = await ctx.db
@@ -84,37 +88,104 @@ export async function definirImagensProduto(
     await sincronizarGrupo(ctx, produto.grupoModelo);
   }
 
-  // Orphan cleanup. Images can be shared across products (even outside the
-  // group), so only delete files no longer referenced anywhere. The catalog
-  // is small (hundreds of rows), so a full read is fine here.
-  let ficheirosRemovidos = 0;
-  if (candidatos.size > 0) {
-    const referenciados = new Set<Id<"_storage">>();
-    const todos = await ctx.db.query("produtos").collect();
-    for (const p of todos) {
-      for (const ficheiro of p.imagens) referenciados.add(ficheiro);
-    }
-    // Files still held as candidates or by a group decision are not orphans.
-    // Scoped by brand, not group: sibling groups (conjunto vs unidade-interior)
-    // can hold the same packshot.
-    const candidatas = await ctx.db
-      .query("imagensCandidatas")
-      .withIndex("by_marca", (q) => q.eq("marca", produto.marca))
-      .collect();
-    for (const c of candidatas) referenciados.add(c.ficheiro);
-    const decisoes = await ctx.db
-      .query("imagensGrupo")
-      .withIndex("by_marca", (q) => q.eq("marca", produto.marca))
-      .collect();
-    for (const d of decisoes) for (const f of ficheirosEscolhidos(d)) referenciados.add(f);
-    for (const ficheiro of candidatos) {
-      if (referenciados.has(ficheiro)) continue;
-      await ctx.storage.delete(ficheiro);
-      ficheirosRemovidos++;
-    }
-  }
+  // Keep the group's decision in step, or the next approval re-applies the
+  // old list over this edit (and deletes the file it just set).
+  await sincronizarDecisao(ctx, produto, novas, args);
+
+  // Orphan cleanup: only files nothing references any more (any brand).
+  const ficheirosRemovidos = await apagarSemReferencia(ctx, candidatos);
 
   return { produtosAtualizados, ficheirosRemovidos };
+}
+
+/**
+ * Mirror a products-page edit into the group's decision. A group edit writes
+ * the group list and clears the overrides (creating the decision only when
+ * `criarDecisao`); a single-variant edit, when a decision exists, becomes that
+ * ref's override (dropped when it equals the group list).
+ */
+async function sincronizarDecisao(
+  ctx: MutationCtx,
+  produto: Doc<"produtos">,
+  imagens: Array<Id<"_storage">>,
+  args: { aplicarAoGrupo?: boolean; por: string; criarDecisao: boolean },
+): Promise<void> {
+  const atual = await ctx.db
+    .query("imagensGrupo")
+    .withIndex("by_grupo", (q) => q.eq("grupoModelo", produto.grupoModelo))
+    .unique();
+  if (args.aplicarAoGrupo === true) {
+    if (atual === null && !args.criarDecisao) return;
+    await gravarDecisao(ctx, {
+      grupoModelo: produto.grupoModelo, marca: produto.marca,
+      imagens, porRef: undefined, por: args.por,
+    });
+    return;
+  }
+  if (atual === null) return;
+  // Rewrite the rest of the decision without files deleted meanwhile, so a
+  // stale entry never blocks this edit.
+  const doGrupo = await ficheirosExistentes(ctx, atual.imagens);
+  const porRef = [];
+  for (const p of atual.porRef ?? []) {
+    if (p.ref !== produto.ref) porRef.push({ ref: p.ref, imagens: await ficheirosExistentes(ctx, p.imagens) });
+  }
+  const igualAoGrupo =
+    doGrupo.length === imagens.length && doGrupo.every((f, i) => f === imagens[i]);
+  if (!igualAoGrupo) porRef.push({ ref: produto.ref, imagens });
+  await gravarDecisao(ctx, {
+    grupoModelo: atual.grupoModelo, marca: atual.marca,
+    imagens: doGrupo, porRef, por: args.por,
+  });
+}
+
+/** The files of `lista` still in storage, order kept. */
+export async function ficheirosExistentes(
+  ctx: { db: QueryCtx["db"] },
+  lista: ReadonlyArray<Id<"_storage">>,
+): Promise<Array<Id<"_storage">>> {
+  const out: Array<Id<"_storage">> = [];
+  for (const f of lista) if ((await ctx.db.system.get(f)) !== null) out.push(f);
+  return out;
+}
+
+/**
+ * Every storage file a row still points at, across all brands: product
+ * images, candidates, group decisions (list and overrides), catalog page
+ * files and run PDFs. Cleanup paths only delete files outside this set.
+ * (`catalogoGrupos.capa` is derived from product images, so not read.)
+ */
+export async function ficheirosReferenciados(
+  ctx: { db: QueryCtx["db"] },
+): Promise<Set<Id<"_storage">>> {
+  const out = new Set<Id<"_storage">>();
+  for await (const p of ctx.db.query("produtos")) for (const f of p.imagens) out.add(f);
+  for await (const c of ctx.db.query("imagensCandidatas")) out.add(c.ficheiro);
+  for await (const d of ctx.db.query("imagensGrupo")) for (const f of ficheirosEscolhidos(d)) out.add(f);
+  for await (const pg of ctx.db.query("paginasCatalogo")) {
+    if (pg.ficheiro !== undefined) out.add(pg.ficheiro);
+    if (pg.imagem !== undefined) out.add(pg.imagem);
+  }
+  for await (const r of ctx.db.query("importacoes")) if (r.pdf !== undefined) out.add(r.pdf);
+  return out;
+}
+
+/** Delete the given files that still exist and nothing references. Returns how many. */
+export async function apagarSemReferencia(
+  ctx: MutationCtx,
+  ficheiros: Iterable<Id<"_storage">>,
+): Promise<number> {
+  const lista = [...new Set(ficheiros)];
+  if (lista.length === 0) return 0;
+  const referenciados = await ficheirosReferenciados(ctx);
+  let removidos = 0;
+  for (const f of lista) {
+    if (referenciados.has(f)) continue;
+    if ((await ctx.db.system.get(f)) === null) continue;
+    await ctx.storage.delete(f);
+    removidos++;
+  }
+  return removidos;
 }
 
 /**
@@ -185,20 +256,7 @@ export const definirImagens = mutation({
   }),
   handler: async (ctx, args) => {
     const identity = await requireStaff(ctx);
-    const r = await definirImagensProduto(ctx, args);
-    if (args.aplicarAoGrupo === true) {
-      const produto = await ctx.db
-        .query("produtos")
-        .withIndex("by_ref", (q) => q.eq("ref", args.ref))
-        .unique();
-      if (produto) {
-        await gravarDecisao(ctx, {
-          grupoModelo: produto.grupoModelo, marca: produto.marca,
-          imagens: args.imagens, porRef: undefined, por: identity.subject,
-        });
-      }
-    }
-    return r;
+    return await definirImagensProduto(ctx, { ...args, por: identity.subject, criarDecisao: true });
   },
 });
 
@@ -293,23 +351,6 @@ export async function ficheirosEmUso(ctx: MutationCtx, marca: string): Promise<S
     .collect();
   for (const p of produtos) for (const f of p.imagens) emUso.add(f);
   return emUso;
-}
-
-/**
- * Brand-wide set of files that must not be deleted as orphans: products +
- * decisions (`ficheirosEmUso`) plus every file held as a candidate row.
- */
-export async function ficheirosDaMarca(
-  ctx: MutationCtx,
-  marca: string,
-): Promise<Set<Id<"_storage">>> {
-  const out = await ficheirosEmUso(ctx, marca);
-  const candidatas = await ctx.db
-    .query("imagensCandidatas")
-    .withIndex("by_marca", (q) => q.eq("marca", marca))
-    .collect();
-  for (const c of candidatas) out.add(c.ficheiro);
-  return out;
 }
 
 /** Delete a brand's candidates (rows + files) except chosen or live ones. */
@@ -480,9 +521,16 @@ export const adicionarCandidata = mutation({
     if ((await ctx.db.system.get(args.ficheiro)) === null) {
       throw new Error(`Ficheiro ${args.ficheiro} não existe no storage.`);
     }
+    if (args.fonte === "recorte") {
+      const origem = args.origem === undefined ? null : await ctx.db.get(args.origem);
+      if (origem === null || origem.grupoModelo !== args.grupoModelo) {
+        throw new Error("Recorte sem imagem de origem neste grupo.");
+      }
+    }
     const existente = await candidataPorHash(ctx, args.grupoModelo, args.hash);
     if (existente) {
-      if (existente.ficheiro !== args.ficheiro) await ctx.storage.delete(args.ficheiro);
+      // Same bytes already held: drop the new upload unless something uses it.
+      if (existente.ficheiro !== args.ficheiro) await apagarSemReferencia(ctx, [args.ficheiro]);
       return { candidataId: existente._id };
     }
     const candidataId = await ctx.db.insert("imagensCandidatas", {

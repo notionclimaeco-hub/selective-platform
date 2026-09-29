@@ -20,7 +20,7 @@ import {
   listaParaRef,
 } from "./lib/imagensGrupo";
 import { validarAtributos } from "./lib/specRegistry";
-import { ficheirosDaMarca, ficheirosEmUso } from "./imagens";
+import { apagarSemReferencia, ficheirosEmUso, ficheirosExistentes } from "./imagens";
 import { upsertProdutoPorRef, type ProdutoImport } from "./produtos";
 import { upsertPaginaImagem } from "./paginasCatalogo";
 import { sincronizarGrupos } from "./lib/catalogoGrupos";
@@ -528,13 +528,17 @@ export const promoverLote = internalMutation({
           .withIndex("by_grupo", (q) => q.eq("grupoModelo", linha.grupoModelo))
           .unique();
         if (decisao) {
-          const lista = listaParaRef(decisao, linha.ref);
+          // A decision may name a file deleted since it was saved: skip those,
+          // and apply nothing when none of its files is left.
+          const escolhida = listaParaRef(decisao, linha.ref);
+          const lista = await ficheirosExistentes(ctx, escolhida);
+          const perdida = escolhida.length > 0 && lista.length === 0;
           const produto = await ctx.db.get(r.produtoId);
           const igual =
             produto !== null &&
             produto.imagens.length === lista.length &&
             produto.imagens.every((f, i) => f === lista[i]);
-          if (!igual) {
+          if (!igual && !perdida) {
             const novos = new Set(lista);
             for (const f of produto?.imagens ?? []) {
               if (!novos.has(f)) substituidos.add(f);
@@ -546,14 +550,9 @@ export const promoverLote = internalMutation({
         await ctx.db.patch(linha._id, { promovido: true });
       }
       await sincronizarGrupos(ctx, tocados);
-      if (substituidos.size > 0) {
-        // Files a decision replaced: delete unless something else still holds them.
-        const emUso = await ficheirosDaMarca(ctx, run.marca);
-        for (const f of substituidos) {
-          if (emUso.has(f)) continue;
-          if ((await ctx.db.system.get(f)) !== null) await ctx.storage.delete(f);
-        }
-      }
+      // Files a decision replaced: delete unless anything (any brand: legacy
+      // uploads share one file across brands) still holds them.
+      await apagarSemReferencia(ctx, substituidos);
       await ctx.db.patch(run._id, {
         numPromovidos: (run.numPromovidos ?? 0) + pendentes.length,
         numReativados: (run.numReativados ?? 0) + reativados,
