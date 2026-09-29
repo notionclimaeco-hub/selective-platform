@@ -162,6 +162,11 @@ tem de ser aberto (`marcarGrupoRevisto`) antes de aprovar. O agente entrega o
 link e o resumo (contagens por família, tipos de aviso e a justificação de
 cada um). A aprovação é do staff.
 
+## 7. Imagens
+
+Correr a skill `catalog-brand-images` antes de entregar o link da revisão: a
+página mostra as candidatas por grupo e o staff escolhe lá.
+
 ## QA final (obrigatório no PR da marca)
 
 - `mapa.json` sem avisos de título e `--validar` limpo; todas as páginas
@@ -174,6 +179,7 @@ cada um). A aprovação é do staff.
 - Grupos determinísticos batem com os slugs do catálogo atual sempre que a
   gama é a mesma (as fotos dependem disso).
 - Screenshot da página de revisão a 390 px e 1440 px.
+- `cobertura.md` (skill `catalog-brand-images`) no PR.
 
 ## Testes
 
