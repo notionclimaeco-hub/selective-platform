@@ -279,8 +279,8 @@ export const registarCandidatas = mutation({
   },
 });
 
-/** Files any decision or any live product still references. */
-async function ficheirosEmUso(ctx: MutationCtx, marca: string): Promise<Set<Id<"_storage">>> {
+/** Files any decision or any product of the brand still references. */
+export async function ficheirosEmUso(ctx: MutationCtx, marca: string): Promise<Set<Id<"_storage">>> {
   const emUso = new Set<Id<"_storage">>();
   const decisoes = await ctx.db
     .query("imagensGrupo")
@@ -293,6 +293,23 @@ async function ficheirosEmUso(ctx: MutationCtx, marca: string): Promise<Set<Id<"
     .collect();
   for (const p of produtos) for (const f of p.imagens) emUso.add(f);
   return emUso;
+}
+
+/**
+ * Brand-wide set of files that must not be deleted as orphans: products +
+ * decisions (`ficheirosEmUso`) plus every file held as a candidate row.
+ */
+export async function ficheirosDaMarca(
+  ctx: MutationCtx,
+  marca: string,
+): Promise<Set<Id<"_storage">>> {
+  const out = await ficheirosEmUso(ctx, marca);
+  const candidatas = await ctx.db
+    .query("imagensCandidatas")
+    .withIndex("by_marca", (q) => q.eq("marca", marca))
+    .collect();
+  for (const c of candidatas) out.add(c.ficheiro);
+  return out;
 }
 
 /** Delete a brand's candidates (rows + files) except chosen or live ones. */

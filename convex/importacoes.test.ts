@@ -878,4 +878,66 @@ describe("promoção: imagens", () => {
     const restantes = await tt.run(async (ctx) => ctx.db.query("imagensCandidatas").collect());
     expect(restantes.map((c) => c.hash).sort()).toEqual(["h1", "h2", "h4"]);
   });
+
+  async function produtoComFoto(tt: T, ref: string, grupoModelo: string, foto: Id<"_storage">) {
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("produtos", {
+        ref, marca: "hisense", nome: ref, nomeGrupo: "X", familia: "ar-condicionado", componente: "conjunto",
+        grupoModelo, atributos: [], pvpCents: 50000, ivaIncluido: false, tabelaOrigem: "hisense-2025",
+        pdfPaginas: [1], imagens: [foto], estado: "publicado",
+      });
+    });
+  }
+  const existe = (tt: T, id: Id<"_storage">) => tt.run(async (ctx) => (await ctx.db.system.get(id)) !== null);
+  const imagensDe = (tt: T, ref: string) =>
+    tt.run(async (ctx) => (await ctx.db.query("produtos").withIndex("by_ref", (q) => q.eq("ref", ref)).unique())?.imagens);
+
+  it("deletes a pre-existing non-candidate image that a decision replaces", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const velha = await f(tt, "velha");
+    const nova = await f(tt, "nova");
+    await produtoComFoto(tt, "A1", "g-a", velha);
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET,
+      candidatas: [{ marca: "hisense", grupoModelo: "g-a", ficheiro: nova, fonte: "site", hash: "n1", largura: 1, altura: 1 }],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [nova], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([nova]);
+    expect(await existe(tt, velha)).toBe(false);
+    expect(await existe(tt, nova)).toBe(true);
+  });
+
+  it("keeps a replaced image that another product or another group's decision still uses", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const partilhada = await f(tt, "partilhada");
+    const daDecisao = await f(tt, "da-decisao");
+    const nova = await f(tt, "nova");
+    // A1 and a product outside the run share a photo; A2 had a photo that
+    // another group's decision chose.
+    await produtoComFoto(tt, "A1", "g-a", partilhada);
+    await produtoComFoto(tt, "OUTRO", "g-z", partilhada);
+    await produtoComFoto(tt, "A2", "g-a", daDecisao);
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-z", marca: "hisense", imagens: [daDecisao], porRef: [], refsDoGrupo: ["OUTRO"],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [nova], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([nova]);
+    expect(await imagensDe(tt, "A2")).toEqual([nova]);
+    expect(await existe(tt, partilhada)).toBe(true);
+    expect(await existe(tt, daDecisao)).toBe(true);
+  });
 });

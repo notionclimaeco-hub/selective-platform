@@ -20,6 +20,7 @@ import {
   listaParaRef,
 } from "./lib/imagensGrupo";
 import { validarAtributos } from "./lib/specRegistry";
+import { ficheirosDaMarca, ficheirosEmUso } from "./imagens";
 import { upsertProdutoPorRef, type ProdutoImport } from "./produtos";
 import { upsertPaginaImagem } from "./paginasCatalogo";
 import { sincronizarGrupos } from "./lib/catalogoGrupos";
@@ -511,6 +512,7 @@ export const promoverLote = internalMutation({
     if (pendentes.length > 0) {
       let reativados = 0;
       let aplicadas = 0;
+      const substituidos = new Set<Id<"_storage">>();
       for (const linha of pendentes) {
         const anterior = await ctx.db
           .query("produtos")
@@ -533,6 +535,10 @@ export const promoverLote = internalMutation({
             produto.imagens.length === lista.length &&
             produto.imagens.every((f, i) => f === lista[i]);
           if (!igual) {
+            const novos = new Set(lista);
+            for (const f of produto?.imagens ?? []) {
+              if (!novos.has(f)) substituidos.add(f);
+            }
             await ctx.db.patch(r.produtoId, { imagens: lista });
             aplicadas++;
           }
@@ -540,6 +546,14 @@ export const promoverLote = internalMutation({
         await ctx.db.patch(linha._id, { promovido: true });
       }
       await sincronizarGrupos(ctx, tocados);
+      if (substituidos.size > 0) {
+        // Files a decision replaced: delete unless something else still holds them.
+        const emUso = await ficheirosDaMarca(ctx, run.marca);
+        for (const f of substituidos) {
+          if (emUso.has(f)) continue;
+          if ((await ctx.db.system.get(f)) !== null) await ctx.storage.delete(f);
+        }
+      }
       await ctx.db.patch(run._id, {
         numPromovidos: (run.numPromovidos ?? 0) + pendentes.length,
         numReativados: (run.numReativados ?? 0) + reativados,
@@ -595,19 +609,10 @@ export const limparCandidatasDaRun = internalMutation({
   handler: async (ctx, args) => {
     const run = await obterRun(ctx, args.importacaoId);
     const grupos = new Set((await linhasDaRun(ctx, run._id)).map((l) => l.grupoModelo));
-    const emUso = new Set<Id<"_storage">>();
-    const produtos = await ctx.db
-      .query("produtos")
-      .withIndex("by_marca", (q) => q.eq("marca", run.marca))
-      .collect();
-    for (const p of produtos) for (const f of p.imagens) emUso.add(f);
+    // Products + decisions of the whole brand: a sibling group's choice is never deleted.
+    const mantidos = await ficheirosEmUso(ctx, run.marca);
     let removidas = 0;
     for (const grupoModelo of grupos) {
-      const decisao = await ctx.db
-        .query("imagensGrupo")
-        .withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo))
-        .unique();
-      const mantidos = new Set<Id<"_storage">>([...emUso, ...ficheirosEscolhidos(decisao)]);
       const candidatas = await ctx.db
         .query("imagensCandidatas")
         .withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo))
