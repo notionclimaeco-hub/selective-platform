@@ -15,6 +15,12 @@ Cada extração acaba com este passo. O objetivo é que cada grupo em revisão
 tenha candidatas de foto para o staff escolher em `/importacoes/{id}`; a
 escolha e o recorte são feitos lá, não aqui.
 
+Pré-requisitos: a run já existe no Convex (depois do `enviar.py`); o `.env` da
+raiz tem `IMPORT_SECRET` e o URL do Convex (`VITE_CONVEX_URL` ou
+`CONVEX_URL`); `alvos.mjs` e `candidatas.mjs` correm a partir da raiz do repo
+(os passos do catalog-pdf-extract fazem `cd` para a pasta da marca, por isso
+volta à raiz antes).
+
 ## 1. Alvos
 
 ```bash
@@ -37,15 +43,25 @@ de TLS e de URL de cada marca), mas a decisão do que é um packshot é tua:
 - Guarda: vista de frente por cor; unidade interior e exterior em ficheiros
   separados; nada de cenas de ambiente, banners, ícones ou imagens com menos
   de 400 px no lado maior. Grupos `unidade-exterior` só levam fotos de UE.
-- Ficheiros em `product-scaffold/imagens/{marca}/{grupoModelo}/NN.jpg` e
+- Ficheiros em `product-scaffold/imagens/{marca}/{grupoModelo}/NN.jpg` (ou `.png`) e
   regista o URL da página de onde veio.
 
 ## 3. Fallbacks, por esta ordem
 
 1. Megaclima: `node scripts/imagens/crawl-megaclima-curl.mjs --brand {marca}`
-   e escolher à mão o que serve.
+   e escolher à mão o que serve. O crawler escreve em
+   `product-scaffold/crawl-raw/{marca}/<pageSlug>/NN.png` e no `manifest.json`
+   partilhado; detalhes por marca em [references/brands.md](references/brands.md).
+   Copia (ou referencia) os escolhidos para a pasta do grupo com
+   `"fonte": "megaclima"`.
 2. Miniaturas do PDF: `python3 .claude/skills/catalog-pdf-extract/scripts/pdf_images.py <csv> --only <grupo>`
-   (o CSV vem de `validar.py --csv`).
+   (o CSV vem de `validar.py --csv`). Acrescenta `--pdf <caminho>` se o PDF não
+   estiver ao lado do CSV, e `--include-ue` para grupos `unidade-exterior`
+   (por omissão são saltados, porque a miniatura costuma ser da UI). O output
+   fica em `product-scaffold/pdf-images/{marca}/{grupo}/NN.png`; no
+   `candidatas.json` refere esses ficheiros com caminho absoluto ou relativo
+   (`../../pdf-images/{marca}/{grupo}/NN.png`), `"fonte": "pdf"` e
+   `"origemUrl": "pdf:<pagina>"`.
 
 Cada uso de fallback fica listado no PR.
 
@@ -57,6 +73,10 @@ Cada uso de fallback fica listado no PR.
 { "hisense-air-master": [
     { "ficheiro": "hisense-air-master/01.jpg", "fonte": "site", "origemUrl": "https://hisense.pt/…", "cor": "branco" } ] }
 ```
+
+O valor de `cor` tem de ser exatamente um dos `cores` desse grupo em
+`alvos.json` (valores de cor do registo); senão o `cobertura.md` conta a cor
+como em falta.
 
 A mesma foto (os mesmos bytes) reutilizada noutro grupo tem de ser listada
 outra vez nesse grupo: a deduplicação é por grupo. No `cobertura.md`, a marca

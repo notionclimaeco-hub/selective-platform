@@ -206,7 +206,9 @@ photos stay `rascunho`.
 
 ## Brand-specific notes
 
-See [references/brands.md](references/brands.md).
+See [references/brands.md](references/brands.md). Photo/site notes (crawl
+sites, TLS, UI/UE, distributors) now live in
+`.claude/skills/catalog-brand-images/references/brands.md`.
 
 ## Done checklist
 

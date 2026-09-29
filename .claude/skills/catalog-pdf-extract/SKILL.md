@@ -160,7 +160,8 @@ avisos `erro:` (salvo `--forcar`); SKUs rejeitados ficam listados e a run em
 Na app de admin, `/importacoes/{id}`: cada grupo com aviso ou preço alterado
 tem de ser aberto (`marcarGrupoRevisto`) antes de aprovar. O agente entrega o
 link e o resumo (contagens por família, tipos de aviso e a justificação de
-cada um). A aprovação é do staff.
+cada um). A aprovação é do staff. O passo de imagens (## 7) corre ANTES de entregar o
+link da revisão.
 
 ## 7. Imagens
 

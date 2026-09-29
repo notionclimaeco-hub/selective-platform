@@ -57,7 +57,8 @@ Config de sementes: `scripts/imagens/crawl.config.json`.
 
 ## Nipon
 
-- Site: niponcomfort.com, via Playwright. Os URLs de imagem estão em `/pic/`.
+- Site: niponcomfort.com, via Playwright (`pnpm imagens:crawl -- --brand nipon`).
+  Os URLs de imagem estão em `/pic/`.
 
 ## Distribuidores secundários (todas as marcas)
 
