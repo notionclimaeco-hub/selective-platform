@@ -7,6 +7,12 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 const SECRET = "segredo-teste";
+const STAFF = {
+  subject: "user_staff",
+  issuer: "https://example.clerk.accounts.dev",
+  tokenIdentifier: "https://example.clerk.accounts.dev|user_staff",
+  role: "staff",
+};
 
 beforeEach(() => vi.stubEnv("IMPORT_SECRET", SECRET));
 afterEach(() => vi.unstubAllEnvs());
@@ -119,5 +125,116 @@ describe("limparCandidatas", () => {
     expect(r).toEqual({ removidas: 1 });
     expect(await existe(tt, livre)).toBe(false);
     expect(await existe(tt, escolhido)).toBe(true);
+  });
+});
+
+async function seedProduto(tt: T, ref: string, grupoModelo: string, imagens: Array<Id<"_storage">>) {
+  await tt.run(async (ctx) => {
+    await ctx.db.insert("produtos", {
+      ref, marca: "hisense", nome: ref, nomeGrupo: "Mural Air Master", familia: "ar-condicionado",
+      componente: "conjunto", grupoModelo, atributos: [], pvpCents: 100, ivaIncluido: false,
+      tabelaOrigem: "hisense-2025", pdfPaginas: [1], imagens, estado: "publicado",
+    });
+  });
+}
+
+describe("staff: obterGrupoImagens / definirImagensGrupo / candidatas", () => {
+  it("returns candidates with URLs and recorteId, the decision and live images", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const src = await ficheiro(tt, "src");
+    const cut = await ficheiro(tt, "cut");
+    const live = await ficheiro(tt, "live");
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET,
+      candidatas: [candidata(src, "hs"), candidata(cut, "hc", { fonte: "recorte", origemHash: "hs" })],
+    });
+    await seedProduto(tt, "QK25WM0A", "hisense-air-master", [live]);
+
+    const antes = await staff.query(api.imagens.obterGrupoImagens, { grupoModelo: "hisense-air-master" });
+    expect(antes.escolhidas).toBeNull();
+    expect(antes.atuais).toEqual([{ ref: "QK25WM0A", imagens: [{ ficheiro: live, url: expect.any(String) }] }]);
+    const fonte = antes.candidatas.find((c) => c.fonte === "site");
+    const recorte = antes.candidatas.find((c) => c.fonte === "recorte");
+    expect(fonte?.recorteId).toBe(recorte?._id);
+    expect(recorte?.origem).toBe(fonte?._id);
+    expect(fonte?.url).toEqual(expect.any(String));
+
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "hisense-air-master", marca: "hisense", imagens: [cut],
+      porRef: [{ ref: "QK25WM0B", imagens: [src] }], refsDoGrupo: ["QK25WM0A", "QK25WM0B"],
+    });
+    const depois = await staff.query(api.imagens.obterGrupoImagens, { grupoModelo: "hisense-air-master" });
+    expect(depois.escolhidas?.imagens.map((i) => i.ficheiro)).toEqual([cut]);
+    expect(depois.escolhidas?.porRef[0]).toMatchObject({ ref: "QK25WM0B" });
+  });
+
+  it("porRef com ref repetida or outside the group is rejected; missing file is rejected", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const f1 = await ficheiro(tt);
+    await expect(staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g", marca: "hisense", imagens: [f1],
+      porRef: [{ ref: "A", imagens: [f1] }, { ref: "A", imagens: [f1] }], refsDoGrupo: ["A"],
+    })).rejects.toThrow(/repetida/);
+    await expect(staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g", marca: "hisense", imagens: [f1],
+      porRef: [{ ref: "Z", imagens: [f1] }], refsDoGrupo: ["A"],
+    })).rejects.toThrow(/Z/);
+    // A well-formed id whose file was deleted (a made-up id string fails argument validation instead).
+    const apagado = await ficheiro(tt, "apagado");
+    await tt.run(async (ctx) => ctx.storage.delete(apagado));
+    await expect(staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g", marca: "hisense", imagens: [apagado], refsDoGrupo: [],
+    })).rejects.toThrow(/não existe/);
+  });
+
+  it("adicionarCandidata dedupes by hash; removerCandidata refuses chosen files", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const a = await ficheiro(tt, "a");
+    const b = await ficheiro(tt, "a");
+    const r1 = await staff.mutation(api.imagens.adicionarCandidata, {
+      marca: "hisense", grupoModelo: "g", ficheiro: a, fonte: "upload", largura: 10, altura: 10, hash: "h",
+    });
+    const r2 = await staff.mutation(api.imagens.adicionarCandidata, {
+      marca: "hisense", grupoModelo: "g", ficheiro: b, fonte: "upload", largura: 10, altura: 10, hash: "h",
+    });
+    expect(r2.candidataId).toBe(r1.candidataId);
+    expect(await existe(tt, b)).toBe(false);
+
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g", marca: "hisense", imagens: [a], refsDoGrupo: [],
+    });
+    await expect(staff.mutation(api.imagens.removerCandidata, { candidataId: r1.candidataId }))
+      .rejects.toThrow(/em uso/);
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g", marca: "hisense", imagens: [], refsDoGrupo: [],
+    });
+    await staff.mutation(api.imagens.removerCandidata, { candidataId: r1.candidataId });
+    expect(await existe(tt, a)).toBe(false);
+  });
+
+  it("definirImagens with aplicarAoGrupo writes the group decision and keeps candidate files", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const velha = await ficheiro(tt, "velha");
+    const nova = await ficheiro(tt, "nova");
+    await seedProduto(tt, "R1", "g", [velha]);
+    await seedProduto(tt, "R2", "g", [velha]);
+    await tt.mutation(api.imagens.registarCandidatas, { secret: SECRET, candidatas: [candidata(velha, "hv", { grupoModelo: "g" })] });
+    await staff.mutation(api.imagens.definirImagens, { ref: "R1", imagens: [nova], aplicarAoGrupo: true });
+    const decisao = await tt.run(async (ctx) =>
+      ctx.db.query("imagensGrupo").withIndex("by_grupo", (q) => q.eq("grupoModelo", "g")).unique(),
+    );
+    expect(decisao?.imagens).toEqual([nova]);
+    expect(decisao?.porRef).toBeUndefined();
+    // "velha" is no longer on any product but is still a candidate: kept.
+    expect(await existe(tt, velha)).toBe(true);
+  });
+
+  it("staff functions reject non-staff", async () => {
+    const tt = t();
+    await expect(tt.query(api.imagens.obterGrupoImagens, { grupoModelo: "g" })).rejects.toThrow();
   });
 });
