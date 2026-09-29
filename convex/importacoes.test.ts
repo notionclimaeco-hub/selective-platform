@@ -778,3 +778,35 @@ describe("importacoes: carregamento (revisão final)", () => {
     expect(r.erros[0]?.erro).toMatch(/partilhado.*midea/);
   });
 });
+
+describe("obter: imagens", () => {
+  it("counts groups without a decision or live images and filters them", async () => {
+    const test = t();
+    const staff = test.withIdentity(STAFF);
+    const id = await criarRun(test);
+    await carregar(test, id, [
+      staged("A1", { grupoModelo: "g-a" }),
+      staged("B1", { grupoModelo: "g-b", nomeGrupo: "B" }),
+    ]);
+    const f = await test.run(async (ctx) => ctx.storage.store(new Blob(["x"])));
+    await test.run(async (ctx) => {
+      await ctx.db.insert("imagensGrupo", {
+        grupoModelo: "g-a",
+        marca: "hisense",
+        imagens: [f],
+        atualizadoEm: 1,
+        atualizadoPor: "s",
+      });
+    });
+    const tudo = await staff.query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 50 });
+    expect(tudo?.gruposSemImagens).toBe(1);
+    expect(tudo?.grupos.find((g) => g.grupoModelo === "g-a")?.temImagens).toBe(true);
+    const so = await staff.query(api.importacoes.obter, {
+      importacaoId: id,
+      pagina: 0,
+      porPagina: 50,
+      soSemImagens: true,
+    });
+    expect(so?.grupos.map((g) => g.grupoModelo)).toEqual(["g-b"]);
+  });
+});

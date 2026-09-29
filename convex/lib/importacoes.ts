@@ -74,6 +74,8 @@ export type ResumoGrupo = {
   revisto: boolean;
   // A warning or a price change: the reviewer must open this group.
   precisaRevisao: boolean;
+  // A staff image decision or a live product with images exists.
+  temImagens: boolean;
 };
 
 /** One summary per grupoModelo, sorted by nomeGrupo then grupoModelo. */
@@ -101,6 +103,7 @@ export function resumirGrupos(
         numIguais: 0,
         revisto: true,
         precisaRevisao: false,
+        temImagens: false,
       };
       grupos.set(l.grupoModelo, r);
     }
@@ -159,6 +162,7 @@ export type CriteriosGrupos = {
   soAvisos?: boolean;
   soAlterados?: boolean;
   soPorRever?: boolean;
+  soSemImagens?: boolean;
 };
 
 /**
@@ -184,6 +188,7 @@ export function filtrarPorCriterios(
     if (c.soAvisos && r.numAvisos === 0) return false;
     if (c.soAlterados && r.numAlterados === 0) return false;
     if (c.soPorRever && !(r.precisaRevisao && !r.revisto)) return false;
+    if (c.soSemImagens && r.temImagens) return false;
     return true;
   });
 }
