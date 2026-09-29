@@ -450,6 +450,18 @@ describe("importacoes: revisão", () => {
     });
   });
 
+  it("approves with groups still unreviewed when forced", async () => {
+    const test = t();
+    const id = await runComGrupos(test);
+    const staff = test.withIdentity(STAFF);
+    const r = await staff.mutation(api.importacoes.aprovarImportacao, {
+      importacaoId: id,
+      forcar: true,
+    });
+    expect(r).toEqual({ agendado: true });
+    expect(await run(test, id)).toMatchObject({ estado: "a-promover" });
+  });
+
   it("rejects a run with a motivo and refuses to reject twice", async () => {
     const test = t();
     const id = await runComGrupos(test);
@@ -808,6 +820,27 @@ describe("obter: imagens", () => {
       soSemImagens: true,
     });
     expect(so?.grupos.map((g) => g.grupoModelo)).toEqual(["g-b"]);
+  });
+
+  it("flags groups whose decision the agent saved", async () => {
+    const test = t();
+    const staff = test.withIdentity(STAFF);
+    const id = await criarRun(test);
+    await carregar(test, id, [
+      staged("A1", { grupoModelo: "g-a" }),
+      staged("B1", { grupoModelo: "g-b", nomeGrupo: "B" }),
+    ]);
+    const f = await test.run(async (ctx) => ctx.storage.store(new Blob(["x"])));
+    await test.run(async (ctx) => {
+      for (const [grupoModelo, atualizadoPor] of [["g-a", "agente"], ["g-b", "user_staff"]]) {
+        await ctx.db.insert("imagensGrupo", {
+          grupoModelo, marca: "hisense", imagens: [f], atualizadoEm: 1, atualizadoPor,
+        });
+      }
+    });
+    const tudo = await staff.query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 50 });
+    expect(tudo?.grupos.find((g) => g.grupoModelo === "g-a")?.escolhaAgente).toBe(true);
+    expect(tudo?.grupos.find((g) => g.grupoModelo === "g-b")?.escolhaAgente).toBe(false);
   });
 });
 

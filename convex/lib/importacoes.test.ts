@@ -92,6 +92,7 @@ describe("resumirGrupos", () => {
       precisaRevisao: true,
       temImagens: false,
       fotosARever: false,
+      escolhaAgente: false,
     });
     expect(resumos[0]?.precisaRevisao).toBe(false);
     expect(resumos[2]?.precisaRevisao).toBe(false);
@@ -228,6 +229,7 @@ describe("soSemImagens", () => {
       precisaRevisao: false,
       temImagens,
       fotosARever: !temImagens,
+      escolhaAgente: false,
     });
     expect(
       filtrarPorCriterios([r("a", true), r("b", false)], { soSemImagens: true }).map(
@@ -252,6 +254,7 @@ describe("soSemImagens", () => {
       precisaRevisao: false,
       temImagens: true,
       fotosARever,
+      escolhaAgente: false,
     });
     expect(
       filtrarPorCriterios([r("a", false), r("b", true)], { soFotosARever: true }).map(

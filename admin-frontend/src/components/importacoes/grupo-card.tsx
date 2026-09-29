@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   ImageIcon,
+  Sparkles,
   TriangleAlert,
 } from "lucide-react"
 
@@ -148,6 +149,12 @@ export function GrupoCard({
               <Chip className="bg-amber-100 text-amber-800">
                 <Camera className="mr-1 size-3" />
                 Fotos a rever
+              </Chip>
+            )}
+            {resumo.escolhaAgente && (
+              <Chip className="bg-sky-100 text-sky-800">
+                <Sparkles className="mr-1 size-3" />
+                Escolha do agente
               </Chip>
             )}
           </span>

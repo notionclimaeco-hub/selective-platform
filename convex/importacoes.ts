@@ -15,6 +15,7 @@ import {
 import { requireStaff } from "./lib/auth";
 import { conferirSegredo } from "./lib/importSecret";
 import {
+  AGENTE,
   candidatasARemover,
   ficheirosEscolhidos,
   listaParaRef,
@@ -403,12 +404,12 @@ export const rejeitarImportacao = mutation({
 
 /**
  * Approve a run. Gate: every group with a warning or a price change must be
- * reviewed. Promotion itself runs in scheduled batches (`promoverLote`) so a
+ * reviewed, unless `forcar` (staff chose to approve anyway). Promotion itself runs in scheduled batches (`promoverLote`) so a
  * Daikin-sized table stays under transaction limits; `a-promover` is the
  * visible in-between state.
  */
 export const aprovarImportacao = mutation({
-  args: { importacaoId: v.id("importacoes") },
+  args: { importacaoId: v.id("importacoes"), forcar: v.optional(v.boolean()) },
   returns: v.object({ agendado: v.boolean() }),
   handler: async (ctx, args) => {
     const identity = await requireStaff(ctx);
@@ -416,7 +417,7 @@ export const aprovarImportacao = mutation({
     exigirEstado(run, "em-revisao");
 
     const porRever = gruposPorRever(resumirGrupos(await linhasDaRun(ctx, run._id)));
-    if (porRever.length > 0) {
+    if (porRever.length > 0 && args.forcar !== true) {
       const lista = porRever.slice(0, 10).join(", ");
       const resto = porRever.length > 10 ? ", …" : "";
       throw new Error(
@@ -648,6 +649,7 @@ export const resumoGrupoValidator = v.object({
   precisaRevisao: v.boolean(),
   temImagens: v.boolean(),
   fotosARever: v.boolean(),
+  escolhaAgente: v.boolean(),
 });
 
 export const filtroGruposValidator = v.union(
@@ -741,6 +743,7 @@ export const obter = query({
         .query("imagensGrupo")
         .withIndex("by_grupo", (q) => q.eq("grupoModelo", r.grupoModelo))
         .unique();
+      r.escolhaAgente = decisao?.atualizadoPor === AGENTE;
       if (decisao && ficheirosEscolhidos(decisao).size > 0) {
         r.temImagens = true;
         continue;

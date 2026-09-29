@@ -158,15 +158,17 @@ avisos `erro:` (salvo `--forcar`); SKUs rejeitados ficam listados e a run em
 ## 6. Revisão e aprovação
 
 Na app de admin, `/importacoes/{id}`: cada grupo com aviso ou preço alterado
-tem de ser aberto (`marcarGrupoRevisto`) antes de aprovar. O agente entrega o
+deve ser aberto (`marcarGrupoRevisto`); com grupos por rever o botão passa a
+"Aprovar mesmo assim" (`aprovarImportacao` com `forcar`). O agente entrega o
 link e o resumo (contagens por família, tipos de aviso e a justificação de
 cada um). A aprovação é do staff. O passo de imagens (## 7) corre ANTES de entregar o
 link da revisão.
 
 ## 7. Imagens
 
-Correr a skill `catalog-brand-images` antes de entregar o link da revisão: a
-página mostra as candidatas por grupo e o staff escolhe lá.
+Correr a skill `catalog-brand-images` antes de entregar o link da revisão:
+junta as candidatas e grava a escolha do agente por grupo (recortes, capa
+primeiro), que conta na aprovação; o staff só muda o que quiser.
 
 ## QA final (obrigatório no PR da marca)
 

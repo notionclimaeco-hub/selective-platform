@@ -1,7 +1,13 @@
 import { useEffect, useReducer, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { Check, ExternalLink, Loader2, TriangleAlert } from "lucide-react"
+import {
+  Check,
+  ExternalLink,
+  Loader2,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@convex/_generated/api"
@@ -120,7 +126,8 @@ type Recorte =
  * The group's photo decision on the review page: an ordered strip (the
  * group list, or one ref's override) above the candidates by source, with
  * uploads as new candidates. Clicking a candidate toggles it; with no saved
- * decision one cutout starts selected. Nothing is written until "Guardar";
+ * decision one cutout starts selected (the agent's picks, when it saved
+ * some, load as the saved decision). Nothing is written until "Guardar";
  * the toast after a save offers "Reverter" to the previous decision.
  */
 export function PainelImagens({
@@ -423,6 +430,13 @@ export function PainelImagens({
       ) : (
         <>
           <div className="flex flex-col gap-1.5">
+            {dados.escolhidas?.porAgente && (
+              <span className="flex items-center gap-1 text-xs font-medium text-sky-800">
+                <Sparkles className="size-3" />
+                Escolha do agente: já conta na aprovação. Guarde para a
+                confirmar ou altere.
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">
               A primeira imagem é a capa. Arraste para reordenar; clique numa
               candidata para a juntar ou tirar.

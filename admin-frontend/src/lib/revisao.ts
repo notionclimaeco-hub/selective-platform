@@ -94,3 +94,24 @@ export function grupoInalterado(g: {
 }): boolean {
   return g.numAvisos === 0 && g.numNovos === 0 && g.numAlterados === 0
 }
+
+/**
+ * Approve dialog copy. With groups still unreviewed the staff member can
+ * approve anyway (`forcar`), and the dialog says so.
+ */
+export function textoAprovacao(
+  numSkus: number,
+  marca: string,
+  porRever: number
+): { descricao: string; confirmarLabel: string } {
+  const base = `Promove ${numSkus} SKUs para o catálogo e marca como descontinuadas as referências de ${marca} ausentes desta tabela.`
+  if (porRever === 0) return { descricao: base, confirmarLabel: "Aprovar" }
+  const grupos =
+    porRever === 1
+      ? "1 grupo ainda por rever"
+      : `${porRever} grupos ainda por rever`
+  return {
+    descricao: `${grupos}: entram como estão, com as imagens escolhidas pelo agente. ${base}`,
+    confirmarLabel: "Aprovar mesmo assim",
+  }
+}

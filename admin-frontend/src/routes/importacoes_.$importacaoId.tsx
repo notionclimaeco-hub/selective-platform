@@ -30,6 +30,7 @@ import {
   rotuloFamilia,
   rotuloMarca,
 } from "@/lib/labels"
+import { textoAprovacao } from "@/lib/revisao"
 import { useDebounced } from "@/lib/use-debounced"
 import { cn } from "@/lib/utils"
 
@@ -354,11 +355,8 @@ function BarraDecisao({
             >
               Rejeitar
             </Button>
-            <Button
-              disabled={gruposPorRever > 0}
-              onClick={() => setDialogo("aprovar")}
-            >
-              Aprovar
+            <Button onClick={() => setDialogo("aprovar")}>
+              {gruposPorRever > 0 ? "Aprovar mesmo assim" : "Aprovar"}
             </Button>
           </div>
         </>
@@ -435,11 +433,14 @@ function BarraDecisao({
       {dialogo === "aprovar" && (
         <ConfirmDialog
           titulo="Aprovar importação"
-          descricao={`Promove ${run.numSkus} SKUs para o catálogo e marca como descontinuadas as referências de ${rotuloMarca(run.marca)} ausentes desta tabela.`}
-          confirmarLabel="Aprovar"
+          {...textoAprovacao(
+            run.numSkus,
+            rotuloMarca(run.marca),
+            gruposPorRever
+          )}
           variante="default"
           onConfirmar={async () => {
-            await aprovar({ importacaoId: run._id })
+            await aprovar({ importacaoId: run._id, forcar: gruposPorRever > 0 })
             setDialogo(null)
           }}
           onCancelar={() => setDialogo(null)}

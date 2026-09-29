@@ -79,6 +79,8 @@ export type ResumoGrupo = {
   // Every candidate photo of the group carries an agent warning (generic
   // outdoor unit, sister series, PDF thumbnail…): the reviewer should look.
   fotosARever: boolean;
+  // The group's image decision comes from the agent's picks, not a person.
+  escolhaAgente: boolean;
 };
 
 /** One summary per grupoModelo, sorted by nomeGrupo then grupoModelo. */
@@ -108,6 +110,7 @@ export function resumirGrupos(
         precisaRevisao: false,
         temImagens: false,
         fotosARever: false,
+        escolhaAgente: false,
       };
       grupos.set(l.grupoModelo, r);
     }

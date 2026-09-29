@@ -6,6 +6,7 @@ import {
   chavesVariaveis,
   grupoInalterado,
   rotuloValor,
+  textoAprovacao,
 } from "./revisao"
 
 const sku = (
@@ -139,5 +140,22 @@ describe("rotuloValor", () => {
     expect(rotuloValor("branco-perola")).toBe("branco perola")
     expect(rotuloValor("2.5")).toBe("2.5")
     expect(rotuloValor("A++/A+")).toBe("A++/A+")
+  })
+})
+
+describe("textoAprovacao", () => {
+  it("is the plain approval when nothing is left to review", () => {
+    const t = textoAprovacao(709, "Hisense", 0)
+    expect(t.confirmarLabel).toBe("Aprovar")
+    expect(t.descricao).toMatch(/^Promove 709 SKUs/)
+  })
+
+  it("says how many groups are unreviewed and asks to approve anyway", () => {
+    expect(textoAprovacao(709, "Hisense", 1).descricao).toMatch(
+      /^1 grupo ainda por rever/
+    )
+    const t = textoAprovacao(709, "Hisense", 86)
+    expect(t.confirmarLabel).toBe("Aprovar mesmo assim")
+    expect(t.descricao).toMatch(/^86 grupos ainda por rever.*Promove 709 SKUs/)
   })
 })

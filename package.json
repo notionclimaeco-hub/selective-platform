@@ -20,6 +20,8 @@
     "imagens:upload": "node scripts/imagens/upload.mjs",
     "imagens:alvos": "node scripts/imagens/alvos.mjs",
     "imagens:candidatas": "node scripts/imagens/candidatas.mjs",
+    "imagens:folhas": "node scripts/imagens/folhas.mjs",
+    "imagens:escolhas": "node scripts/imagens/escolhas.mjs",
     "registry:json": "node --no-warnings --experimental-strip-types scripts/registry/export.mjs",
     "test:pdf": "python3 -m pytest .claude/skills/catalog-pdf-extract/tests -q"
   },

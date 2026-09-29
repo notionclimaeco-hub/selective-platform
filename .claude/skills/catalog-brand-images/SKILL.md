@@ -4,16 +4,19 @@ description: >
   Gathers candidate product photos for a staged import run: the agent browses
   the brand's official site in Playwright group by group, saves the packshots
   (per colour, indoor/outdoor apart), falls back to Megaclima and the PDF
-  thumbnails, uploads everything as candidates to Convex and reports coverage.
-  Use right after catalog-pdf-extract's enviar.py, or when a brand's review
+  thumbnails, uploads everything as candidates to Convex, then looks at every
+  group's contact sheet and saves its own pick (cutouts, first = thumbnail)
+  as the group's decision, and reports coverage. Use right after catalog-pdf-extract's enviar.py, or when a brand's review
   page shows groups without images.
 ---
 
 # Catalog brand images (candidatas)
 
 Cada extração acaba com este passo. O objetivo é que cada grupo em revisão
-tenha candidatas de foto para o staff escolher em `/importacoes/{id}`; a
-escolha e o recorte são feitos lá, não aqui.
+tenha candidatas de foto **e já uma escolha do agente** (recortes, o primeiro
+é a capa) em `/importacoes/{id}`. A escolha do agente conta na aprovação; o
+staff só abre os grupos que quer mudar e pode aprovar mesmo com grupos por
+rever.
 
 Pré-requisitos: a run já existe no Convex (depois do `enviar.py`); o `.env` da
 raiz tem `IMPORT_SECRET` e o URL do Convex (`VITE_CONVEX_URL` ou
@@ -124,7 +127,46 @@ o faz para os grupos da run), com `CONVEX_DEPLOYMENT` exportado:
 (opcional `"fonte":"pdf"`). Mantém os ficheiros escolhidos num grupo ou em
 produtos vivos.
 
-## 5. Cobertura (vai para o PR)
+## 5. Escolha do agente (capa + fotos)
+
+Depois do upload com `--recortar`, o agente escolhe as fotos de cada grupo
+olhando para elas, não por regra:
+
+```bash
+node scripts/imagens/folhas.mjs --brand {marca}           # folhas/{grupo}.png + folhas/indice.json
+# ver cada folha, escrever product-scaffold/imagens/{marca}/escolhas.json
+node scripts/imagens/escolhas.mjs --brand {marca} --dry-run
+node scripts/imagens/escolhas.mjs --brand {marca}         # imagens.gravarEscolhasAgente
+```
+
+Cada folha numera as candidatas: cada foto seguida do seu recorte (azul),
+avisos a âmbar. `escolhas.json` = `{ "grupoModelo": [n, …] }`, o primeiro
+número é a capa. Com muitos grupos, dividir as folhas por subagentes (cada um
+escreve a sua parte, junta-se no fim) e rever uma amostra.
+
+Regras:
+
+- **Só recortes.** Uma foto só entra sem recorte quando já é PNG transparente
+  (não tem recorte próprio) ou o recorte está estragado (corta o produto,
+  deixa fundo, apaga partes). O script avisa quando a escolha não é recorte.
+- **O produto exato.** Descartar série irmã, modelo anterior, UE genérica de
+  outra gama, fotos de ambiente, esquemas, logótipos, marca de água que o
+  recorte não tirou, e imagens < 400 px quando há melhor.
+- **Uma foto por vista, sem quase-duplicados.** Frente, ¾, e cada peça do
+  produto (UI, UE, comando se vier na caixa) e cada cor do grupo. Normalmente
+  2 a 4; 1 chega para acessórios.
+- **A capa** é a peça pela qual o produto é conhecido, de frente, grande e
+  nítida: a UI num conjunto (split, multi), a UE num grupo de UE, a própria
+  máquina num monobloco/chiller/AQS, o objeto num acessório ou comando.
+- **Conjunto com UE só genérica:** a UE genérica da mesma gama pode entrar
+  depois das fotos da UI (o conjunto inclui-a), nunca como capa.
+- **Tudo com aviso:** escolher o melhor mesmo assim (fica "Fotos a rever");
+  sem nada aproveitável, deixar a lista vazia (`[]`): o grupo fica sem
+  escolha e o staff vê-o em "Sem imagens".
+- Nunca toca em grupos que uma pessoa já guardou (`folhas.mjs` salta-os e a
+  mutation também); correr outra vez substitui só as escolhas do agente.
+
+## 6. Cobertura (vai para o PR)
 
 `cobertura.md`: contagens por fonte por grupo, grupos sem candidatas, grupos
 com cores em falta, UE só com fotos de interior. Barra mínima: todos os grupos
