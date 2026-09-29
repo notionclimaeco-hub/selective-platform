@@ -250,7 +250,9 @@ drag via the long-press pointer sensor already used on the products page.
   (long press) and Keyboard; object URLs come from `useObjectUrls`.
 - The panel scopes `atuais` and `porRef` to the run's staged refs.
 - `@imgly/background-removal`'s default model is ~80 MB (not ~40 MB) and its
-  assets load from IMG.LY's CDN.
+  assets load from IMG.LY's CDN (decided 2026-09-29: keep the better model and
+  the CDN; self-hosting on Vercel is a follow-up). The unused ~24 MB
+  `ort-wasm` asset Vite would emit is dropped by `vite-plugins/drop-ort-wasm.ts`.
 - `cobertura.md` "só interior" ignores neutral filenames and matches UI/UE
   as delimited tokens.
 - `limparCandidatasDaRun` uses the brand-wide kept set.
