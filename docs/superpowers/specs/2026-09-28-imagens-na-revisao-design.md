@@ -180,7 +180,7 @@ drag via the long-press pointer sensor already used on the products page.
 
 ## Background removal in the browser
 
-- Library `@imgly/background-removal` (WASM, Apache-2). Model (~40 MB)
+- Library `@imgly/background-removal` (WASM, Apache-2). Model (~80 MB, default model)
   downloads on first use per browser and is cached; the button shows "a
   descarregar o modelo" the first time, then "a recortar".
 - Flow: fetch the storage URL → run the model → PNG with alpha → preview in
@@ -234,12 +234,13 @@ drag via the long-press pointer sensor already used on the products page.
 
 - Promotion patches `produtos.imagens` directly (not through
   `definirImagensProduto`) and, right after each batch, deletes the replaced
-  files that are not in the brand-wide in-use set; the scheduled cleanup
-  keeps any file chosen by any decision of the brand.
+  files nothing references any more (`ficheirosReferenciados`, all brands:
+  legacy uploads share a file across brands); the scheduled cleanup keeps
+  any file chosen by any decision of the brand.
 - Candidate dedupe is per (`grupoModelo`, `hash`), index `by_grupo_hash`: the
   same bytes in two groups are two rows and two files.
-- `definirImagensProduto` orphan protection is brand-wide: it reads
-  candidates and decisions `by_marca`.
+- `definirImagensProduto` orphan protection uses `ficheirosReferenciados`
+  (every brand's products, candidates and decisions).
 - The panel does not fork the group list when a ref is selected; an override
   is created on the first edit and dropped on save when it equals the group
   list.
@@ -253,3 +254,10 @@ drag via the long-press pointer sensor already used on the products page.
 - `cobertura.md` "só interior" ignores neutral filenames and matches UI/UE
   as delimited tokens.
 - `limparCandidatasDaRun` uses the brand-wide kept set.
+- The group card's button reads "Imagens" with no candidate count: the count
+  would cost a read per group in `importacoes.obter`.
+- Cleanup and promotion delete a file only when `ficheirosReferenciados`
+  (products, candidates and decisions of every brand, catalog pages, run
+  PDFs) no longer holds it; `limparCatalogo` also wipes candidates and
+  decisions. A products-page edit of one variant becomes that ref's `porRef`
+  override when the group has a decision, so approval does not revert it.

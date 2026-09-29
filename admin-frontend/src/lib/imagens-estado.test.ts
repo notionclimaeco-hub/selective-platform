@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ESTADO_INICIAL, apenasRefs, decisaoParaRefs, listaAtiva, paraGuardar, reduzir } from "./imagens-estado"
+import { ESTADO_INICIAL, apenasRefs, decisaoParaRefs, listaAtiva, origemCandidata, paraGuardar, reduzir } from "./imagens-estado"
 import type { Candidata } from "./imagens-estado"
 
 const c = (id: string, extra: Partial<Candidata> = {}): Candidata => ({
@@ -105,5 +105,15 @@ describe("apenasRefs / decisaoParaRefs", () => {
     const e = reduzir(ESTADO_INICIAL, { tipo: "iniciar", candidatas: [], escolhidas: null, atuais: apenasRefs(atuais, ["R1"]) })
     expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["y"])
     expect(paraGuardar(e)).toEqual({ imagens: ["y"] })
+  })
+})
+
+describe("origemCandidata", () => {
+  it("links only http(s) URLs and shows a PDF page as text", () => {
+    expect(origemCandidata("https://hisense.pt/x")).toEqual({ tipo: "link", url: "https://hisense.pt/x" })
+    expect(origemCandidata("http://megaclima.pt/y")).toEqual({ tipo: "link", url: "http://megaclima.pt/y" })
+    expect(origemCandidata("pdf:12")).toEqual({ tipo: "texto", texto: "PDF p. 12" })
+    expect(origemCandidata("javascript:alert(1)")).toBeNull()
+    expect(origemCandidata(undefined)).toBeNull()
   })
 })

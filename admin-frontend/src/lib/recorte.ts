@@ -7,12 +7,8 @@ export async function recortarFundo(
   url: string,
   onProgresso: (etapa: EtapaRecorte, pct: number) => void
 ): Promise<Blob> {
-  const { removeBackground } = await import("@imgly/background-removal")
-  const resposta = await fetch(url)
-  if (!resposta.ok) {
-    throw new Error(`Não foi possível ler a imagem (${resposta.status}).`)
-  }
-  const origem = await resposta.blob()
+  const { removeBackground } = await carregarBiblioteca()
+  const origem = await lerImagem(url)
   // Downloads report per file (model chunks, wasm); sum them into one figure.
   const ficheiros = new Map<string, { atual: number; total: number }>()
   try {
@@ -42,5 +38,26 @@ export async function recortarFundo(
   } catch (err) {
     console.error(err)
     throw new Error("Não foi possível recortar o fundo desta imagem.")
+  }
+}
+
+// Failures surface in Portuguese, not as the browser's English TypeError.
+async function carregarBiblioteca() {
+  try {
+    return await import("@imgly/background-removal")
+  } catch (err) {
+    console.error(err)
+    throw new Error("Não foi possível carregar o recorte.")
+  }
+}
+
+async function lerImagem(url: string): Promise<Blob> {
+  try {
+    const resposta = await fetch(url)
+    if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`)
+    return await resposta.blob()
+  } catch (err) {
+    console.error(err)
+    throw new Error("Não foi possível ler a imagem.")
   }
 }

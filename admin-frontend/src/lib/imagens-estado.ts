@@ -141,3 +141,15 @@ export function decisaoParaRefs(
   const porRef = apenasRefs(decisao.porRef ?? [], refs)
   return porRef.length > 0 ? { imagens: decisao.imagens, porRef } : { imagens: decisao.imagens }
 }
+
+// A candidate's origemUrl is a page URL or "pdf:<pagina>" (PDF thumbnail):
+// only http(s) URLs become links; a PDF page shows as text.
+export function origemCandidata(
+  origemUrl: string | undefined,
+): { tipo: "link"; url: string } | { tipo: "texto"; texto: string } | null {
+  if (!origemUrl) return null
+  if (/^https?:\/\//i.test(origemUrl)) return { tipo: "link", url: origemUrl }
+  const pdf = /^pdf:(\d+)$/.exec(origemUrl)
+  if (pdf) return { tipo: "texto", texto: `PDF p. ${pdf[1]}` }
+  return null
+}

@@ -91,6 +91,12 @@ node scripts/imagens/candidatas.mjs --brand {marca} --recortar  # + recortes loc
 
 Idempotente por hash: correr outra vez só acrescenta fotos novas.
 
+Para limpar à mão as candidatas não usadas de uma marca (a aprovação da run já
+o faz para os grupos da run), com `CONVEX_DEPLOYMENT` exportado:
+`npx convex run imagens:limparCandidatas '{"secret":"…","marca":"hisense"}'`
+(opcional `"fonte":"pdf"`). Mantém os ficheiros escolhidos num grupo ou em
+produtos vivos.
+
 ## 5. Cobertura (vai para o PR)
 
 `cobertura.md`: contagens por fonte por grupo, grupos sem candidatas, grupos

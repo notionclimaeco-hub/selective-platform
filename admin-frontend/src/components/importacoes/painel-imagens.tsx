@@ -16,6 +16,7 @@ import {
   apenasRefs,
   decisaoParaRefs,
   listaAtiva,
+  origemCandidata,
   paraGuardar,
   reduzir,
 } from "@/lib/imagens-estado"
@@ -602,6 +603,7 @@ function MiniaturaCandidata({
   escolhida: boolean
   onEscolher: () => void
 }) {
+  const origem = origemCandidata(candidata.origemUrl)
   return (
     <li className="relative">
       <button
@@ -638,9 +640,9 @@ function MiniaturaCandidata({
           {rotuloValor(candidata.cor)}
         </span>
       )}
-      {candidata.origemUrl && (
+      {origem?.tipo === "link" && (
         <a
-          href={candidata.origemUrl}
+          href={origem.url}
           target="_blank"
           rel="noreferrer"
           aria-label="Abrir origem"
@@ -648,6 +650,11 @@ function MiniaturaCandidata({
         >
           <ExternalLink className="size-3.5" />
         </a>
+      )}
+      {origem?.tipo === "texto" && (
+        <span className="pointer-events-none absolute top-1 right-1 rounded-md bg-background/85 px-1.5 py-0.5 text-[10px] font-medium">
+          {origem.texto}
+        </span>
       )}
     </li>
   )
