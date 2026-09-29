@@ -2,6 +2,8 @@
 // (FAMILIAS + estadoValidator). `marca` is a free string in v2, so its label
 // map falls back to the raw slug.
 
+import type { Fonte } from "@/lib/imagens-estado"
+
 export const MARCA_LABELS: Record<string, string> = {
   daikin: "Daikin",
   nipon: "Nipon",
@@ -222,6 +224,22 @@ export const DIFF_CLASSES: Record<Diff, string> = {
   novo: "bg-green-100 text-green-800",
   alterado: "bg-amber-100 text-amber-800",
   igual: "bg-muted text-muted-foreground",
+}
+
+// --- Image candidates (imagens na revisão) ----------------------------------
+
+export const FONTE_LABELS: Record<Fonte, string> = {
+  site: "Site",
+  megaclima: "Megaclima",
+  pdf: "PDF",
+  upload: "Upload",
+  recorte: "Recortes",
+}
+
+export const FONTES = Object.keys(FONTE_LABELS) as Array<Fonte>
+
+export function rotuloFonte(fonte: Fonte): string {
+  return FONTE_LABELS[fonte]
 }
 
 const DATA_HORA = new Intl.DateTimeFormat("pt-PT", {

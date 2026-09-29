@@ -1,7 +1,13 @@
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { Check, ChevronDown, ChevronRight, TriangleAlert } from "lucide-react"
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ImageIcon,
+  TriangleAlert,
+} from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
@@ -19,10 +25,12 @@ import {
   grupoInalterado,
   rotuloChave,
   rotuloValor,
+  valorDe,
 } from "@/lib/revisao"
 import { cn } from "@/lib/utils"
 import { TabelaVariantes } from "./tabela-variantes"
 import type { AlvoPainel } from "./painel-pagina"
+import { PainelImagens } from "./painel-imagens"
 
 type Obter = NonNullable<FunctionReturnType<typeof api.importacoes.obter>>
 export type ResumoGrupo = Obter["grupos"][number]
@@ -132,6 +140,12 @@ export function GrupoCard({
               </Chip>
             )}
             {resumo.numIguais > 0 && <Chip>{resumo.numIguais} iguais</Chip>}
+            {!resumo.temImagens && (
+              <Chip className="bg-muted text-muted-foreground">
+                <ImageIcon className="mr-1 size-3" />
+                Sem imagens
+              </Chip>
+            )}
           </span>
         </span>
       </button>
@@ -166,6 +180,7 @@ function CorpoGrupo({
   const marcar = useMutation(api.importacoes.marcarGrupoRevisto)
   const [erro, setErro] = useState<string | null>(null)
   const [aMarcar, setAMarcar] = useState(false)
+  const [imagensAbertas, setImagensAbertas] = useState(false)
 
   async function alternarRevisto() {
     setErro(null)
@@ -250,6 +265,15 @@ function CorpoGrupo({
               Ver página
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            aria-expanded={imagensAbertas}
+            onClick={() => setImagensAbertas((v) => !v)}
+          >
+            <ImageIcon data-icon="inline-start" />
+            Imagens
+          </Button>
           <span className="text-xs text-muted-foreground">
             {resumo.grupoModelo}
           </span>
@@ -281,6 +305,19 @@ function CorpoGrupo({
         </button>
       </div>
       {erro && <p className="text-sm text-destructive">{erro}</p>}
+
+      {imagensAbertas && (
+        <PainelImagens
+          grupoModelo={resumo.grupoModelo}
+          marca={resumo.marca}
+          refs={grupo.skus.map((s) => s.ref)}
+          cores={[
+            ...new Set(grupo.skus.flatMap((s) => valorDe(s, "cor") ?? [])),
+          ]}
+          podeEditar={podeRever}
+          onFechar={() => setImagensAbertas(false)}
+        />
+      )}
     </div>
   )
 }
