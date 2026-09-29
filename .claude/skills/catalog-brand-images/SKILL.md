@@ -66,12 +66,16 @@ de TLS e de URL de cada marca), mas a decisão do que é um packshot é tua:
    (`../../pdf-images/{marca}/{grupo}/NN.png`), `"fonte": "pdf"` e
    `"origemUrl": "pdf:<pagina>"`.
 
-3. Pesquisa pela ref (`"Hisense AVW-54H6FH3-C"`): páginas de revendedores,
-   brochuras da marca alojadas por distribuidores. Só packshots do fabricante
-   que o revendedor republica — nunca fotos próprias da loja, com marca de
-   água ou de ambiente. Guardar com `"fonte": "web"` e `origemUrl` da página.
-   (O endpoint de imagens do DuckDuckGo recusa scripts; usar a pesquisa web
-   normal e abrir as páginas dos resultados.)
+3. Pesquisa pela ref em revendedores com pesquisa por referência —
+   `node scripts/imagens/procurar-ref.mjs --brand {marca}` corre todos os
+   grupos ainda sem candidatas (acessórios incluídos) em klima.pt e
+   kaut-hisense.de (lista `DEALERS` no script; acrescentar lojas quando
+   provarem valer a pena) e junta o que encontra ao `candidatas.json` com
+   `"fonte": "web"` e a página como `origemUrl`. Só packshots do fabricante
+   que o revendedor republica — nunca fotos próprias da loja ou de ambiente.
+   Para o que sobra, pesquisa web à mão (brochuras da marca alojadas por
+   distribuidores, etc.). Google/DuckDuckGo/Bing recusam ou baralham
+   pesquisas por ref feitas por script; as pesquisas dos sites das lojas não.
 
 Cada uso de fallback fica listado no PR.
 
@@ -98,8 +102,13 @@ UI/UE ou interior/exterior (indoor/outdoor) no nome.
 ```bash
 node scripts/imagens/candidatas.mjs --brand {marca} --dry-run   # cobertura.md, sem rede
 node scripts/imagens/candidatas.mjs --brand {marca}             # upload + registarCandidatas
-node scripts/imagens/candidatas.mjs --brand {marca} --recortar  # + recortes locais (uvx rembg) como "recorte"
+node scripts/imagens/candidatas.mjs --brand {marca} --recortar  # + recortes como "recorte"
 ```
+
+`--recortar` usa a API do Photoroom quando `PHOTOROOM_API_KEY` está no `.env`
+da raiz (1 chamada por ficheiro único que ainda não seja PNG transparente;
+respeita o 429 do plano), senão `uvx rembg` local. Cache por hash em
+`product-scaffold/.rembg-cache`, por isso repetir não volta a chamar a API.
 
 Idempotente por hash: correr outra vez só acrescenta fotos novas.
 

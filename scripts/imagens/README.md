@@ -16,6 +16,7 @@ pnpm imagens:crawl      # → product-scaffold/crawl-raw/ + manifest.json
 #   node scripts/imagens/crawl-megaclima-curl.mjs [--brand daikin]
 #   node scripts/imagens/crawl-hisense-es-curl.mjs     # hisense.es (gama comercial, Hi-Water)
 #   node scripts/imagens/crawl-hisense-hvac-curl.mjs   # hisensehvac.com (VRF, Hi-Therma, chillers)
+#   node scripts/imagens/procurar-ref.mjs --brand hisense  # ref search on dealer sites for groups still without photos
 pnpm imagens:targets    # → product-scaffold/targets.json (needs IMPORT_SECRET)
 # Brand not imported into Convex yet? Build its targets from the extraction CSV
 # (replaces that brand's entries; re-run imagens:targets after the import):
@@ -47,7 +48,9 @@ It writes the same `image-choice.json` (merging, so other brands survive).
 **Excluir** to drop it from process/upload; “Guardar escolha” writes
 `product-scaffold/image-choice.json`. `process` rembg’s everything, then uses
 cutout or original per that file (default cutout) and skips `exclude`.
-`--skip-rembg` skips background removal entirely.
+`--skip-rembg` skips background removal entirely. With `PHOTOROOM_API_KEY` in the
+root `.env`, cutouts come from the Photoroom API instead of the local rembg
+model (already-transparent PNGs are copied as-is; results are cached by hash).
 
 **Secondary sources:** after the official brand crawl, also run Megaclima
 (`crawl-megaclima-curl.mjs`) to fill packshot gaps from

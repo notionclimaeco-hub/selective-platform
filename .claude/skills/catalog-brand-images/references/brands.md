@@ -33,8 +33,15 @@ Config de sementes: `scripts/imagens/crawl.config.json`.
     `node scripts/imagens/crawl-hisense-hvac-curl.mjs` — galeria `.scrolBox`,
     packshots a 710×400. Um `.png` pode ser BMP (Hi-Smart C+): converter.
 - Megaclima: `node scripts/imagens/crawl-megaclima-curl.mjs --brand hisense`.
+- Acessórios: `procurar-ref.mjs` encontra os residenciais/1x1 em klima.pt e
+  os de VRF (comandos, gateways, sensores, caixas HCHS/HCHM) em
+  kaut-hisense.de (distribuidor Hisense DE; as caixas `…XC` só existem lá
+  como `…XA`, mesma caixa). hisensehvac.com tem os comandos VRF em
+  `/control/index.aspx?nodeid=90|91|92|419` (cartões com o modelo no texto).
 - Sem foto em lado nenhum (2026): Hi-Smart I centrífugo (brochura Hisense
-  em aunadistribucion.com, `fonte: "web"`), depósito HDHWT (revendedor).
+  em aunadistribucion.com, `fonte: "web"`), depósito HDHWT (revendedor),
+  derivadores HFQ, cabos/filtros/bombas de condensados VRF (ninguém os
+  fotografa; acae.es lista-os mas sem imagem).
 
 ## Mitsubishi Electric
 
