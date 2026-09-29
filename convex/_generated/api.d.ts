@@ -24,6 +24,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_catalogoGrupos from "../lib/catalogoGrupos.js";
 import type * as lib_clerkOrganizations from "../lib/clerkOrganizations.js";
 import type * as lib_encomendaEstados from "../lib/encomendaEstados.js";
+import type * as lib_imagensGrupo from "../lib/imagensGrupo.js";
 import type * as lib_importSecret from "../lib/importSecret.js";
 import type * as lib_importacoes from "../lib/importacoes.js";
 import type * as lib_nif from "../lib/nif.js";
@@ -75,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   "lib/catalogoGrupos": typeof lib_catalogoGrupos;
   "lib/clerkOrganizations": typeof lib_clerkOrganizations;
   "lib/encomendaEstados": typeof lib_encomendaEstados;
+  "lib/imagensGrupo": typeof lib_imagensGrupo;
   "lib/importSecret": typeof lib_importSecret;
   "lib/importacoes": typeof lib_importacoes;
   "lib/nif": typeof lib_nif;

@@ -180,7 +180,7 @@ drag via the long-press pointer sensor already used on the products page.
 
 ## Background removal in the browser
 
-- Library `@imgly/background-removal` (WASM, Apache-2). Model (~40 MB)
+- Library `@imgly/background-removal` (WASM, Apache-2). Model (~80 MB, default model)
   downloads on first use per browser and is cached; the button shows "a
   descarregar o modelo" the first time, then "a recortar".
 - Flow: fetch the storage URL → run the model → PNG with alpha → preview in
@@ -229,3 +229,37 @@ drag via the long-press pointer sensor already used on the products page.
 - Batch cutouts in the browser, cropping or other edits.
 - Client catalog display changes (it keeps reading `produtos.imagens`).
 - Retiring `catalog-brand-import` (ticket #53).
+
+## Deviations recorded during implementation (2026-09-29)
+
+- Promotion patches `produtos.imagens` directly (not through
+  `definirImagensProduto`) and, right after each batch, deletes the replaced
+  files nothing references any more (`ficheirosReferenciados`, all brands:
+  legacy uploads share a file across brands); the scheduled cleanup keeps
+  any file chosen by any decision of the brand.
+- Candidate dedupe is per (`grupoModelo`, `hash`), index `by_grupo_hash`: the
+  same bytes in two groups are two rows and two files.
+- `definirImagensProduto` orphan protection uses `ficheirosReferenciados`
+  (every brand's products, candidates and decisions).
+- The panel does not fork the group list when a ref is selected; an override
+  is created on the first edit and dropped on save when it equals the group
+  list.
+- Save feedback is a `sonner` toast with "Reverter" (the admin app gained
+  `sonner`).
+- `redimensionar` keeps WebP as WebP; the strip's sensors are Mouse, Touch
+  (long press) and Keyboard; object URLs come from `useObjectUrls`.
+- The panel scopes `atuais` and `porRef` to the run's staged refs.
+- `@imgly/background-removal`'s default model is ~80 MB (not ~40 MB) and its
+  assets load from IMG.LY's CDN (decided 2026-09-29: keep the better model and
+  the CDN; self-hosting on Vercel is a follow-up). The unused ~24 MB
+  `ort-wasm` asset Vite would emit is dropped by `vite-plugins/drop-ort-wasm.ts`.
+- `cobertura.md` "só interior" ignores neutral filenames and matches UI/UE
+  as delimited tokens.
+- `limparCandidatasDaRun` uses the brand-wide kept set.
+- The group card's button reads "Imagens" with no candidate count: the count
+  would cost a read per group in `importacoes.obter`.
+- Cleanup and promotion delete a file only when `ficheirosReferenciados`
+  (products, candidates and decisions of every brand, catalog pages, run
+  PDFs) no longer holds it; `limparCatalogo` also wipes candidates and
+  decisions. A products-page edit of one variant becomes that ref's `porRef`
+  override when the group has a decision, so approval does not revert it.

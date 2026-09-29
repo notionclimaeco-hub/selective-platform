@@ -778,3 +778,232 @@ describe("importacoes: carregamento (revisão final)", () => {
     expect(r.erros[0]?.erro).toMatch(/partilhado.*midea/);
   });
 });
+
+describe("obter: imagens", () => {
+  it("counts groups without a decision or live images and filters them", async () => {
+    const test = t();
+    const staff = test.withIdentity(STAFF);
+    const id = await criarRun(test);
+    await carregar(test, id, [
+      staged("A1", { grupoModelo: "g-a" }),
+      staged("B1", { grupoModelo: "g-b", nomeGrupo: "B" }),
+    ]);
+    const f = await test.run(async (ctx) => ctx.storage.store(new Blob(["x"])));
+    await test.run(async (ctx) => {
+      await ctx.db.insert("imagensGrupo", {
+        grupoModelo: "g-a",
+        marca: "hisense",
+        imagens: [f],
+        atualizadoEm: 1,
+        atualizadoPor: "s",
+      });
+    });
+    const tudo = await staff.query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 50 });
+    expect(tudo?.gruposSemImagens).toBe(1);
+    expect(tudo?.grupos.find((g) => g.grupoModelo === "g-a")?.temImagens).toBe(true);
+    const so = await staff.query(api.importacoes.obter, {
+      importacaoId: id,
+      pagina: 0,
+      porPagina: 50,
+      soSemImagens: true,
+    });
+    expect(so?.grupos.map((g) => g.grupoModelo)).toEqual(["g-b"]);
+  });
+});
+
+describe("promoção: imagens", () => {
+  async function runAprovavel(tt: T) {
+    const { importacaoId } = await tt.mutation(api.importacoes.criarImportacao, {
+      secret: SECRET, marca: "hisense", ano: 2026, tabelaOrigem: "hisense-2026", ficheiro: "t.pdf",
+    });
+    await tt.mutation(api.importacoes.carregarSkus, {
+      secret: SECRET, importacaoId,
+      skus: [
+        staged("A1", { grupoModelo: "g-a" }),
+        staged("A2", { grupoModelo: "g-a" }),
+        staged("B1", { grupoModelo: "g-b", nomeGrupo: "B" }),
+      ],
+    });
+    await tt.mutation(api.importacoes.concluirCarregamento, { secret: SECRET, importacaoId });
+    return importacaoId;
+  }
+  const f = (tt: T, s: string) => tt.run(async (ctx) => ctx.storage.store(new Blob([s])));
+
+  it("applies the group list and the porRef override, keeps groups without decision, cleans candidates", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const capa = await f(tt, "capa");
+    const preta = await f(tt, "preta");
+    const lixo = await f(tt, "lixo");
+    const viva = await f(tt, "viva");
+    // B1 already exists with a photo and gets no decision.
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("produtos", {
+        ref: "B1", marca: "hisense", nome: "B1", nomeGrupo: "B", familia: "ar-condicionado", componente: "conjunto",
+        grupoModelo: "g-b", atributos: [], pvpCents: 50000, ivaIncluido: false, tabelaOrigem: "hisense-2025",
+        pdfPaginas: [1], imagens: [viva], estado: "publicado",
+      });
+    });
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET,
+      candidatas: [
+        { marca: "hisense", grupoModelo: "g-a", ficheiro: capa, fonte: "site", hash: "h1", largura: 1, altura: 1 },
+        { marca: "hisense", grupoModelo: "g-a", ficheiro: preta, fonte: "site", hash: "h2", largura: 1, altura: 1 },
+        { marca: "hisense", grupoModelo: "g-a", ficheiro: lixo, fonte: "pdf", hash: "h3", largura: 1, altura: 1 },
+        { marca: "hisense", grupoModelo: "g-b", ficheiro: viva, fonte: "site", hash: "h4", largura: 1, altura: 1 },
+      ],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [capa], porRef: [{ ref: "A2", imagens: [preta] }],
+      refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const porRef = async (ref: string) =>
+      tt.run(async (ctx) => (await ctx.db.query("produtos").withIndex("by_ref", (q) => q.eq("ref", ref)).unique())?.imagens);
+    expect(await porRef("A1")).toEqual([capa]);
+    expect(await porRef("A2")).toEqual([preta]);
+    expect(await porRef("B1")).toEqual([viva]);
+    const existe = (id: Id<"_storage">) => tt.run(async (ctx) => (await ctx.db.system.get(id)) !== null);
+    expect(await existe(lixo)).toBe(false); // unchosen candidate removed
+    expect(await existe(viva)).toBe(true); // nunca apaga ficheiro em uso (live product)
+    expect(await existe(capa)).toBe(true);
+    const run = await tt.run(async (ctx) => ctx.db.get(importacaoId));
+    expect(run?.estado).toBe("aprovada");
+    expect(run?.numImagensAplicadas).toBe(2);
+    expect(run?.numCandidatasRemovidas).toBe(1);
+    const restantes = await tt.run(async (ctx) => ctx.db.query("imagensCandidatas").collect());
+    expect(restantes.map((c) => c.hash).sort()).toEqual(["h1", "h2", "h4"]);
+  });
+
+  async function produtoComFoto(tt: T, ref: string, grupoModelo: string, foto: Id<"_storage">) {
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("produtos", {
+        ref, marca: "hisense", nome: ref, nomeGrupo: "X", familia: "ar-condicionado", componente: "conjunto",
+        grupoModelo, atributos: [], pvpCents: 50000, ivaIncluido: false, tabelaOrigem: "hisense-2025",
+        pdfPaginas: [1], imagens: [foto], estado: "publicado",
+      });
+    });
+  }
+  const existe = (tt: T, id: Id<"_storage">) => tt.run(async (ctx) => (await ctx.db.system.get(id)) !== null);
+  const imagensDe = (tt: T, ref: string) =>
+    tt.run(async (ctx) => (await ctx.db.query("produtos").withIndex("by_ref", (q) => q.eq("ref", ref)).unique())?.imagens);
+
+  it("deletes a pre-existing non-candidate image that a decision replaces", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const velha = await f(tt, "velha");
+    const nova = await f(tt, "nova");
+    await produtoComFoto(tt, "A1", "g-a", velha);
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET,
+      candidatas: [{ marca: "hisense", grupoModelo: "g-a", ficheiro: nova, fonte: "site", hash: "n1", largura: 1, altura: 1 }],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [nova], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([nova]);
+    expect(await existe(tt, velha)).toBe(false);
+    expect(await existe(tt, nova)).toBe(true);
+  });
+
+  it("keeps a replaced image that another product or another group's decision still uses", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const partilhada = await f(tt, "partilhada");
+    const daDecisao = await f(tt, "da-decisao");
+    const nova = await f(tt, "nova");
+    // A1 and a product outside the run share a photo; A2 had a photo that
+    // another group's decision chose.
+    await produtoComFoto(tt, "A1", "g-a", partilhada);
+    await produtoComFoto(tt, "OUTRO", "g-z", partilhada);
+    await produtoComFoto(tt, "A2", "g-a", daDecisao);
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-z", marca: "hisense", imagens: [daDecisao], porRef: [], refsDoGrupo: ["OUTRO"],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [nova], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([nova]);
+    expect(await imagensDe(tt, "A2")).toEqual([nova]);
+    expect(await existe(tt, partilhada)).toBe(true);
+    expect(await existe(tt, daDecisao)).toBe(true);
+  });
+  it("keeps a replaced image that a product of another brand still uses (legacy shared file)", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const partilhada = await f(tt, "partilhada");
+    const nova = await f(tt, "nova");
+    await produtoComFoto(tt, "A1", "g-a", partilhada);
+    await tt.run(async (ctx) => {
+      await ctx.db.insert("produtos", {
+        ref: "DK1", marca: "daikin", nome: "DK1", nomeGrupo: "D", familia: "ar-condicionado", componente: "conjunto",
+        grupoModelo: "daikin-d", atributos: [], pvpCents: 1, ivaIncluido: false, tabelaOrigem: "daikin-2025",
+        pdfPaginas: [1], imagens: [partilhada], estado: "publicado",
+      });
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [nova], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([nova]);
+    expect(await existe(tt, partilhada)).toBe(true);
+  });
+
+  it("skips decision files deleted meanwhile; applies nothing when none is left", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const importacaoId = await runAprovavel(tt);
+    const boa = await f(tt, "boa");
+    const perdida = await f(tt, "perdida");
+    const viva = await f(tt, "viva");
+    await produtoComFoto(tt, "B1", "g-b", viva);
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [perdida, boa], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-b", marca: "hisense", imagens: [perdida], porRef: [], refsDoGrupo: ["B1"],
+    });
+    await tt.run(async (ctx) => ctx.storage.delete(perdida));
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([boa]);
+    expect(await imagensDe(tt, "B1")).toEqual([viva]);
+    expect(await existe(tt, viva)).toBe(true);
+  });
+
+  it("a single-variant edit on the products page survives the next approval", async () => {
+    vi.useFakeTimers();
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const capa = await f(tt, "capa");
+    const preta = await f(tt, "preta");
+    await produtoComFoto(tt, "A1", "g-a", capa);
+    await produtoComFoto(tt, "A2", "g-a", capa);
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "g-a", marca: "hisense", imagens: [capa], porRef: [], refsDoGrupo: ["A1", "A2"],
+    });
+    await staff.mutation(api.imagens.definirImagens, { ref: "A2", imagens: [preta], aplicarAoGrupo: false });
+    const importacaoId = await runAprovavel(tt);
+    await staff.mutation(api.importacoes.aprovarImportacao, { importacaoId });
+    await tt.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await imagensDe(tt, "A1")).toEqual([capa]);
+    expect(await imagensDe(tt, "A2")).toEqual([preta]);
+    expect(await existe(tt, preta)).toBe(true);
+  });
+});

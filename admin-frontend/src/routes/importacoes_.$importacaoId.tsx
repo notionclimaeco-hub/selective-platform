@@ -147,11 +147,12 @@ function Revisao({
   const [soAvisos, setSoAvisos] = useState(false)
   const [soAlterados, setSoAlterados] = useState(false)
   const [soPorRever, setSoPorRever] = useState(false)
+  const [soSemImagens, setSoSemImagens] = useState(false)
   const termo = useDebounced(busca, 300).trim()
 
   useEffect(() => {
     setPagina(0)
-  }, [termo, familia, soAvisos, soAlterados, soPorRever])
+  }, [termo, familia, soAvisos, soAlterados, soPorRever, soSemImagens])
 
   const resultado = useQuery(api.importacoes.obter, {
     importacaoId,
@@ -162,6 +163,7 @@ function Revisao({
     soAvisos: soAvisos || undefined,
     soAlterados: soAlterados || undefined,
     soPorRever: soPorRever || undefined,
+    soSemImagens: soSemImagens || undefined,
   })
 
   useEffect(() => {
@@ -182,7 +184,12 @@ function Revisao({
   const { importacao: run } = resultado
   const podeRever = run.estado === "em-revisao"
   const temFiltro =
-    termo !== "" || familia !== "" || soAvisos || soAlterados || soPorRever
+    termo !== "" ||
+    familia !== "" ||
+    soAvisos ||
+    soAlterados ||
+    soPorRever ||
+    soSemImagens
 
   return (
     <>
@@ -225,6 +232,7 @@ function Revisao({
           <Contagem rotulo="Novos" valor={run.numNovos} />
           <Contagem rotulo="Alterados" valor={run.numAlterados} />
           <Contagem rotulo="Iguais" valor={run.numIguais} />
+          <Contagem rotulo="Sem imagens" valor={resultado.gruposSemImagens} />
           {run.numDescontinuados !== undefined && (
             <Contagem rotulo="Descontinuados" valor={run.numDescontinuados} />
           )}
@@ -268,6 +276,12 @@ function Revisao({
           </Toggle>
           <Toggle ativo={soPorRever} onClick={() => setSoPorRever((v) => !v)}>
             Só por rever
+          </Toggle>
+          <Toggle
+            ativo={soSemImagens}
+            onClick={() => setSoSemImagens((v) => !v)}
+          >
+            Só sem imagens
           </Toggle>
         </div>
       </div>

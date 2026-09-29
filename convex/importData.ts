@@ -1,11 +1,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { produtoImportFields, upsertProdutoPorRef } from "./produtos";
 import { upsertPagina } from "./paginasCatalogo";
-import { definirImagensProduto } from "./imagens";
+import { apagarSemReferencia, definirImagensProduto } from "./imagens";
 import { estadoValidator } from "./schema";
 import { sincronizarGrupos } from "./lib/catalogoGrupos";
 import { conferirSegredo } from "./lib/importSecret";
+import { ficheirosEscolhidos } from "./lib/imagensGrupo";
 
 // Bulk data import, driven by a trusted local script (no browser / no Clerk).
 //
@@ -101,17 +103,9 @@ export const removerAusentes = mutation({
       aRemover.map((p) => p.grupoModelo),
     );
 
-    // Only delete storage files no longer referenced by any remaining product.
-    let ficheirosRemovidos = 0;
-    if (candidatos.size > 0) {
-      const restantes = await ctx.db.query("produtos").collect();
-      const referenciados = new Set(restantes.flatMap((p) => p.imagens));
-      for (const ficheiro of candidatos) {
-        if (referenciados.has(ficheiro)) continue;
-        await ctx.storage.delete(ficheiro);
-        ficheirosRemovidos++;
-      }
-    }
+    // Only delete storage files nothing references any more (remaining
+    // products, image candidates, group decisions).
+    const ficheirosRemovidos = await apagarSemReferencia(ctx, candidatos);
 
     return { removidos, ficheirosRemovidos };
   },
@@ -234,7 +228,7 @@ export const listarTargetsImagens = query({
 
 /**
  * Secret-guarded: replace a product's image list (same semantics as the staff
- * mutation, including family fan-out and orphan cleanup).
+ * mutation, including family fan-out, decision sync and orphan cleanup).
  */
 export const definirImagensPorRef = mutation({
   args: {
@@ -249,19 +243,24 @@ export const definirImagensPorRef = mutation({
   }),
   handler: async (ctx, args) => {
     conferirSegredo(args.secret);
+    // Keeps an existing group decision in step (never creates one), so the
+    // next approval does not revert this list.
     return await definirImagensProduto(ctx, {
       ref: args.ref,
       imagens: args.imagens,
       aplicarAoGrupo: args.aplicarAoGrupo,
+      por: "importData",
+      criarDecisao: false,
     });
   },
 });
 
 /**
- * Secret-guarded full catalog wipe (products + their storage images, then
- * catalog PDF pages + their files). Call repeatedly until `done` is true —
- * each call processes a bounded batch to stay under mutation limits.
- * Does NOT touch the `marcas` table.
+ * Secret-guarded full catalog wipe: products + their storage images, then
+ * image candidates and group decisions (rows + files), then catalog PDF pages
+ * + their files. Call repeatedly until `done` is true — each call processes a
+ * bounded batch to stay under mutation limits. A file is deleted only once
+ * nothing references it any more. Does NOT touch the `marcas` table.
  */
 export const limparCatalogo = mutation({
   args: {
@@ -273,6 +272,8 @@ export const limparCatalogo = mutation({
   returns: v.object({
     produtosApagados: v.number(),
     imagensApagadas: v.number(),
+    candidatasApagadas: v.number(),
+    decisoesApagadas: v.number(),
     paginasApagadas: v.number(),
     ficheirosPaginaApagados: v.number(),
     produtosRestantes: v.number(),
@@ -283,44 +284,67 @@ export const limparCatalogo = mutation({
     conferirSegredo(args.secret);
     const batchSize = Math.min(Math.max(args.batchSize ?? 100, 1), 250);
     const incluirPaginas = args.incluirPaginas !== false;
-
-    let produtosApagados = 0;
-    let imagensApagadas = 0;
-    let paginasApagadas = 0;
-    let ficheirosPaginaApagados = 0;
+    const vazio = {
+      produtosApagados: 0,
+      imagensApagadas: 0,
+      candidatasApagadas: 0,
+      decisoesApagadas: 0,
+      paginasApagadas: 0,
+      ficheirosPaginaApagados: 0,
+      produtosRestantes: 0,
+    };
 
     const produtos = await ctx.db.query("produtos").take(batchSize);
     if (produtos.length > 0) {
       const storageIds = new Set(produtos.flatMap((p) => p.imagens));
       for (const p of produtos) {
         await ctx.db.delete(p._id);
-        produtosApagados++;
       }
       await sincronizarGrupos(
         ctx,
         produtos.map((p) => p.grupoModelo),
       );
-      // Only delete storage files no longer referenced by remaining products
-      // (families share the same image ids across variants).
+      // Families share image ids across variants, and candidates/decisions
+      // may hold them too (wiped next): delete only what nothing references.
+      const imagensApagadas = await apagarSemReferencia(ctx, storageIds);
       const restantes = await ctx.db.query("produtos").collect();
-      const aindaUsados = new Set(restantes.flatMap((p) => p.imagens));
-      for (const id of storageIds) {
-        if (aindaUsados.has(id)) continue;
-        await ctx.storage.delete(id);
-        imagensApagadas++;
-      }
 
       return {
-        produtosApagados,
+        ...vazio,
+        produtosApagados: produtos.length,
         imagensApagadas,
-        paginasApagadas: 0,
-        ficheirosPaginaApagados: 0,
         produtosRestantes: restantes.length,
         paginasRestantes: -1,
         done: false,
       };
     }
 
+    // Group decisions and image candidates would otherwise point at files
+    // this wipe deletes.
+    const decisoes = await ctx.db.query("imagensGrupo").take(batchSize);
+    const candidatas = await ctx.db.query("imagensCandidatas").take(batchSize);
+    if (decisoes.length > 0 || candidatas.length > 0) {
+      const ficheiros = new Set<Id<"_storage">>();
+      for (const d of decisoes) {
+        for (const f of ficheirosEscolhidos(d)) ficheiros.add(f);
+        await ctx.db.delete(d._id);
+      }
+      for (const c of candidatas) {
+        ficheiros.add(c.ficheiro);
+        await ctx.db.delete(c._id);
+      }
+      return {
+        ...vazio,
+        imagensApagadas: await apagarSemReferencia(ctx, ficheiros),
+        candidatasApagadas: candidatas.length,
+        decisoesApagadas: decisoes.length,
+        paginasRestantes: -1,
+        done: false,
+      };
+    }
+
+    let paginasApagadas = 0;
+    let ficheirosPaginaApagados = 0;
     if (incluirPaginas) {
       const paginas = await ctx.db.query("paginasCatalogo").take(batchSize);
       for (const pagina of paginas) {
@@ -342,11 +366,9 @@ export const limparCatalogo = mutation({
       : 0;
 
     return {
-      produtosApagados: 0,
-      imagensApagadas: 0,
+      ...vazio,
       paginasApagadas,
       ficheirosPaginaApagados,
-      produtosRestantes: 0,
       paginasRestantes: paginasLeft,
       done: !incluirPaginas || paginasLeft === 0,
     };

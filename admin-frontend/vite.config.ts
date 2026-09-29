@@ -5,6 +5,7 @@ import viteReact from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
 import { muteClerkDevKeyWarn } from "../vite-plugins/mute-clerk-dev-warn"
+import { dropOrtWasm } from "../vite-plugins/drop-ort-wasm"
 
 export default defineConfig(({ mode }) => {
   // Single shared .env lives at the workspace root. Vite exposes VITE_* vars to
@@ -33,6 +34,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       muteClerkDevKeyWarn(),
+      dropOrtWasm(),
       devtools(),
       tailwindcss(),
       tanstackStart(),

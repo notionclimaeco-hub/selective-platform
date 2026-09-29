@@ -87,6 +87,10 @@ Staging JSON example: `.import-data/<marca>-<ano>-products.json`.
 
 ### 2) Product images
 
+**Novo fluxo (v4):** as fotos entram como candidatas com a skill
+`catalog-brand-images` e são escolhidas na página de revisão. O pipeline abaixo
+fica só para marcas já carregadas até ao #53.
+
 Scripts live in `scripts/imagens/` (see that README). Commands:
 
 ```bash
@@ -202,7 +206,9 @@ photos stay `rascunho`.
 
 ## Brand-specific notes
 
-See [references/brands.md](references/brands.md).
+See [references/brands.md](references/brands.md). Photo/site notes (crawl
+sites, TLS, UI/UE, distributors) now live in
+`.claude/skills/catalog-brand-images/references/brands.md`.
 
 ## Done checklist
 

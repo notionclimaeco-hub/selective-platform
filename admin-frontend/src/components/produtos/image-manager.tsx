@@ -1,28 +1,16 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
-import {
-  DndContext,
-  PointerSensor,
-  KeyboardSensor,
-  closestCenter,
-  useSensor,
-  useSensors
-  
-} from "@dnd-kit/core"
-import type {DragEndEvent} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable"
+import { arrayMove } from "@dnd-kit/sortable"
 import { ImagePlus, Loader2, X } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
-import { SortableImage  } from "./sortable-image"
-import type {ImagemItem} from "./sortable-image";
+import { FaixaOrdenavel } from "@/components/imagens/faixa-ordenavel"
+import { ZonaUpload } from "@/components/imagens/zona-upload"
+import { useObjectUrls } from "@/components/imagens/use-object-urls"
+import { enviarParaStorage, redimensionar } from "@/lib/imagens-ficheiro"
+import type { ImagemItem } from "./sortable-image"
 
 export type ManagerAlvo = {
   ref: string
@@ -50,14 +38,10 @@ export function ImageManager({
   const [aEnviar, setAEnviar] = useState(false)
   const [aGuardar, setAGuardar] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [aArrastar, setAArrastar] = useState(false)
-  // Nested dragenter/dragleave events fire per child element; a counter keeps
-  // the drop overlay stable until the pointer truly leaves the drop zone.
-  const dragDepth = useRef(0)
 
   const inicializado = useRef(false)
-  // Object URLs created for fresh uploads, revoked on unmount to avoid leaks.
-  const objectUrls = useRef<Array<string>>([])
+  // Previews for fresh uploads; revoked on removal and on unmount.
+  const previews = useObjectUrls()
 
   // Seed local state once, when the server list first arrives for this ref.
   useEffect(() => {
@@ -68,31 +52,16 @@ export function ImageManager({
       setItens(
         dados.imagens
           .filter((i) => i.url !== null)
-          .map((i) => ({ ficheiro: i.ficheiro, url: i.url as string })),
+          .map((i) => ({ ficheiro: i.ficheiro, url: i.url as string }))
       )
     }
     inicializado.current = true
   }, [dados])
 
-  useEffect(() => {
-    return () => {
-      for (const url of objectUrls.current) URL.revokeObjectURL(url)
-    }
-  }, [])
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  )
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
+  function reordenar(de: string, para: string) {
     setItens((prev) => {
-      const from = prev.findIndex((i) => i.ficheiro === active.id)
-      const to = prev.findIndex((i) => i.ficheiro === over.id)
+      const from = prev.findIndex((i) => i.ficheiro === de)
+      const to = prev.findIndex((i) => i.ficheiro === para)
       if (from === -1 || to === -1) return prev
       return arrayMove(prev, from, to)
     })
@@ -104,20 +73,15 @@ export function ImageManager({
     setAEnviar(true)
     try {
       for (const file of files) {
-        const url = await gerarUploadUrl({})
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file,
-        })
-        if (!res.ok) throw new Error(`Upload falhou (${res.status})`)
-        const { storageId } = (await res.json()) as { storageId: string }
-        const preview = URL.createObjectURL(file)
-        objectUrls.current.push(preview)
+        const blob = await redimensionar(file)
+        const storageId = await enviarParaStorage(blob, () =>
+          gerarUploadUrl({})
+        )
+        const preview = previews.criar(blob)
         setItens((prev) =>
           prev.some((i) => i.ficheiro === storageId)
             ? prev
-            : [...prev, { ficheiro: storageId, url: preview }],
+            : [...prev, { ficheiro: storageId, url: preview }]
         )
       }
     } catch (err) {
@@ -127,32 +91,12 @@ export function ImageManager({
     }
   }
 
-  function apenasImagens(files: Array<File>) {
-    return files.filter((f) => f.type.startsWith("image/"))
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    dragDepth.current = 0
-    setAArrastar(false)
-    if (ocupado) return
-    const files = apenasImagens(Array.from(e.dataTransfer.files))
+  function aoReceberFicheiros(files: Array<File>) {
     if (files.length === 0) {
       setErro("Só são aceites ficheiros de imagem.")
       return
     }
     void enviarFicheiros(files)
-  }
-
-  function handleDragEnter(e: React.DragEvent) {
-    if (!Array.from(e.dataTransfer.types).includes("Files")) return
-    dragDepth.current += 1
-    setAArrastar(true)
-  }
-
-  function handleDragLeave() {
-    dragDepth.current = Math.max(0, dragDepth.current - 1)
-    if (dragDepth.current === 0) setAArrastar(false)
   }
 
   function definirCapa(ficheiro: string) {
@@ -164,6 +108,8 @@ export function ImageManager({
   }
 
   function remover(ficheiro: string) {
+    const item = itens.find((i) => i.ficheiro === ficheiro)
+    if (item) previews.revogar(item.url)
     setItens((prev) => prev.filter((i) => i.ficheiro !== ficheiro))
   }
 
@@ -215,81 +161,42 @@ export function ImageManager({
           </Button>
         </header>
 
+        {/* Swallow drops that miss the upload zone (padding) so the browser
+            doesn't navigate to the file. */}
         <div
-          className="relative flex-1 overflow-y-auto px-5 py-4"
-          onDragEnter={handleDragEnter}
+          className="flex-1 overflow-y-auto px-5 py-4"
           onDragOver={(e) => e.preventDefault()}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          onDrop={(e) => e.preventDefault()}
         >
-          {aArrastar && (
-            <div className="pointer-events-none absolute inset-2 z-10 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-primary/5 text-primary">
-              <ImagePlus className="size-8" />
-              <p className="text-sm font-medium">Largar para adicionar</p>
-            </div>
-          )}
           {dados === undefined ? (
             <p className="text-sm text-muted-foreground">A carregar…</p>
           ) : (
-            <>
-              <div className="mb-4 flex flex-wrap items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-4xl border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
-                  <ImagePlus className="size-4" />
-                  {aEnviar ? "A enviar…" : "Adicionar imagens"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    disabled={ocupado}
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files ?? [])
-                      e.target.value = ""
-                      void enviarFicheiros(files)
-                    }}
-                  />
-                </label>
-                <span className="text-xs text-muted-foreground">
-                  A primeira imagem é a capa. Arraste para reordenar.
-                </span>
-              </div>
+            <ZonaUpload
+              ocupado={ocupado}
+              onFicheiros={aoReceberFicheiros}
+              rotulo={aEnviar ? "A enviar…" : "Adicionar imagens"}
+            >
+              <span className="mb-1 text-xs text-muted-foreground">
+                A primeira imagem é a capa. Arraste para reordenar.
+              </span>
 
-              {itens.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-12 text-center">
-                  <ImagePlus className="size-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Arraste imagens para aqui ou use “Adicionar imagens”.
-                  </p>
-                </div>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={itens.map((i) => i.ficheiro)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-3 sm:grid-cols-4">
-                      {itens.map((item, i) => (
-                        <SortableImage
-                          key={item.ficheiro}
-                          item={item}
-                          isCapa={i === 0}
-                          onRemover={() => remover(item.ficheiro)}
-                          onDefinirCapa={() => definirCapa(item.ficheiro)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
+              <FaixaOrdenavel
+                itens={itens}
+                onReordenar={reordenar}
+                onRemover={remover}
+                onCapa={definirCapa}
+                vazio={
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-12 text-center">
+                    <ImagePlus className="size-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Arraste imagens para aqui ou use “Adicionar imagens”.
+                    </p>
+                  </div>
+                }
+              />
 
-              {erro && (
-                <p className="mt-4 text-sm text-destructive">{erro}</p>
-              )}
-            </>
+              {erro && <p className="mt-1 text-sm text-destructive">{erro}</p>}
+            </ZonaUpload>
           )}
         </div>
 

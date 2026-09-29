@@ -7,6 +7,7 @@
  */
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
+import { ficheirosReferenciados } from "./imagens";
 
 // Canonical attribute keys for the legacy fixed spec columns, in display
 // order. Axis attributes (from atributosVariante) come first; these specs are
@@ -301,8 +302,9 @@ export const publicarTodos = internalMutation({
 });
 
 /**
- * Delete Convex Storage files not referenced by any `produtos.imagens` or
- * `paginasCatalogo.ficheiro`. Batched — call until `remaining` is 0.
+ * Delete Convex Storage files nothing references (`ficheirosReferenciados`:
+ * products, image candidates and group decisions of every brand, catalog
+ * pages, run PDFs). Batched — call until `remaining` is 0.
  */
 export const limparImagensOrfas = internalMutation({
   args: { batchSize: v.optional(v.number()) },
@@ -315,14 +317,7 @@ export const limparImagensOrfas = internalMutation({
   handler: async (ctx, args) => {
     const batchSize = Math.min(Math.max(args.batchSize ?? 100, 1), 250);
 
-    const referenciados = new Set<string>();
-    for (const p of await ctx.db.query("produtos").collect()) {
-      for (const id of p.imagens) referenciados.add(id);
-    }
-    for (const pagina of await ctx.db.query("paginasCatalogo").collect()) {
-      if (pagina.ficheiro !== undefined) referenciados.add(pagina.ficheiro);
-      if (pagina.imagem !== undefined) referenciados.add(pagina.imagem);
-    }
+    const referenciados = await ficheirosReferenciados(ctx);
 
     const todos = await ctx.db.system.query("_storage").collect();
     const orfaos = todos.filter((f) => !referenciados.has(f._id));

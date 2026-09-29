@@ -25,6 +25,7 @@ import type { ReactNode } from "react"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
+import { Toaster } from "@/components/ui/sonner"
 import { authGatePath } from "@/lib/auth-gate"
 import { fetchConvexClerkToken } from "@/lib/convex-clerk-token"
 import appCss from "../styles.css?url"
@@ -198,6 +199,8 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        {/* Clears the review page's fixed decision bar. */}
+        <Toaster offset={{ bottom: 80 }} mobileOffset={{ bottom: 80 }} />
         {import.meta.env.DEV && (
           <TanStackDevtools
             config={{ position: "bottom-right" }}

@@ -14,7 +14,13 @@ import {
 } from "./schema";
 import { requireStaff } from "./lib/auth";
 import { conferirSegredo } from "./lib/importSecret";
+import {
+  candidatasARemover,
+  ficheirosEscolhidos,
+  listaParaRef,
+} from "./lib/imagensGrupo";
 import { validarAtributos } from "./lib/specRegistry";
+import { apagarSemReferencia, ficheirosEmUso, ficheirosExistentes } from "./imagens";
 import { upsertProdutoPorRef, type ProdutoImport } from "./produtos";
 import { upsertPaginaImagem } from "./paginasCatalogo";
 import { sincronizarGrupos } from "./lib/catalogoGrupos";
@@ -62,6 +68,8 @@ export const importacaoValidator = v.object({
   numPromovidos: v.optional(v.number()),
   numReativados: v.optional(v.number()),
   numDescontinuados: v.optional(v.number()),
+  numImagensAplicadas: v.optional(v.number()),
+  numCandidatasRemovidas: v.optional(v.number()),
   criadoEm: v.number(),
   decididoEm: v.optional(v.number()),
   decididoPor: v.optional(v.string()),
@@ -503,6 +511,8 @@ export const promoverLote = internalMutation({
 
     if (pendentes.length > 0) {
       let reativados = 0;
+      let aplicadas = 0;
+      const substituidos = new Set<Id<"_storage">>();
       for (const linha of pendentes) {
         const anterior = await ctx.db
           .query("produtos")
@@ -513,12 +523,40 @@ export const promoverLote = internalMutation({
           await ctx.db.patch(r.produtoId, { estado: "rascunho" });
           reativados++;
         }
+        const decisao = await ctx.db
+          .query("imagensGrupo")
+          .withIndex("by_grupo", (q) => q.eq("grupoModelo", linha.grupoModelo))
+          .unique();
+        if (decisao) {
+          // A decision may name a file deleted since it was saved: skip those,
+          // and apply nothing when none of its files is left.
+          const escolhida = listaParaRef(decisao, linha.ref);
+          const lista = await ficheirosExistentes(ctx, escolhida);
+          const perdida = escolhida.length > 0 && lista.length === 0;
+          const produto = await ctx.db.get(r.produtoId);
+          const igual =
+            produto !== null &&
+            produto.imagens.length === lista.length &&
+            produto.imagens.every((f, i) => f === lista[i]);
+          if (!igual && !perdida) {
+            const novos = new Set(lista);
+            for (const f of produto?.imagens ?? []) {
+              if (!novos.has(f)) substituidos.add(f);
+            }
+            await ctx.db.patch(r.produtoId, { imagens: lista });
+            aplicadas++;
+          }
+        }
         await ctx.db.patch(linha._id, { promovido: true });
       }
       await sincronizarGrupos(ctx, tocados);
+      // Files a decision replaced: delete unless anything (any brand: legacy
+      // uploads share one file across brands) still holds them.
+      await apagarSemReferencia(ctx, substituidos);
       await ctx.db.patch(run._id, {
         numPromovidos: (run.numPromovidos ?? 0) + pendentes.length,
         numReativados: (run.numReativados ?? 0) + reativados,
+        numImagensAplicadas: (run.numImagensAplicadas ?? 0) + aplicadas,
       });
       await ctx.scheduler.runAfter(0, internal.importacoes.promoverLote, {
         importacaoId: run._id,
@@ -552,6 +590,39 @@ export const promoverLote = internalMutation({
       estado: "aprovada",
       numDescontinuados: descontinuados,
     });
+    await ctx.scheduler.runAfter(0, internal.importacoes.limparCandidatasDaRun, {
+      importacaoId: run._id,
+    });
+    return null;
+  },
+});
+
+/**
+ * After approval: delete every candidate of the run's groups whose file is
+ * not chosen (group list or porRef) and not on any live product of the brand.
+ * Runs in its own transaction so a Daikin-sized run stays under limits.
+ */
+export const limparCandidatasDaRun = internalMutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await obterRun(ctx, args.importacaoId);
+    const grupos = new Set((await linhasDaRun(ctx, run._id)).map((l) => l.grupoModelo));
+    // Products + decisions of the whole brand: a sibling group's choice is never deleted.
+    const mantidos = await ficheirosEmUso(ctx, run.marca);
+    let removidas = 0;
+    for (const grupoModelo of grupos) {
+      const candidatas = await ctx.db
+        .query("imagensCandidatas")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", grupoModelo))
+        .collect();
+      for (const c of candidatasARemover(candidatas, mantidos)) {
+        if ((await ctx.db.system.get(c.ficheiro)) !== null) await ctx.storage.delete(c.ficheiro);
+        await ctx.db.delete(c._id);
+        removidas++;
+      }
+    }
+    await ctx.db.patch(run._id, { numCandidatasRemovidas: removidas });
     return null;
   },
 });
@@ -575,6 +646,7 @@ export const resumoGrupoValidator = v.object({
   numIguais: v.number(),
   revisto: v.boolean(),
   precisaRevisao: v.boolean(),
+  temImagens: v.boolean(),
 });
 
 export const filtroGruposValidator = v.union(
@@ -632,6 +704,7 @@ export const obter = query({
     soAvisos: v.optional(v.boolean()),
     soAlterados: v.optional(v.boolean()),
     soPorRever: v.optional(v.boolean()),
+    soSemImagens: v.optional(v.boolean()),
   },
   returns: v.union(
     v.null(),
@@ -645,6 +718,7 @@ export const obter = query({
       numPaginas: v.number(),
       pagina: v.number(),
       gruposPorRever: v.number(),
+      gruposSemImagens: v.number(),
       familias: v.array(v.string()),
     }),
   ),
@@ -654,6 +728,22 @@ export const obter = query({
     if (!run) return null;
 
     const resumos = resumirGrupos(await linhasDaRun(ctx, run._id));
+    for (const r of resumos) {
+      const decisao = await ctx.db
+        .query("imagensGrupo")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", r.grupoModelo))
+        .unique();
+      if (decisao && ficheirosEscolhidos(decisao).size > 0) {
+        r.temImagens = true;
+        continue;
+      }
+      const vivos = await ctx.db
+        .query("produtos")
+        .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", r.grupoModelo))
+        .collect();
+      r.temImagens = vivos.some((p) => p.imagens.length > 0);
+    }
+    const semImagens = resumos.filter((r) => !r.temImagens).length;
     const porRever = gruposPorRever(resumos).length;
     const filtrados = filtrarPorCriterios(
       filtrarGrupos(resumos, args.filtro ?? "todos"),
@@ -663,6 +753,7 @@ export const obter = query({
         soAvisos: args.soAvisos,
         soAlterados: args.soAlterados,
         soPorRever: args.soPorRever,
+        soSemImagens: args.soSemImagens,
       },
     );
     const familias = [...new Set(resumos.map((r) => r.familia))].sort();
@@ -680,6 +771,7 @@ export const obter = query({
       numPaginas,
       pagina,
       gruposPorRever: porRever,
+      gruposSemImagens: semImagens,
       familias,
     };
   },

@@ -8,6 +8,7 @@ import {
   gruposPorRever,
   resumirGrupos,
   type LinhaRevisao,
+  type ResumoGrupo,
 } from "./importacoes";
 
 function linha(extra: Partial<LinhaRevisao> = {}): LinhaRevisao {
@@ -89,6 +90,7 @@ describe("resumirGrupos", () => {
       numIguais: 1,
       revisto: false,
       precisaRevisao: true,
+      temImagens: false,
     });
     expect(resumos[0]?.precisaRevisao).toBe(false);
     expect(resumos[2]?.precisaRevisao).toBe(false);
@@ -205,5 +207,30 @@ describe("contarRun", () => {
       numIguais: 1,
       numComAvisos: 2,
     });
+  });
+});
+
+describe("soSemImagens", () => {
+  it("keeps only groups without images", () => {
+    const r = (g: string, temImagens: boolean): ResumoGrupo => ({
+      grupoModelo: g,
+      nomeGrupo: g,
+      marca: "m",
+      familia: "f",
+      componente: "conjunto",
+      numSkus: 1,
+      numAvisos: 0,
+      numNovos: 1,
+      numAlterados: 0,
+      numIguais: 0,
+      revisto: false,
+      precisaRevisao: false,
+      temImagens,
+    });
+    expect(
+      filtrarPorCriterios([r("a", true), r("b", false)], { soSemImagens: true }).map(
+        (x) => x.grupoModelo,
+      ),
+    ).toEqual(["b"]);
   });
 });
