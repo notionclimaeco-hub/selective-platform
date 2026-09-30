@@ -2,6 +2,7 @@
 import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
+import { filtrarCatalogo, lerIndice } from "./lib/catalogoFiltros";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -63,8 +64,14 @@ async function publicar(test: ReturnType<typeof t>, refs: Array<string>) {
   });
 }
 
-describe("catalogo.listar", () => {
-  it("lists one entry per published group with the cheapest ref and price", async () => {
+/** The shop's decoded index, in the default order. */
+async function grupos(test: ReturnType<typeof t>) {
+  const linhas = await test.query(api.catalogo.indice, {});
+  return filtrarCatalogo(lerIndice(linhas), {}).grupos;
+}
+
+describe("catalogo.indice", () => {
+  it("lists one line per published group with the cheapest ref and price", async () => {
     const test = t();
     await importar(test, [
       sku("FTXM25", { pvpCents: 90000 }),
@@ -78,23 +85,25 @@ describe("catalogo.listar", () => {
     ]);
 
     // Drafts are invisible.
-    expect((await test.query(api.catalogo.listar, {})).total).toBe(0);
+    expect(await test.query(api.catalogo.indice, {})).toEqual([]);
 
     await publicar(test, ["FTXM25", "FTXM35"]);
-    const lista = await test.query(api.catalogo.listar, {});
-    expect(lista.total).toBe(1);
-    expect(lista.entradas[0]).toMatchObject({
-      grupoModelo: "daikin-perfera",
-      ref: "FTXM25",
-      precoDesdeCents: 90000,
-      precoAteCents: 110000,
-      numVariantes: 2,
-      frioKwMin: 2.5,
-      frioKwMax: 3.5,
-      capaUrl: null,
-    });
-    expect(lista.familias).toEqual([{ valor: "ar-condicionado", contagem: 1 }]);
-    expect(lista.marcas).toEqual([{ valor: "daikin", contagem: 1 }]);
+    expect(await test.query(api.catalogo.indice, {})).toEqual([
+      {
+        g: "daikin-perfera",
+        r: "FTXM25",
+        n: "Mural Perfera",
+        m: "daikin",
+        f: "ar-condicionado",
+        p: 90000,
+        v: 2,
+        x: 1,
+        d: { "frio-kw": [2.5, 3.5] },
+        // The other variant's ref, for search.
+        b: "ftxm35",
+        w: 4,
+      },
+    ]);
   });
 
   it("drops a group when its last variant is unpublished or removed", async () => {
@@ -106,77 +115,12 @@ describe("catalogo.listar", () => {
       refs: ["FTXM35"],
       estado: "descontinuado",
     });
-    let lista = await test.query(api.catalogo.listar, {});
-    expect(lista.entradas[0]?.numVariantes).toBe(1);
+    expect((await grupos(test))[0]?.numVariantes).toBe(1);
 
     await test
       .withIdentity(STAFF)
       .mutation(api.produtos.remover, { ref: "FTXM25" });
-    lista = await test.query(api.catalogo.listar, {});
-    expect(lista.total).toBe(0);
-  });
-
-  it("searches without diacritics, by ref, and filters by familia/marca", async () => {
-    const test = t();
-    await importar(test, [
-      sku("FTXM25"),
-      sku("EKHWS200", {
-        grupoModelo: "daikin-deposito",
-        nomeGrupo: "Depósito Águas Quentes",
-        familia: "aqs",
-        pvpCents: 50000,
-      }),
-      sku("MSZ-AP25", {
-        grupoModelo: "mitsubishi-msz-ap",
-        nomeGrupo: "Mural MSZ-AP",
-        marca: "mitsubishi",
-        pvpCents: 80000,
-      }),
-    ]);
-    await publicar(test, ["FTXM25", "EKHWS200", "MSZ-AP25"]);
-
-    const aguas = await test.query(api.catalogo.listar, { busca: "aguas" });
-    expect(aguas.entradas.map((e) => e.grupoModelo)).toEqual([
-      "daikin-deposito",
-    ]);
-
-    const porRef = await test.query(api.catalogo.listar, { busca: "msz-ap25" });
-    expect(porRef.entradas.map((e) => e.ref)).toEqual(["MSZ-AP25"]);
-
-    // "Mural" matches both brands; the brand facet lists both, the family
-    // facet (marca lifted) lists only ar-condicionado.
-    const murais = await test.query(api.catalogo.listar, {
-      busca: "mural",
-      marca: "daikin",
-    });
-    expect(murais.total).toBe(1);
-    expect(murais.marcas.map((m) => m.valor).sort()).toEqual([
-      "daikin",
-      "mitsubishi",
-    ]);
-    expect(murais.familias).toEqual([{ valor: "ar-condicionado", contagem: 1 }]);
-  });
-
-  it("sorts by price and clamps the page", async () => {
-    const test = t();
-    await importar(test, [
-      sku("A", { grupoModelo: "g-a", nomeGrupo: "A", pvpCents: 300 }),
-      sku("B", { grupoModelo: "g-b", nomeGrupo: "B", pvpCents: 100 }),
-      sku("C", { grupoModelo: "g-c", nomeGrupo: "C", pvpCents: 200 }),
-    ]);
-    await publicar(test, ["A", "B", "C"]);
-
-    const asc = await test.query(api.catalogo.listar, { ordenar: "preco-asc" });
-    expect(asc.entradas.map((e) => e.ref)).toEqual(["B", "C", "A"]);
-
-    const pagina = await test.query(api.catalogo.listar, {
-      ordenar: "preco-desc",
-      porPagina: 2,
-      pagina: 9,
-    });
-    expect(pagina.numPaginas).toBe(2);
-    expect(pagina.pagina).toBe(1);
-    expect(pagina.entradas.map((e) => e.ref)).toEqual(["B"]);
+    expect(await grupos(test)).toEqual([]);
   });
 
   it("reflects staff edits and re-imports that move a SKU between groups", async () => {
@@ -192,25 +136,51 @@ describe("catalogo.listar", () => {
       atributos: [],
       pdfPaginas: [],
     });
-    let lista = await test.query(api.catalogo.listar, {});
     // FTXM35 is now the cheapest, so it becomes the canonical ref.
-    expect(lista.entradas[0]).toMatchObject({
+    expect((await grupos(test))[0]).toMatchObject({
       ref: "FTXM35",
       precoDesdeCents: 100000,
-      precoAteCents: 500000,
     });
 
     // Re-import FTXM35 into another group: both groups are refreshed.
     await importar(test, [
       sku("FTXM35", { grupoModelo: "daikin-outro", nomeGrupo: "Outro" }),
     ]);
-    lista = await test.query(api.catalogo.listar, { ordenar: "nome" });
-    expect(lista.entradas.map((e) => [e.grupoModelo, e.numVariantes])).toEqual(
-      [
-        ["daikin-perfera", 1],
-        ["daikin-outro", 1],
-      ],
+    expect(
+      (await grupos(test)).map((g) => [g.grupoModelo, g.numVariantes]).sort(),
+    ).toEqual([
+      ["daikin-outro", 1],
+      ["daikin-perfera", 1],
+    ]);
+  });
+});
+
+describe("catalogo.capas", () => {
+  it("resolves covers for the groups asked, null without a photo", async () => {
+    const test = t();
+    await importar(test, [
+      sku("FTXM25"),
+      sku("MSZ-AP25", { grupoModelo: "mitsubishi-msz-ap", marca: "mitsubishi" }),
+    ]);
+    await publicar(test, ["FTXM25", "MSZ-AP25"]);
+    const capa = await test.run((ctx) =>
+      ctx.storage.store(new Blob(["png"], { type: "image/png" })),
     );
+    await test.run(async (ctx) => {
+      const g = await ctx.db
+        .query("catalogoGrupos")
+        .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", "daikin-perfera"))
+        .unique();
+      await ctx.db.patch(g!._id, { capa });
+    });
+
+    const capas = await test.query(api.catalogo.capas, {
+      grupos: ["daikin-perfera", "mitsubishi-msz-ap", "fantasma"],
+    });
+    expect(capas).toEqual([
+      { grupoModelo: "daikin-perfera", url: expect.any(String) },
+      { grupoModelo: "mitsubishi-msz-ap", url: null },
+    ]);
   });
 });
 
@@ -248,7 +218,7 @@ describe("hero specs (destaques)", () => {
     ]);
     await publicar(test, ["FTXM25", "FTXM71", "FTXM35", "FTXM50"]);
 
-    const [entrada] = (await test.query(api.catalogo.listar, {})).entradas;
+    const [entrada] = await grupos(test);
     expect(entrada?.destaques).toEqual([
       { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 7.1 },
       { chave: "calor-kw", tipo: "intervalo", min: 3.2, max: 8.2 },
@@ -259,8 +229,6 @@ describe("hero specs (destaques)", () => {
         valores: ["A+++/A+++", "A+++/A++", "A++/A+", "-/A+"],
       },
     ]);
-    // The legacy fields stay until the client reads `destaques`.
-    expect(entrada).toMatchObject({ frioKwMin: 2.5, frioKwMax: 7.1 });
   });
 
   it("derives aqs destaques and omits a hero key no variant carries", async () => {
@@ -284,7 +252,7 @@ describe("hero specs (destaques)", () => {
     ]);
     await publicar(test, ["EKHWS150", "EKHWS300"]);
 
-    const [entrada] = (await test.query(api.catalogo.listar, {})).entradas;
+    const [entrada] = await grupos(test);
     // No classe-energetica on any variant: the key is left out.
     expect(entrada?.destaques).toEqual([
       { chave: "deposito-l", tipo: "intervalo", min: 150, max: 300 },
@@ -319,7 +287,7 @@ describe("hero specs (destaques)", () => {
     ]);
     await publicar(test, ["BRC1-W", "BRC1-B"]);
 
-    const [entrada] = (await test.query(api.catalogo.listar, {})).entradas;
+    const [entrada] = await grupos(test);
     expect(entrada?.destaques).toEqual([
       { chave: "tipo", tipo: "valores", valores: ["comando"] },
       {
@@ -339,7 +307,7 @@ describe("hero specs (destaques)", () => {
     ]);
     await publicar(test, ["FTXM25"]);
 
-    const [entrada] = (await test.query(api.catalogo.listar, {})).entradas;
+    const [entrada] = await grupos(test);
     expect(entrada?.destaques).toEqual([
       { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 2.5 },
     ]);
@@ -355,16 +323,14 @@ describe("hero specs (destaques)", () => {
         const g = await ctx.db.query("catalogoGrupos").first();
         await ctx.db.patch(g!._id, { destaques: undefined });
       });
-      expect(
-        (await test.query(api.catalogo.listar, {})).entradas[0]?.destaques,
-      ).toEqual([]);
+      expect((await grupos(test))[0]?.destaques).toEqual([]);
 
       await test.mutation(internal.catalogo.reconstruir, {});
       await test.finishAllScheduledFunctions(vi.runAllTimers);
 
-      expect(
-        (await test.query(api.catalogo.listar, {})).entradas[0]?.destaques,
-      ).toEqual([{ chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 2.5 }]);
+      expect((await grupos(test))[0]?.destaques).toEqual([
+        { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 2.5 },
+      ]);
     } finally {
       vi.useRealTimers();
     }
@@ -383,8 +349,9 @@ describe("catalogo.vitrine", () => {
         grupoModelo: "g-b",
         nomeGrupo: "Beta",
         familia: "acessorios-e-controlo",
+        atributos: [{ chave: "tipo", valor: "comando" }],
       }),
-      // peso 6: no specs.
+      // peso 6: no hero specs.
       sku("A1", { grupoModelo: "g-a", nomeGrupo: "Alfa", atributos: [] }),
     ]);
     await publicar(test, ["Z1", "M1", "B1", "A1"]);
@@ -392,8 +359,9 @@ describe("catalogo.vitrine", () => {
     const todos = await test.query(api.catalogo.vitrine, { limite: 3 });
     expect(todos.map((e) => e.grupoModelo)).toEqual(["g-m", "g-z", "g-b"]);
     // Same order as the catalog's default ("relevancia") listing.
-    const lista = await test.query(api.catalogo.listar, { porPagina: 3 });
-    expect(todos).toEqual(lista.entradas);
+    expect((await grupos(test)).slice(0, 3).map((g) => g.grupoModelo)).toEqual(
+      todos.map((e) => e.grupoModelo),
+    );
 
     const ac = await test.query(api.catalogo.vitrine, {
       familia: "ar-condicionado",
@@ -446,162 +414,5 @@ describe("catalogo:reconstruir", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe("catalogo.listar hero-spec filters", () => {
-  // Four murals and one cassette, all ar-condicionado, plus an aqs tank.
-  async function montar() {
-    const test = t();
-    const mural = (
-      ref: string,
-      grupoModelo: string,
-      frio: Array<string>,
-      classe?: string,
-    ) =>
-      frio.map((kw, i) =>
-        sku(`${ref}${i}`, {
-          grupoModelo,
-          nomeGrupo: grupoModelo,
-          atributos: [
-            { chave: "frio-kw", valor: kw },
-            ...(classe ? [{ chave: "classe-energetica", valor: classe }] : []),
-          ],
-        }),
-      );
-    const produtos = [
-      ...mural("A", "g-a", ["2.5", "3.5"], "A++/A+"), // 2.5–3.5
-      ...mural("B", "g-b", ["5.0", "7.1"], "A+++/A++"), // 5–7.1
-      ...mural("C", "g-c", ["3.5", "5.0"], "A++/A+"), // 3.5–5
-      ...mural("D", "g-d", ["10.0"]), // 10, no class
-      sku("SEMKW", {
-        grupoModelo: "g-sem-kw",
-        nomeGrupo: "g-sem-kw",
-        atributos: [{ chave: "classe-energetica", valor: "A+/A" }],
-      }),
-      sku("TANK", {
-        grupoModelo: "g-tank",
-        nomeGrupo: "g-tank",
-        familia: "aqs",
-        atributos: [{ chave: "deposito-l", valor: "200" }],
-      }),
-    ];
-    await importar(test, produtos);
-    await publicar(
-      test,
-      produtos.map((p) => p.ref),
-    );
-    return test;
-  }
-
-  const grupos = (lista: { entradas: Array<{ grupoModelo: string }> }) =>
-    lista.entradas.map((e) => e.grupoModelo).sort();
-
-  it("matches numeric ranges by overlap with the group's span", async () => {
-    const test = await montar();
-    const lista = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: { "frio-kw": { min: 4, max: 6 } },
-    });
-    // g-b (5–7.1) and g-c (3.5–5) overlap 4–6; g-a, g-d and the group
-    // without frio-kw do not.
-    expect(grupos(lista)).toEqual(["g-b", "g-c"]);
-
-    const aberto = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: { "frio-kw": { min: 7.1 } },
-    });
-    expect(grupos(aberto)).toEqual(["g-b", "g-d"]);
-  });
-
-  it("matches value filters on any selected value and combines keys", async () => {
-    const test = await montar();
-    const lista = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: { "classe-energetica": { valores: ["A+++/A++", "A+/A"] } },
-    });
-    expect(grupos(lista)).toEqual(["g-b", "g-sem-kw"]);
-
-    const ambos = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: {
-        "classe-energetica": { valores: ["A+++/A++", "A+/A"] },
-        "frio-kw": { max: 6 },
-      },
-    });
-    expect(grupos(ambos)).toEqual(["g-b"]);
-  });
-
-  it("ignores filters without a familia, off-familia keys and empty filters", async () => {
-    const test = await montar();
-    const semFamilia = await test.query(api.catalogo.listar, {
-      filtros: { "frio-kw": { min: 100 } },
-    });
-    expect(semFamilia.total).toBe(6);
-    expect(semFamilia.facetas).toEqual([]);
-
-    const vazios = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: {
-        "deposito-l": { min: 1000 },
-        "frio-kw": {},
-        "classe-energetica": { valores: [] },
-      },
-    });
-    expect(vazios.total).toBe(5);
-  });
-
-  it("returns facets computed after the other filters, own filter lifted", async () => {
-    const test = await montar();
-    const lista = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: {
-        "frio-kw": { min: 4 },
-        "classe-energetica": { valores: ["A++/A+"] },
-      },
-    });
-    expect(grupos(lista)).toEqual(["g-c"]);
-    expect(lista.facetas).toEqual([
-      // frio-kw over the A++/A+ groups (g-a, g-c): its own min is lifted.
-      { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 5 },
-      // classe over the ≥4 kW groups (g-b, g-c, g-d): g-d has no class.
-      {
-        chave: "classe-energetica",
-        tipo: "valores",
-        valores: [
-          { valor: "A+++/A++", contagem: 1 },
-          { valor: "A++/A+", contagem: 1 },
-        ],
-      },
-    ]);
-
-    const semFiltros = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-    });
-    expect(semFiltros.facetas).toEqual([
-      { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 10 },
-      {
-        chave: "classe-energetica",
-        tipo: "valores",
-        valores: [
-          { valor: "A+++/A++", contagem: 1 },
-          { valor: "A++/A+", contagem: 2 },
-          { valor: "A+/A", contagem: 1 },
-        ],
-      },
-    ]);
-  });
-
-  it("applies hero filters to the brand counts but not the family counts", async () => {
-    const test = await montar();
-    const lista = await test.query(api.catalogo.listar, {
-      familia: "ar-condicionado",
-      filtros: { "frio-kw": { min: 9 } },
-    });
-    expect(lista.marcas).toEqual([{ valor: "daikin", contagem: 1 }]);
-    expect(lista.familias).toEqual([
-      { valor: "ar-condicionado", contagem: 5 },
-      { valor: "aqs", contagem: 1 },
-    ]);
   });
 });

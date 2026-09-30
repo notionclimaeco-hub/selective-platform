@@ -367,6 +367,18 @@ export function heroSpecs(familia: string): Array<string> {
   return definicoesHero(familia).map((c) => c.chave);
 }
 
+/**
+ * Every registered key of a familia in display order: hero specs first, then
+ * the others, each in registry order.
+ */
+export function ordemChaves(familia: string): Array<string> {
+  const chaves = categoria(familia)?.chaves ?? [];
+  return [
+    ...chaves.filter((c) => c.hero),
+    ...chaves.filter((c) => !c.hero),
+  ].map((c) => c.chave);
+}
+
 /** Registered keys that apply to `componente` within `familia`. */
 export function chavesDaCategoria(
   familia: string,
@@ -384,6 +396,11 @@ for (const familia of FAMILIAS_REGISTO) {
   for (const c of REGISTO_SPECS[familia].chaves) {
     if (!ROTULOS.has(c.chave)) ROTULOS.set(c.chave, c);
   }
+}
+
+/** A key's definition (type, unit, label), whatever familia it belongs to. */
+export function definicaoChave(chave: string): ChaveSpec | undefined {
+  return ROTULOS.get(chave);
 }
 
 /** Portuguese label with unit ("Frio (kW)"); unknown keys are humanised. */

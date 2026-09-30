@@ -83,7 +83,7 @@ export const atributoValidator = v.object({
 
 // One hero spec of a product page, summarised over its published variants:
 // `numero` keys as a min–max span, `enum`/`texto` keys as their distinct
-// values. Also the shape of the hero-spec facets `catalogo.listar` returns.
+// values. `Destaque` in lib/catalogoFiltros.ts.
 export const destaqueValidator = v.union(
   v.object({
     chave: v.string(),
@@ -276,8 +276,8 @@ export default defineSchema({
     precoDesdeCents: v.number(),
     precoAteCents: v.number(),
     numVariantes: v.number(),
-    // Deprecated by `destaques`: kept until the shop reads the hero specs
-    // (#69), then dropped.
+    // Deprecated by `destaques` and no longer written (#69); dropped once
+    // `catalogo:reconstruir` has cleared them from every row.
     frioKwMin: v.optional(v.number()),
     frioKwMax: v.optional(v.number()),
     classeEnergetica: v.optional(v.string()),
@@ -287,7 +287,11 @@ export default defineSchema({
     destaques: v.optional(v.array(destaqueValidator)),
     // Cover image (first image of the canonical variant, else any variant's).
     capa: v.union(v.id("_storage"), v.null()),
-    // Lower-cased "name refs gama grupoModelo" blob for substring search.
+    // Normalised refs of the other published variants, space-separated: the
+    // search terms the row does not already carry (the shop searches them
+    // together with nome, ref, gama, marca and grupoModelo). Rows written
+    // before #69 hold the whole "name refs gama marca grupoModelo" blob until
+    // `catalogo:reconstruir` rewrites them; search reads both the same way.
     textoBusca: v.string(),
     // Presentation weight for the default order, lower = better (has photo,
     // has specs, is a main family).

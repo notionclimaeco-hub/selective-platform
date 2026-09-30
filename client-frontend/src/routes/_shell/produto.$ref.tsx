@@ -15,14 +15,13 @@ import type { FunctionReturnType } from "convex/server"
 import { ArrowLeft, ChevronRight, FileText } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
+import { atributosComuns } from "@convex/lib/especificacoes"
+import { heroSpecs } from "@convex/lib/specRegistry"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/produto/markdown"
 import { ProductGallery } from "@/components/produto/product-gallery"
 import {
   VariantTable,
-  atributosComuns,
-  rotuloChave,
-  rotuloValor,
   rotuloVariante,
 } from "@/components/produto/variant-table"
 import type { Atributo, Variante } from "@/components/produto/variant-table"
@@ -30,6 +29,12 @@ import { useOrcamento } from "@/components/orcamento/orcamento-store"
 import type { ItemOrcamento } from "@/components/orcamento/orcamento-store"
 import { ControloQuantidade } from "@/components/produto/controlo-quantidade"
 import { eurExato, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
+import {
+  formatarValor,
+  rotuloChave,
+  rotuloCurto,
+  unidadeDe,
+} from "@/lib/especificacoes"
 import { cn } from "@/lib/utils"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 
@@ -139,10 +144,22 @@ function ProdutoLayout({
   const revendaAtivo = overlay?.get(ativo.ref)
 
   // Shared attributes describe the product (chips + spec list); the keys that
-  // vary across the group become the model picker's columns.
-  const especificacoes = temVariantes
-    ? atributosComuns(variantes)
-    : ativo.atributos
+  // vary across the group become the model picker's columns. Both follow the
+  // registry order of the familia, hero specs first.
+  const especificacoes = atributosComuns(
+    temVariantes ? variantes : [ativo],
+    base.familia
+  )
+  // The selected model's hero specs lead the page; the chips under them
+  // carry the next shared specs.
+  const hero = heroSpecs(base.familia)
+  const destaques = hero.flatMap((chave) => {
+    const valor = ativo.atributos.find((a) => a.chave === chave)?.valor
+    return valor === undefined ? [] : [{ chave, valor }]
+  })
+  const chips = especificacoes
+    .filter((a) => !hero.includes(a.chave))
+    .slice(0, MAX_CHIPS)
   const orcamento = useOrcamentoDaVisita()
   const [titulo, tituloVisivel] = useVisivel<HTMLHeadingElement>()
 
@@ -155,7 +172,7 @@ function ProdutoLayout({
       nome: base.nomeGrupo,
       marca: base.marca,
       familia: base.familia,
-      variante: rotuloVariante(v, variantes ?? []) || undefined,
+      variante: rotuloVariante(v, variantes ?? [], base.familia) || undefined,
       pvpCents: v.pvpCents,
       capaUrl: v.imagensUrls?.at(0) ?? ativo.imagensUrls.at(0) ?? null,
       capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
@@ -206,9 +223,8 @@ function ProdutoLayout({
             >
               {base.nomeGrupo}
             </h1>
-            {especificacoes.length > 0 && (
-              <SpecChips atributos={especificacoes.slice(0, MAX_CHIPS)} />
-            )}
+            {destaques.length > 0 && <Destaques atributos={destaques} />}
+            {chips.length > 0 && <SpecChips atributos={chips} />}
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-y py-4">
@@ -249,6 +265,7 @@ function ProdutoLayout({
             </h2>
             <div className="mt-2.5">
               <VariantTable
+                familia={base.familia}
                 variantes={variantes}
                 selectedRef={selectedRef}
                 onSelect={onSelect}
@@ -276,7 +293,7 @@ function ProdutoLayout({
           </section>
         )}
 
-        {especificacoes.length > MAX_CHIPS && (
+        {especificacoes.length > chips.length && (
           <section className="min-w-0">
             <h2 className="text-sm font-semibold">Especificações</h2>
             <ListaEspecificacoes atributos={especificacoes} />
@@ -435,17 +452,55 @@ function PrecoAtivo({
   )
 }
 
-// Short spec chips under the title: label/value pills.
+/**
+ * The selected model's hero specs, right under the title: the figures an
+ * installer checks first (capacity, litres, area), value over label.
+ */
+function Destaques({ atributos }: { atributos: Array<Atributo> }) {
+  return (
+    <dl
+      className={cn(
+        "mt-1 grid divide-x rounded-xl border",
+        // Registry familias have at most three hero specs.
+        ["grid-cols-1", "grid-cols-2", "grid-cols-3"][atributos.length - 1]
+      )}
+    >
+      {atributos.map((a) => {
+        const unidade = unidadeDe(a.chave)
+        return (
+          <div
+            key={a.chave}
+            className="flex min-w-0 flex-col-reverse justify-end gap-0.5 px-3 py-2.5"
+          >
+            <dt className="text-xs leading-snug text-muted-foreground">
+              {rotuloCurto(a.chave)}
+            </dt>
+            <dd className="truncate text-[15px] font-semibold tabular-nums">
+              {formatarValor(a.chave, a.valor)}
+              {unidade && (
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  {unidade}
+                </span>
+              )}
+            </dd>
+          </div>
+        )
+      })}
+    </dl>
+  )
+}
+
+// Short spec chips under the hero specs: label (with unit) / value pills.
 function SpecChips({ atributos }: { atributos: Array<Atributo> }) {
   return (
-    <dl className="mt-1 flex flex-wrap gap-1.5">
+    <dl className="flex flex-wrap gap-1.5">
       {atributos.map((a) => (
         <div
           key={a.chave}
           className="flex items-baseline gap-1.5 rounded-full border px-3 py-1 text-[13px]"
         >
           <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
-          <dd className="font-medium">{rotuloValor(a.valor)}</dd>
+          <dd className="font-medium">{formatarValor(a.chave, a.valor)}</dd>
         </div>
       ))}
     </dl>
@@ -462,7 +517,9 @@ function ListaEspecificacoes({ atributos }: { atributos: Array<Atributo> }) {
           className="flex items-baseline justify-between gap-4 px-3.5 py-2.5"
         >
           <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
-          <dd className="text-right font-medium">{rotuloValor(a.valor)}</dd>
+          <dd className="text-right font-medium">
+            {formatarValor(a.chave, a.valor)}
+          </dd>
         </div>
       ))}
     </dl>

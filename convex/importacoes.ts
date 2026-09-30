@@ -497,8 +497,8 @@ function camposProduto(l: Doc<"skusEmRevisao">): ProdutoImport {
  * marks every live ref of the brand (by `marca` or by `tabelaOrigem`) that is
  * absent from the run `descontinuado`, then `sincronizarCatalogoDaRun` brings
  * the public listing up to date and closes the run as `aprovada`. The listing
- * is not synced per batch: every `catalogoGrupos` write invalidates every
- * cached `catalogo.listar`, so the touched groups are collected on the run
+ * is not synced per batch: every `catalogoGrupos` write invalidates the
+ * cached `catalogo.indice`, so the touched groups are collected on the run
  * (`gruposPorSincronizar`) and written in a few large commits at the end.
  * Rows already `promovido` are skipped, so re-running after a failed batch
  * (`npx convex run importacoes:promoverLote '{"importacaoId": "..."}'`)

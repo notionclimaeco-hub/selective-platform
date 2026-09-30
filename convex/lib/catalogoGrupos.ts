@@ -1,49 +1,28 @@
-import type { Infer } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { destaqueValidator } from "../schema";
 import {
-  definicoesHero,
-  PADRAO_CLASSE_ENERGETICA,
-  PADRAO_LISTA,
-  type ChaveSpec,
-} from "./specRegistry";
+  normalizarTexto,
+  ordenarValores,
+  type Destaque,
+} from "./catalogoFiltros";
+import { definicoesHero, PADRAO_LISTA, type ChaveSpec } from "./specRegistry";
 
 // The public catalog lists product pages (groups of SKUs sharing
 // `grupoModelo`), not SKUs. Deriving a page from its SKUs — cheapest variant,
-// price span, capacity span, best energy class, cover — is cheap for one group
-// but was being done for *every* group on *every* listing request. This module
-// materialises that derivation into `catalogoGrupos`, one row per group with
-// published variants, so listing reads a few hundred small rows instead of
-// every SKU with its attribute list.
+// price span, hero specs, cover — is cheap for one group but was being done
+// for *every* group on *every* listing request. This module materialises that
+// derivation into `catalogoGrupos`, one row per group with published
+// variants, which `catalogo.indice` ships to the browser in one payload.
 //
 // Invariant: after any write to `produtos`, `sincronizarGrupo` runs for every
 // grupoModelo the write touched (old and new when a SKU changes group). Import
 // promotion is the one deferral: it collects the groups its batches touch and
 // syncs them before the run closes (`importacoes:sincronizarCatalogoDaRun`).
 
-// Attribute keys the listing surfaces. `classe-energetica` holds a
-// "cooling/heating" pair; the catalog shows the cooling side.
-const CHAVE_CLASSE = "classe-energetica";
-const CHAVE_FRIO_KW = "frio-kw";
-
 // Accessories and spare parts outnumber the actual equipment in every brand's
 // price table, so they sink to the bottom of the default ordering — someone
 // browsing the catalog wants to see units first, not condensate pumps.
 const FAMILIAS_SECUNDARIAS = new Set(["acessorios-e-controlo", "outros"]);
-
-/**
- * Search normalisation shared by the stored blob and the typed term: lower
- * case, no diacritics ("águas" and "aguas" must meet), single spaces.
- */
-export function normalizarTexto(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** Attribute lookup on a SKU; attributes are an ordered {chave,valor} list. */
 export function atributo(
@@ -61,8 +40,6 @@ function numeroAtributo(p: Doc<"produtos">, chave: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export type Destaque = Infer<typeof destaqueValidator>;
-
 /**
  * The values a SKU holds for a non-numeric hero key. List keys
  * (`compativel-com`) hold one value per listed ref or series, so a filter on
@@ -73,39 +50,6 @@ function valoresAtributo(p: Doc<"produtos">, def: ChaveSpec): Array<string> {
   if (bruto === undefined) return [];
   const partes = def.padrao === PADRAO_LISTA ? bruto.split(",") : [bruto];
   return partes.map((v) => v.trim()).filter((v) => v !== "");
-}
-
-/**
- * Display order of a hero key's values: an enum's vocabulary order
- * (sim/opcional/nao, S…3XL); energy-class pairs best-first, cooling side then
- * heating side ("A+++/A+++" < "A+++/A++" < "A++/A+" < "-/A+"); otherwise
- * code-unit order.
- */
-export function ordenarValores(
-  def: ChaveSpec,
-  valores: Iterable<string>,
-): Array<string> {
-  const vocabulario = def.tipo === "enum" ? (def.valores ?? []) : [];
-  const posicao = (v: string) => {
-    const i = vocabulario.indexOf(v);
-    return i === -1 ? vocabulario.length : i;
-  };
-  const classes = def.padrao === PADRAO_CLASSE_ENERGETICA;
-  return [...valores].sort(
-    (a, b) =>
-      posicao(a) - posicao(b) ||
-      (classes ? compararParClasses(a, b) : 0) ||
-      (a < b ? -1 : a > b ? 1 : 0),
-  );
-}
-
-function compararParClasses(a: string, b: string): number {
-  // "-" (class not printed) after every class.
-  const ordem = (lado: string | undefined) =>
-    lado !== undefined && /^[A-G]\+*$/.test(lado) ? ordemClasse(lado) : 1000;
-  const [af, ac] = a.split("/");
-  const [bf, bc] = b.split("/");
-  return ordem(af) - ordem(bf) || ordem(ac) - ordem(bc);
 }
 
 /**
@@ -147,21 +91,6 @@ export function derivarDestaques(
   return destaques;
 }
 
-/** "A+++/A++" → "A+++"; "-/A+" → "A+". Undefined when neither side is a class. */
-export function classePrincipal(valor: string): string | undefined {
-  for (const lado of valor.split("/")) {
-    const limpo = lado.trim();
-    if (/^[A-G]\+*$/.test(limpo)) return limpo;
-  }
-  return undefined;
-}
-
-/** Energy classes sort best-first (A+++ before A++ before B). */
-export function ordemClasse(c: string): number {
-  const letra = c.charCodeAt(0) - 65; // A = 0
-  return letra * 10 - (c.length - 1);
-}
-
 /**
  * Canonical variant of a group = the cheapest one (price correlates with
  * capacity, so this is the "entry" model), tie-broken by ref for stability.
@@ -195,34 +124,23 @@ export function derivarGrupo(
       : publicadas.find((p) => p.imagens.length > 0);
   const capa = comImagem?.imagens[0] ?? null;
 
-  const kws: Array<number> = [];
-  const classes = new Set<string>();
-  for (const p of publicadas) {
-    const kw = numeroAtributo(p, CHAVE_FRIO_KW);
-    if (kw !== undefined) kws.push(kw);
-    const classe = atributo(p, CHAVE_CLASSE);
-    const principal = classe ? classePrincipal(classe) : undefined;
-    if (principal) classes.add(principal);
-  }
-  const classeEnergetica = [...classes].sort(
-    (a, b) => ordemClasse(a) - ordemClasse(b),
-  )[0];
-  const frioKwMin = kws.length > 0 ? Math.min(...kws) : undefined;
-  const frioKwMax = kws.length > 0 ? Math.max(...kws) : undefined;
+  const destaques = derivarDestaques(canonica.familia, publicadas);
 
-  // A group with a photo and published capacity/energy data is a real unit
-  // someone can shop for; spec-less rows are almost always valve kits and spare
-  // parts, which belong further down even when filed under a main family.
-  const temEspecificacoes =
-    frioKwMin !== undefined || classeEnergetica !== undefined;
+  // A group with a photo and published hero specs is a real unit someone can
+  // shop for; spec-less rows are almost always valve kits and spare parts,
+  // which belong further down even when filed under a main family.
   const peso =
     (capa === null ? 4 : 0) +
-    (temEspecificacoes ? 0 : 2) +
+    (destaques.length > 0 ? 0 : 2) +
     (FAMILIAS_SECUNDARIAS.has(canonica.familia) ? 1 : 0);
 
-  const refs = publicadas.map((p) => p.ref).join(" ");
+  // The canonical ref, name, gama, brand and group are fields of their own;
+  // the other variants' refs are what search still needs.
   const textoBusca = normalizarTexto(
-    `${canonica.nomeGrupo} ${refs} ${canonica.gama ?? ""} ${canonica.marca} ${grupoModelo}`,
+    publicadas
+      .filter((p) => p.ref !== canonica.ref)
+      .map((p) => p.ref)
+      .join(" "),
   );
 
   return {
@@ -236,10 +154,7 @@ export function derivarGrupo(
     precoDesdeCents: Math.min(...precos),
     precoAteCents: Math.max(...precos),
     numVariantes: publicadas.length,
-    frioKwMin,
-    frioKwMax,
-    classeEnergetica,
-    destaques: derivarDestaques(canonica.familia, publicadas),
+    destaques,
     capa,
     textoBusca,
     peso,

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router"
 import type { FunctionReturnType } from "convex/server"
 
 import type { api } from "@convex/_generated/api"
+import type { GrupoIndice } from "@convex/lib/catalogoFiltros"
 import {
   eur,
   iconeFamilia,
@@ -9,22 +10,29 @@ import {
   rotuloMarca,
   rotuloTipoUnidade,
 } from "@/lib/catalogo"
+import { linhaDestaques } from "@/lib/especificacoes"
 import { cn } from "@/lib/utils"
 
-/** One catalog entry as returned by `api.catalogo.listar`. */
+/** One showcase entry as returned by `api.catalogo.vitrine` (landing page). */
 export type CatalogProduct = FunctionReturnType<
-  typeof api.catalogo.listar
->["entradas"][number]
+  typeof api.catalogo.vitrine
+>[number]
 
-const kw = new Intl.NumberFormat("pt-PT", { maximumFractionDigits: 1 })
-
-/** "2,5 kW" for a single capacity, "2,5 – 7,1 kW" for a range. */
-export function faixaKw(entrada: CatalogProduct): string | undefined {
-  const { frioKwMin, frioKwMax } = entrada
-  if (frioKwMin === undefined || frioKwMax === undefined) return undefined
-  return frioKwMin === frioKwMax
-    ? `${kw.format(frioKwMin)} kW`
-    : `${kw.format(frioKwMin)} – ${kw.format(frioKwMax)} kW`
+/** What a catalog card shows: an index entry plus its cover, once resolved. */
+export type CartaoProduto = Pick<
+  GrupoIndice,
+  | "ref"
+  | "nome"
+  | "marca"
+  | "familia"
+  | "tipoUnidade"
+  | "precoDesdeCents"
+  | "numVariantes"
+  | "destaques"
+  | "temCapa"
+> & {
+  /** Undefined while the page's covers load; null = no photo. */
+  capaUrl?: string | null
 }
 
 /**
@@ -38,18 +46,21 @@ export function ProductCard({
   mostrarFamilia = true,
   precoRevendaCents,
 }: {
-  entrada: CatalogProduct
+  entrada: CartaoProduto
   /** Hide the family tag when the whole grid is already one family. */
   mostrarFamilia?: boolean
   /** Approved installers see their reseller "desde" price instead of PVP. */
   precoRevendaCents?: number
 }) {
-  const detalhe = [
-    faixaKw(entrada),
-    entrada.numVariantes > 1 ? `${entrada.numVariantes} modelos` : undefined,
-  ]
-    .filter((s): s is string => s !== undefined)
-    .join(" · ")
+  // The familia's hero specs; pre-registry rows have none and say how many
+  // models the page holds instead.
+  const especificacoes = linhaDestaques(entrada.destaques)
+  const detalhe =
+    especificacoes.length > 0
+      ? especificacoes.join(" · ")
+      : entrada.numVariantes > 1
+        ? `${entrada.numVariantes} modelos`
+        : undefined
 
   return (
     <Link
@@ -132,13 +143,14 @@ export function PrecoCartao({
 
 /**
  * Photo tile: a flat light-grey plate so the white appliance cut-outs read on
- * the page, with the family tag and the best energy class in the corners.
+ * the page, with the family tag in the corner. The plate stays empty while
+ * the page's covers load; pages without a photo show the family icon.
  */
 function CardMedia({
   entrada,
   mostrarFamilia,
 }: {
-  entrada: CatalogProduct
+  entrada: CartaoProduto
   mostrarFamilia: boolean
 }) {
   const Icon = iconeFamilia(entrada.familia)
@@ -152,23 +164,15 @@ function CardMedia({
           decoding="async"
           className="size-full object-contain p-3 mix-blend-multiply transition-transform duration-300 ease-out group-hover:scale-[1.03] sm:p-5"
         />
-      ) : (
+      ) : entrada.capaUrl === null || !entrada.temCapa ? (
         <div className="flex size-full items-center justify-center text-muted-foreground/60">
           <Icon className="size-8 sm:size-9" strokeWidth={1.25} />
         </div>
-      )}
+      ) : null}
 
       {mostrarFamilia && (
         <span className="absolute top-2 left-2 hidden max-w-[70%] truncate rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground sm:block">
           {rotuloFamilia(entrada.familia)}
-        </span>
-      )}
-      {entrada.classeEnergetica && (
-        <span
-          title={`Classe energética ${entrada.classeEnergetica}`}
-          className="absolute top-2 right-2 rounded-md bg-primary px-1.5 py-0.5 text-[10px] leading-4 font-semibold text-primary-foreground sm:text-[11px]"
-        >
-          {entrada.classeEnergetica}
         </span>
       )}
     </div>
