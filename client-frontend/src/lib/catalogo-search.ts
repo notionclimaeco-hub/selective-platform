@@ -3,17 +3,21 @@
 // every result page is shareable and the back button steps through what the
 // user did.
 //
-// Hero-spec filters take one param per hero key of the chosen familia: a
-// range `min..max` for numeric keys (either end may be left open, "2.5.."),
-// a comma list of values for the others ("A+++/A++,A++/A+").
+// Hero-spec filters take one param per filter of the chosen familia (a hero
+// key, or one side of the energy class): a range `min..max` for numeric keys
+// (either end may be left open, "2.5.."), a comma list of values for the
+// others ("classe-energetica-frio=A+++,A++").
 
-import { filtroAtivo } from "@convex/lib/catalogoFiltros"
+import {
+  classeValida,
+  definicoesFiltro,
+  filtroAtivo,
+} from "@convex/lib/catalogoFiltros"
 import type {
+  DefFiltro,
   FiltroDestaque,
   PedidoCatalogo,
 } from "@convex/lib/catalogoFiltros"
-import { definicoesHero } from "@convex/lib/specRegistry"
-import type { ChaveSpec } from "@convex/lib/specRegistry"
 import { FAMILIAS, ORDENACOES } from "./catalogo"
 import type { Ordenacao } from "./catalogo"
 
@@ -24,7 +28,7 @@ export type FiltrosCatalogo = {
   ordenar?: Ordenacao
   /** 1-based in the URL (people read "página 2"); 0-based in `paginar`. */
   pagina?: number
-  /** Hero-spec filters, keyed by hero key (see above). */
+  /** Hero-spec filters, keyed by filter key (see above). */
   [chave: string]: string | number | undefined
 }
 
@@ -54,21 +58,24 @@ function numeroOpcional(parte: string | undefined): number | undefined | null {
 
 /**
  * A hero filter from its URL param. The router hands over numbers for params
- * that read as JSON ("2" → 2), so both types are accepted. Malformed → undefined.
+ * that read as JSON ("2" → 2), so both types are accepted. Malformed → undefined;
+ * a side filter keeps only energy classes.
  */
 export function lerFiltro(
-  def: ChaveSpec,
+  def: DefFiltro,
   bruto: unknown
 ): FiltroDestaque | undefined {
   const valor = typeof bruto === "number" ? String(bruto) : texto(bruto)
   if (valor === undefined) return undefined
-  if (def.tipo !== "numero") {
+  if (def.hero.tipo !== "numero") {
     const valores = [
       ...new Set(
         valor
           .split(",")
           .map((v) => v.trim())
-          .filter((v) => v !== "")
+          .filter((v) =>
+            def.lado === undefined ? v !== "" : classeValida(v)
+          )
       ),
     ]
     return valores.length > 0 ? { valores } : undefined
@@ -114,7 +121,7 @@ export function validarBusca(search: Record<string, unknown>): FiltrosCatalogo {
     pagina: paginaValida(search.pagina),
   }
   // Hero filters only exist within their familia.
-  for (const def of familiaValida ? definicoesHero(familiaValida) : []) {
+  for (const def of familiaValida ? definicoesFiltro(familiaValida) : []) {
     const valor = escreverFiltro(lerFiltro(def, search[def.chave]))
     if (valor !== undefined) filtros[def.chave] = valor
   }
@@ -128,7 +135,7 @@ export function filtrosDestaque(
   const familia = filtros.familia
   if (familia === undefined) return {}
   return Object.fromEntries(
-    definicoesHero(familia).flatMap((def) => {
+    definicoesFiltro(familia).flatMap((def) => {
       const filtro = lerFiltro(def, filtros[def.chave])
       return filtro ? [[def.chave, filtro]] : []
     })

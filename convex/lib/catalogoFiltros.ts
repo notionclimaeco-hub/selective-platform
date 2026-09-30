@@ -9,6 +9,7 @@
 // the wire format cannot drift.
 
 import {
+  definicaoChave,
   definicoesHero,
   PADRAO_CLASSE_ENERGETICA,
   type ChaveSpec,
@@ -47,8 +48,8 @@ function compararParClasses(a: string, b: string): number {
 /**
  * Display order of a hero key's values: an enum's vocabulary order
  * (sim/opcional/nao, S…3XL); energy-class pairs best-first, cooling side then
- * heating side ("A+++/A+++" < "A+++/A++" < "A++/A+" < "-/A+"); otherwise
- * code-unit order.
+ * heating side ("A+++/A+++" < "A+++/A++" < "A++/A+" < "-/A+"), and single
+ * classes best-first too; otherwise code-unit order.
  */
 export function ordenarValores(
   def: ChaveSpec,
@@ -227,6 +228,62 @@ export function lerIndice(
   }));
 }
 
+// --- Filter definitions ----------------------------------------------------------
+
+/** The sides of an energy-class pair: "A+++/A+" is A+++ cooling, A+ heating. */
+const LADOS_CLASSE = ["frio", "calor"] as const;
+export type LadoClasse = (typeof LADOS_CLASSE)[number];
+
+/** One side's class; "-" (not printed) is not one. */
+const CLASSE = /^(A\+{0,3}|[B-G])$/;
+
+export function classeValida(valor: string): boolean {
+  return CLASSE.test(valor);
+}
+
+/**
+ * One filter the catalog offers within a familia, keyed like its URL param and
+ * facet. Most hero keys filter as they are; an energy-class key becomes two
+ * filters, one per side of its pairs ("classe-energetica-frio",
+ * "classe-energetica-calor"), since installers compare "A+++ in cooling"
+ * rather than exact pairs.
+ */
+export type DefFiltro = {
+  chave: string;
+  /** The hero key it reads. */
+  hero: ChaveSpec;
+  /** The side of the hero key's energy-class pairs it reads. */
+  lado?: LadoClasse;
+};
+
+/** A familia's filters, in hero-key order. */
+export function definicoesFiltro(familia: string): Array<DefFiltro> {
+  return definicoesHero(familia).flatMap((hero): Array<DefFiltro> =>
+    hero.padrao === PADRAO_CLASSE_ENERGETICA
+      ? LADOS_CLASSE.map((lado) => ({
+          chave: `${hero.chave}-${lado}`,
+          hero,
+          lado,
+        }))
+      : [{ chave: hero.chave, hero }],
+  );
+}
+
+/**
+ * The hero key and side behind a side filter's key ("classe-energetica-frio"),
+ * whatever the familia; undefined for any other key.
+ */
+export function ladoDeFiltro(
+  chave: string,
+): { hero: ChaveSpec; lado: LadoClasse } | undefined {
+  for (const lado of LADOS_CLASSE) {
+    if (!chave.endsWith(`-${lado}`)) continue;
+    const hero = definicaoChave(chave.slice(0, -lado.length - 1));
+    if (hero?.padrao === PADRAO_CLASSE_ENERGETICA) return { hero, lado };
+  }
+  return undefined;
+}
+
 // --- Filtering -----------------------------------------------------------------
 
 export type Ordenacao =
@@ -242,8 +299,8 @@ export type FiltroDestaque =
 export type Contagem = { valor: string; contagem: number };
 
 /**
- * What the Filtros sheet offers for one hero key: the span of a numeric key,
- * or each value with the number of product pages carrying it.
+ * What the Filtros sheet offers for one filter (`DefFiltro`): the span of a
+ * numeric key, or each value with the number of product pages carrying it.
  */
 export type Faceta =
   | { chave: string; tipo: "intervalo"; min: number; max: number }
@@ -254,8 +311,9 @@ export type PedidoCatalogo = {
   familia?: string;
   marca?: string;
   /**
-   * Hero-spec filters keyed by hero key, e.g. {"frio-kw": {min: 2, max: 4}}.
-   * Only applied with a `familia`, and only for that familia's hero keys.
+   * Hero-spec filters keyed by filter key (`DefFiltro`), e.g. {"frio-kw":
+   * {min: 2, max: 4}, "classe-energetica-frio": {valores: ["A+++"]}}. Only
+   * applied with a `familia`, and only for that familia's filters.
    */
   filtros?: Record<string, FiltroDestaque>;
   ordenar?: Ordenacao;
@@ -272,9 +330,9 @@ export type ResultadoCatalogo = {
   familias: Array<Contagem>;
   marcas: Array<Contagem>;
   /**
-   * Hero-spec facets of the selected familia, in registry order, each over the
+   * Facets of the selected familia's filters, in registry order, each over the
    * pages passing every other filter (its own lifted). Empty without a
-   * familia; a key no remaining page carries is left out.
+   * familia; a filter no remaining page carries is left out.
    */
   facetas: Array<Faceta>;
 };
@@ -306,8 +364,20 @@ function passaFiltro(
   );
 }
 
-function destaqueDe(g: GrupoIndice, chave: string): Destaque | undefined {
-  return g.destaques.find((d) => d.chave === chave);
+/**
+ * What a filter reads from a group: its hero spec, or for a side filter that
+ * side's distinct classes across the pairs ("-" left out).
+ */
+function destaqueDe(g: GrupoIndice, def: DefFiltro): Destaque | undefined {
+  const destaque = g.destaques.find((d) => d.chave === def.hero.chave);
+  if (def.lado === undefined || destaque?.tipo !== "valores") return destaque;
+  const i = LADOS_CLASSE.indexOf(def.lado);
+  const valores = [
+    ...new Set(destaque.valores.map((par) => par.split("/")[i] ?? "")),
+  ].filter(classeValida);
+  return valores.length > 0
+    ? { chave: def.chave, tipo: "valores", valores }
+    : undefined;
 }
 
 function contar(
@@ -325,12 +395,12 @@ function contar(
 
 function faceta(
   grupos: Array<GrupoIndice>,
-  def: ChaveSpec,
+  def: DefFiltro,
 ): Faceta | undefined {
   const destaques = grupos
-    .map((g) => destaqueDe(g, def.chave))
+    .map((g) => destaqueDe(g, def))
     .filter((d) => d !== undefined);
-  if (def.tipo === "numero") {
+  if (def.hero.tipo === "numero") {
     const intervalos = destaques.filter((d) => d.tipo === "intervalo");
     if (intervalos.length === 0) return undefined;
     return {
@@ -351,7 +421,7 @@ function faceta(
   return {
     chave: def.chave,
     tipo: "valores",
-    valores: ordenarValores(def, contagens.keys()).map((valor) => ({
+    valores: ordenarValores(def.hero, contagens.keys()).map((valor) => ({
       valor,
       contagem: contagens.get(valor) ?? 0,
     })),
@@ -389,17 +459,17 @@ export function filtrarCatalogo(
   const passaMarca = (g: GrupoIndice) =>
     pedido.marca === undefined || g.marca === pedido.marca;
 
-  const defsHero =
-    pedido.familia === undefined ? [] : definicoesHero(pedido.familia);
-  const filtrosAtivos = defsHero.flatMap((def) => {
+  const defsFiltro =
+    pedido.familia === undefined ? [] : definicoesFiltro(pedido.familia);
+  const filtrosAtivos = defsFiltro.flatMap((def) => {
     const filtro = pedido.filtros?.[def.chave];
-    return filtro && filtroAtivo(filtro) ? [{ chave: def.chave, filtro }] : [];
+    return filtro && filtroAtivo(filtro) ? [{ def, filtro }] : [];
   });
   // Every active hero filter except `excepto` (the facet being computed).
   const passaDestaques = (g: GrupoIndice, excepto?: string) =>
     filtrosAtivos.every(
-      ({ chave, filtro }) =>
-        chave === excepto || passaFiltro(destaqueDe(g, chave), filtro),
+      ({ def, filtro }) =>
+        def.chave === excepto || passaFiltro(destaqueDe(g, def), filtro),
     );
 
   const base = todos.filter(passaBusca);
@@ -412,7 +482,7 @@ export function filtrarCatalogo(
     "marca",
   );
   const daFamiliaEMarca = daFamilia.filter(passaMarca);
-  const facetas = defsHero.flatMap((def) => {
+  const facetas = defsFiltro.flatMap((def) => {
     const f = faceta(
       daFamiliaEMarca.filter((g) => passaDestaques(g, def.chave)),
       def,

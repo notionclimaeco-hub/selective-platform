@@ -71,6 +71,16 @@ describe("labels and values", () => {
     expect(rotuloChave("chave-nova")).toBe("Chave nova")
   })
 
+  it("names the side of an energy-class filter", () => {
+    expect(rotuloChave("classe-energetica-frio")).toBe(
+      "Classe energética (frio)"
+    )
+    expect(rotuloCurto("classe-energetica-calor")).toBe(
+      "Classe energética (calor)"
+    )
+    expect(formatarValor("classe-energetica-frio", "A+++")).toBe("A+++")
+  })
+
   it("formats numbers, enums and dimensions; leaves free text alone", () => {
     expect(formatarValor("frio-kw", "2.5")).toBe("2,5")
     expect(formatarValor("alimentacao", "monofasica")).toBe("Monofásica")
