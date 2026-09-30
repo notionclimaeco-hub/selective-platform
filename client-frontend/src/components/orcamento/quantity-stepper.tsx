@@ -1,63 +1,88 @@
+import { useRef, useState } from "react"
 import { Minus, Plus } from "lucide-react"
 
-// Small +/- quantity control shared by the product CTA and the quote drawer.
-// When the container is wider than its content (e.g. `className="w-full"`),
-// the input grows so the − / + buttons hug the edges instead of leaving a
-// dead area on the right.
+import { cn } from "@/lib/utils"
+
+/**
+ * Quantity pill for an Orçamento line: − · typed quantity · +, the same
+ * shape as the product page's `ControloQuantidade`. The number can be typed
+ * (installers order in tens); it commits on blur or Enter, and an empty or
+ * invalid entry snaps back. Removing the line is a separate control, so −
+ * stops at 1.
+ */
 export function QuantityStepper({
   value,
   onChange,
-  size = "md",
   label = "Quantidade",
-  className = "",
+  className,
 }: {
   value: number
   onChange: (value: number) => void
-  size?: "sm" | "md"
   label?: string
   className?: string
 }) {
-  const btn =
-    size === "sm"
-      ? "size-8"
-      : "size-10"
-  const box = size === "sm" ? "h-8 w-10 text-sm" : "h-10 w-12"
+  // What is being typed, until it is committed; null shows `value`.
+  const [rascunho, setRascunho] = useState<string | null>(null)
+  // Escape blurs too; the blur must not commit what was being typed.
+  const descartar = useRef(false)
+
+  function confirmar() {
+    const n = Number.parseInt(rascunho ?? "", 10)
+    if (!descartar.current && !Number.isNaN(n) && n !== value) onChange(n)
+    descartar.current = false
+    setRascunho(null)
+  }
 
   return (
     <div
-      className={`inline-flex items-center rounded-xl border bg-card ${className}`}
       role="group"
       aria-label={label}
+      className={cn(
+        "inline-flex h-8 items-center rounded-full border bg-background",
+        className
+      )}
     >
       <button
         type="button"
         onClick={() => onChange(value - 1)}
         disabled={value <= 1}
         aria-label="Diminuir quantidade"
-        className={`${btn} flex items-center justify-center rounded-l-xl text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40`}
+        className={cn(
+          BOTAO,
+          "disabled:pointer-events-none disabled:opacity-35"
+        )}
       >
         <Minus className="size-4" />
       </button>
       <input
-        type="number"
+        type="text"
         inputMode="numeric"
-        min={1}
-        value={value}
-        onChange={(e) => {
-          const n = Number.parseInt(e.target.value, 10)
-          if (!Number.isNaN(n)) onChange(n)
+        pattern="[0-9]*"
+        value={rascunho ?? String(value)}
+        onChange={(e) => setRascunho(e.target.value.replace(/\D/g, ""))}
+        onFocus={(e) => e.target.select()}
+        onBlur={confirmar}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur()
+          if (e.key === "Escape") {
+            descartar.current = true
+            e.currentTarget.blur()
+          }
         }}
         aria-label={label}
-        className={`${box} grow border-x bg-transparent text-center font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+        className="h-full w-9 bg-transparent text-center text-sm font-semibold tabular-nums outline-none"
       />
       <button
         type="button"
         onClick={() => onChange(value + 1)}
         aria-label="Aumentar quantidade"
-        className={`${btn} flex items-center justify-center rounded-r-xl text-muted-foreground transition-colors hover:text-foreground`}
+        className={BOTAO}
       >
-        <Plus className="size-4" />
+        <Plus className="size-4" strokeWidth={2.25} />
       </button>
     </div>
   )
 }
+
+const BOTAO =
+  "flex size-8 shrink-0 items-center justify-center rounded-full text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/25"

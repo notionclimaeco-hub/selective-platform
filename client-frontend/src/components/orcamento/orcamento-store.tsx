@@ -19,8 +19,8 @@ export type ItemOrcamento = {
   variante?: string
   pvpCents: number
   quantidade: number
-  // Cover snapshot at add-time so the drawer can render without another query.
-  // Prefer capaUrl; capaPdfUrl is the catalog-page fallback used elsewhere.
+  // Cover snapshot at add-time so the Orçamento page renders without another
+  // query. capaPdfUrl (the catalog page) is kept for older stored lists.
   capaUrl?: string | null
   capaPdfUrl?: string | null
 }
@@ -37,14 +37,16 @@ type OrcamentoContextValue = {
   totalCents: number
   /** True once the list has been read from localStorage (client only). */
   hidratado: boolean
-  aberto: boolean
   adicionar: (item: NovoItem, quantidade?: number) => void
   definirQuantidade: (ref: string, quantidade: number) => void
   remover: (ref: string) => void
   limpar: () => void
+  /**
+   * Put back the lines of an earlier snapshot that are no longer in the list,
+   * at their old positions: the "Reverter" of a removal or a clear.
+   */
+  repor: (antes: Array<ItemOrcamento>) => void
   obter: (ref: string) => ItemOrcamento | undefined
-  abrir: () => void
-  fechar: () => void
 }
 
 const STORAGE_KEY = "clima-eco:orcamento:v1"
@@ -81,7 +83,6 @@ function clamp(qtd: number): number {
 
 export function OrcamentoProvider({ children }: { children: React.ReactNode }) {
   const [itens, setItens] = useState<Array<ItemOrcamento>>([])
-  const [aberto, setAberto] = useState(false)
   const [hidratado, setHidratado] = useState(false)
   const hidratadoRef = useRef(false)
 
@@ -131,12 +132,20 @@ export function OrcamentoProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const limpar = useCallback(() => setItens([]), [])
+  const repor = useCallback((antes: Array<ItemOrcamento>) => {
+    setItens((prev) => {
+      const presentes = new Set(prev.map((i) => i.ref))
+      const out = [...prev]
+      antes.forEach((item, indice) => {
+        if (!presentes.has(item.ref)) out.splice(indice, 0, item)
+      })
+      return out
+    })
+  }, [])
   const obter = useCallback(
     (ref: string) => itens.find((i) => i.ref === ref),
     [itens],
   )
-  const abrir = useCallback(() => setAberto(true), [])
-  const fechar = useCallback(() => setAberto(false), [])
 
   const value = useMemo<OrcamentoContextValue>(() => {
     const totalItens = itens.reduce((acc, i) => acc + i.quantidade, 0)
@@ -150,26 +159,22 @@ export function OrcamentoProvider({ children }: { children: React.ReactNode }) {
       totalItens,
       totalCents,
       hidratado,
-      aberto,
       adicionar,
       definirQuantidade,
       remover,
       limpar,
+      repor,
       obter,
-      abrir,
-      fechar,
     }
   }, [
     itens,
     hidratado,
-    aberto,
     adicionar,
     definirQuantidade,
     remover,
     limpar,
+    repor,
     obter,
-    abrir,
-    fechar,
   ])
 
   return (
