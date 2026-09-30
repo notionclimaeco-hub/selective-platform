@@ -2,23 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 
 import { eurExato } from "@/lib/catalogo"
-import { VariantTable, rotuloChave } from "./variant-table"
+import { VariantTable } from "./variant-table"
 import type { Variante } from "./variant-table"
-
-describe("rotuloChave", () => {
-  it("labels registry keys with their unit", () => {
-    expect(rotuloChave("deposito-l")).toBe("Depósito (L)")
-    expect(rotuloChave("nivel-sonoro-db")).toBe("Nível sonoro (dB)")
-  })
-
-  it("keeps labels for pre-registry keys still in the live catalog", () => {
-    expect(rotuloChave("capacidade")).toBe("Capacidade (kW)")
-  })
-
-  it("humanises unknown keys", () => {
-    expect(rotuloChave("chave-nova")).toBe("Chave nova")
-  })
-})
 
 const variantes: Array<Variante> = [
   {
@@ -36,6 +21,7 @@ const variantes: Array<Variante> = [
 function render(precosRevenda: Map<string, number> | null) {
   return renderToStaticMarkup(
     <VariantTable
+      familia="ar-condicionado"
       variantes={variantes}
       selectedRef="FCAG35B"
       onSelect={() => {}}
@@ -79,5 +65,38 @@ describe("VariantTable prices per audience", () => {
     )
     expect(html).toContain("Revenda s/IVA")
     expect(html).not.toContain("<s>")
+  })
+})
+
+describe("VariantTable columns", () => {
+  it("puts hero specs before BTU and formats values the Portuguese way", () => {
+    const html = renderToStaticMarkup(
+      <VariantTable
+        familia="ar-condicionado"
+        variantes={[
+          {
+            ref: "A",
+            pvpCents: 1,
+            atributos: [
+              { chave: "btu", valor: "9000" },
+              { chave: "frio-kw", valor: "2.5" },
+            ],
+          },
+          {
+            ref: "B",
+            pvpCents: 2,
+            atributos: [
+              { chave: "btu", valor: "12000" },
+              { chave: "frio-kw", valor: "3.5" },
+            ],
+          },
+        ]}
+        selectedRef="A"
+        onSelect={() => {}}
+      />
+    )
+    const tabela = html.slice(html.indexOf("<table"))
+    expect(tabela.indexOf("Frio (kW)")).toBeLessThan(tabela.indexOf("BTU"))
+    expect(tabela).toContain(">2,5<")
   })
 })

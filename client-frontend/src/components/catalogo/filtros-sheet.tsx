@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Check, SlidersHorizontal } from "lucide-react"
 
+import type { Faceta, FiltroDestaque } from "@convex/lib/catalogoFiltros"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -11,40 +12,51 @@ import {
 } from "@/components/ui/sheet"
 import { ORDENACOES } from "@/lib/catalogo"
 import type { Ordenacao } from "@/lib/catalogo"
+import { rotuloChave } from "@/lib/especificacoes"
 import { cn } from "@/lib/utils"
 import { Chip } from "./filter-chips"
 import type { Opcao } from "./filter-chips"
+import { ControloDestaque } from "./filtros-destaque"
+import type { AoFiltrar } from "./filtros-destaque"
 
 const numero = new Intl.NumberFormat("pt-PT")
 
 /**
- * Phone-only "Filtros" button and its bottom sheet: sort, families and brands
- * in one place. Every tap applies at once (the grid behind updates live);
- * the footer button just closes with the resulting count.
+ * Phone-only "Filtros" button and its bottom sheet: sort, families, brands
+ * and, once a family is chosen, its hero specs. Every tap applies at once
+ * (the grid behind updates live); the footer button just closes with the
+ * resulting count.
  */
 export function FiltrosSheet({
   familias,
   marcas,
+  facetas,
   familia,
   marca,
+  filtros,
   ordenar,
   total,
   numAtivos,
   onFamilia,
   onMarca,
+  onFiltro,
   onOrdenar,
   onLimpar,
 }: {
   familias: Array<Opcao>
   marcas: Array<Opcao>
+  /** Hero-spec facets of the chosen family (empty without one). */
+  facetas: Array<Faceta>
   familia: string | undefined
   marca: string | undefined
+  filtros: Record<string, FiltroDestaque>
   ordenar: Ordenacao
   total: number | undefined
-  /** Family, brand and a non-default sort. */
+  /** Family, brand, hero specs and a non-default sort. */
   numAtivos: number
   onFamilia: (familia: string | undefined) => void
   onMarca: (marca: string | undefined) => void
+  onFiltro: AoFiltrar
   onOrdenar: (ordenar: Ordenacao) => void
   onLimpar: () => void
 }) {
@@ -82,7 +94,7 @@ export function FiltrosSheet({
         <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
           <SheetTitle className="text-base font-semibold">Filtros</SheetTitle>
           <SheetDescription className="sr-only">
-            Ordenação, família e marca do catálogo
+            Ordenação, família, marca e especificações do catálogo
           </SheetDescription>
           {numAtivos > 0 && (
             <button
@@ -130,6 +142,16 @@ export function FiltrosSheet({
           <Grupo titulo="Marca">
             <Escolhas opcoes={marcas} escolhida={marca} onEscolher={onMarca} />
           </Grupo>
+
+          {facetas.map((faceta) => (
+            <Grupo key={faceta.chave} titulo={rotuloChave(faceta.chave)}>
+              <ControloDestaque
+                faceta={faceta}
+                filtro={filtros[faceta.chave]}
+                onFiltro={onFiltro}
+              />
+            </Grupo>
+          ))}
         </div>
 
         <div className="shrink-0 border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">

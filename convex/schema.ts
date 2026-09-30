@@ -83,7 +83,7 @@ export const atributoValidator = v.object({
 
 // One hero spec of a product page, summarised over its published variants:
 // `numero` keys as a min–max span, `enum`/`texto` keys as their distinct
-// values. Also the shape of the hero-spec facets `catalogo.listar` returns.
+// values. `Destaque` in lib/catalogoFiltros.ts.
 export const destaqueValidator = v.union(
   v.object({
     chave: v.string(),
@@ -259,10 +259,10 @@ export default defineSchema({
 
   // Denormalised catalog listing: one row per product page (grupoModelo) with
   // at least one published SKU. Everything the public /produtos grid needs is
-  // precomputed here so listing reads ~1 small doc per group instead of every
-  // SKU (with its attributes) on every request. Kept in sync by
+  // precomputed here, so `catalogo.indice` reads ~1 small doc per group
+  // instead of every SKU with its attributes. Kept in sync by
   // `lib/catalogoGrupos.sincronizarGrupo`, which every produtos write calls;
-  // `catalogo:reconstruir` rebuilds the whole table from scratch.
+  // `catalogo:reconstruir` rebuilds the whole table in place.
   catalogoGrupos: defineTable({
     grupoModelo: v.string(),
     // Canonical (cheapest) published variant — drives the product-page link.
@@ -276,21 +276,17 @@ export default defineSchema({
     precoDesdeCents: v.number(),
     precoAteCents: v.number(),
     numVariantes: v.number(),
-    // Deprecated by `destaques`: kept until the shop reads the hero specs
-    // (#69), then dropped.
-    frioKwMin: v.optional(v.number()),
-    frioKwMax: v.optional(v.number()),
-    classeEnergetica: v.optional(v.string()),
     // Hero specs of the group's familia, in registry order; keys no variant
-    // carries are absent. Optional only until `catalogo:reconstruir` has
-    // backfilled every row — narrow to required with #69.
-    destaques: v.optional(v.array(destaqueValidator)),
+    // carries are absent.
+    destaques: v.array(destaqueValidator),
     // Cover image (first image of the canonical variant, else any variant's).
     capa: v.union(v.id("_storage"), v.null()),
-    // Lower-cased "name refs gama grupoModelo" blob for substring search.
+    // Normalised refs of the other published variants, space-separated: the
+    // search terms the row does not already carry (the shop searches them
+    // together with nome, ref, gama, marca and grupoModelo).
     textoBusca: v.string(),
     // Presentation weight for the default order, lower = better (has photo,
-    // has specs, is a main family).
+    // has hero specs, is a main family).
     peso: v.number(),
     // Newest variant creation time — the "Novidades" ordering.
     criadoEm: v.number(),

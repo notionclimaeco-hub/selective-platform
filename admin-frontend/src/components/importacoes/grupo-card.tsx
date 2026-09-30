@@ -228,7 +228,7 @@ function CorpoGrupo({
   }
 
   const avisos = avisosDoGrupo(grupo.skus)
-  const comuns = atributosComuns(grupo.skus)
+  const comuns = atributosComuns(grupo.skus, resumo.familia)
   const paginaAtual = pagina ?? grupo.paginas.at(0)?.pagina ?? 0
 
   return (

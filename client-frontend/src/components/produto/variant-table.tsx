@@ -1,11 +1,13 @@
 import { Check } from "lucide-react"
 
-import { rotuloChave as rotuloChaveRegisto } from "@convex/lib/specRegistry"
+import { chavesVariaveis, valorDe } from "@convex/lib/especificacoes"
+import type { Atributo } from "@convex/lib/especificacoes"
 
 import { eurExato } from "@/lib/catalogo"
+import { formatarValor, rotuloChave } from "@/lib/especificacoes"
 import { cn } from "@/lib/utils"
 
-export type Atributo = { chave: string; valor: string }
+export type { Atributo }
 
 export type Variante = {
   ref: string
@@ -13,91 +15,20 @@ export type Variante = {
   pvpCents: number
 }
 
-// Labels come from the spec registry (schema v4). The live catalog still
-// carries a few pre-registry keys until the cutover (#53); label those here
-// so nothing renders as a raw slug meanwhile.
-const ROTULOS_LEGADO: Record<string, string> = {
-  capacidade: "Capacidade (kW)",
-  deposito: "Depósito",
-  comando: "Comando",
-  modo: "Modo",
-  caudal: "Caudal",
-}
-
-export function rotuloChave(chave: string): string {
-  return ROTULOS_LEGADO[chave] ?? rotuloChaveRegisto(chave)
-}
-
-// Slug values read better with spaces ("branco-perola" -> "branco perola").
-export function rotuloValor(valor: string): string {
-  return valor.replace(/-/g, " ")
-}
-
-// Distinct keys across the group, ordered by first appearance (= extraction
-// order: variant axes first, specs after).
-function chavesOrdenadas(variantes: Array<Variante>): Array<string> {
-  const vistas = new Set<string>()
-  const ordem: Array<string> = []
-  for (const v of variantes) {
-    for (const a of v.atributos) {
-      if (!vistas.has(a.chave)) {
-        vistas.add(a.chave)
-        ordem.push(a.chave)
-      }
-    }
-  }
-  return ordem
-}
-
-function valorDe(v: Variante, chave: string): string | undefined {
-  return v.atributos.find((a) => a.chave === chave)?.valor
-}
-
-/**
- * Keys that distinguish SKUs within the group: present with ≥2 distinct
- * values, or missing on some variants. These become the table columns.
- * BTU is the axis installers scan first, so it's pinned right after the ref.
- */
-export function chavesVariaveis(variantes: Array<Variante>): Array<string> {
-  if (variantes.length < 2) return []
-  const chaves = chavesOrdenadas(variantes).filter((chave) => {
-    const valores = new Set(variantes.map((v) => valorDe(v, chave)))
-    return valores.size > 1
-  })
-  const btuIdx = chaves.indexOf("btu")
-  if (btuIdx > 0) {
-    chaves.splice(btuIdx, 1)
-    chaves.unshift("btu")
-  }
-  return chaves
-}
-
-/**
- * Attributes shared by every variant of the group (same value everywhere).
- * These render as spec chips instead of table columns. For a single variant
- * this is simply all of its attributes.
- */
-export function atributosComuns(variantes: Array<Variante>): Array<Atributo> {
-  const primeira = variantes[0]
-  if (!primeira) return []
-  if (variantes.length === 1) return primeira.atributos
-  return primeira.atributos.filter((a) =>
-    variantes.every((v) => valorDe(v, a.chave) === a.valor)
-  )
-}
-
 /**
  * Short human label for a variant = the values of the keys that vary within
- * its group (e.g. "12 · trifasica"). Empty for groups of one.
+ * its group (e.g. "3,5 · Trifásica"). Empty for groups of one.
  */
 export function rotuloVariante(
   variante: Variante,
-  variantes: Array<Variante>
+  variantes: Array<Variante>,
+  familia: string
 ): string {
-  return chavesVariaveis(variantes)
-    .map((chave) => valorDe(variante, chave))
-    .filter((valor): valor is string => valor !== undefined)
-    .map(rotuloValor)
+  return chavesVariaveis(variantes, familia)
+    .flatMap((chave) => {
+      const valor = valorDe(variante, chave)
+      return valor === undefined ? [] : [formatarValor(chave, valor)]
+    })
     .join(" · ")
 }
 
@@ -159,7 +90,8 @@ export function PrecoVariante({
 
 /**
  * The product page's model picker: one row per SKU, one column per attribute
- * key that varies within the group, plus price. Clicking a row selects that
+ * key that varies within the group (hero specs first, then registry order),
+ * plus price. Clicking a row selects that
  * variant (price, gallery and CTA update).
  *
  * Phones get stacked rows (no horizontal page scroll); from `md` up it is a
@@ -168,19 +100,21 @@ export function PrecoVariante({
  * end of its row; clicks on it never select the row.
  */
 export function VariantTable({
+  familia,
   variantes,
   selectedRef,
   onSelect,
   precosRevenda,
   accao,
 }: {
+  familia: string
   variantes: Array<Variante>
   selectedRef: string
   onSelect: (ref: string) => void
   precosRevenda?: Map<string, number> | null
   accao?: (variante: Variante) => React.ReactNode
 }) {
-  const chaves = chavesVariaveis(variantes)
+  const chaves = chavesVariaveis(variantes, familia)
   const revenda = precosRevenda != null
 
   return (
@@ -228,8 +162,10 @@ export function VariantTable({
                       return (
                         <div key={chave} className="flex gap-1">
                           <dt>{rotuloChave(chave)}</dt>
-                          <dd className="font-medium text-foreground">
-                            {valor !== undefined ? rotuloValor(valor) : "—"}
+                          <dd className="font-medium whitespace-nowrap text-foreground">
+                            {valor !== undefined
+                              ? formatarValor(chave, valor)
+                              : "—"}
                           </dd>
                         </div>
                       )
@@ -315,7 +251,9 @@ export function VariantTable({
                           valor === undefined && "text-muted-foreground"
                         )}
                       >
-                        {valor !== undefined ? rotuloValor(valor) : "—"}
+                        {valor !== undefined
+                          ? formatarValor(chave, valor)
+                          : "—"}
                       </td>
                     )
                   })}

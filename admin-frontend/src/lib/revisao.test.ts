@@ -26,7 +26,7 @@ describe("chavesVariaveis", () => {
     ).toEqual([])
   })
 
-  it("keeps only keys whose values differ, hero specs first, then extraction order", () => {
+  it("keeps only keys whose values differ, hero specs first, then registry order", () => {
     const skus = [
       sku("A", [
         ["cor", "branco"],
@@ -45,8 +45,8 @@ describe("chavesVariaveis", () => {
     ]
     expect(chavesVariaveis(skus, "ar-condicionado")).toEqual([
       "frio-kw",
-      "cor",
       "btu",
+      "cor",
     ])
   })
 
@@ -82,7 +82,7 @@ describe("atributosComuns", () => {
       ["frio-kw", "2.5"],
       ["cor", "branco"],
     ])
-    expect(atributosComuns([a])).toEqual(a.atributos)
+    expect(atributosComuns([a], "ar-condicionado")).toEqual(a.atributos)
   })
   it("returns the attributes shared with the same value by every SKU", () => {
     const skus = [
@@ -96,7 +96,7 @@ describe("atributosComuns", () => {
         ["refrigerante", "R32"],
       ]),
     ]
-    expect(atributosComuns(skus)).toEqual([
+    expect(atributosComuns(skus, "ar-condicionado")).toEqual([
       { chave: "refrigerante", valor: "R32" },
     ])
   })

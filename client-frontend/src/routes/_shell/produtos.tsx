@@ -6,14 +6,20 @@ import {
   useSyncExternalStore,
 } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { convexQuery } from "@convex-dev/react-query"
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import type { FunctionReturnType } from "convex/server"
 import { SearchX } from "lucide-react"
 
-import { api } from "@convex/_generated/api"
+import { filtrarCatalogo, paginar } from "@convex/lib/catalogoFiltros"
+import type {
+  FiltroDestaque,
+  GrupoIndice,
+  ResultadoCatalogo,
+} from "@convex/lib/catalogoFiltros"
 import { Chip, FilterChips } from "@/components/catalogo/filter-chips"
 import type { Opcao } from "@/components/catalogo/filter-chips"
+import {
+  facetaUtil,
+  PilulasDestaque,
+} from "@/components/catalogo/filtros-destaque"
 import { FiltrosSheet } from "@/components/catalogo/filtros-sheet"
 import { Pagination, VerMais } from "@/components/catalogo/pagination"
 import {
@@ -25,22 +31,23 @@ import { SortSelect } from "@/components/catalogo/sort-select"
 import { Button } from "@/components/ui/button"
 import { FAMILIAS, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
 import type { Ordenacao } from "@/lib/catalogo"
+import { useCapas, useIndiceCatalogo } from "@/lib/catalogo-indice"
 import {
-  argsCatalogo,
   contarFiltrosAtivos,
+  escreverFiltro,
+  filtrosDestaque,
+  pedidoCatalogo,
   POR_PAGINA,
+  semFiltrosDestaque,
   validarBusca,
 } from "@/lib/catalogo-search"
 import type { FiltrosCatalogo } from "@/lib/catalogo-search"
 import { useMapaDesdePorGrupo } from "@/lib/precos-revenda"
-import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/_shell/produtos")({
   validateSearch: validarBusca,
   component: Catalogo,
 })
-
-type Lista = FunctionReturnType<typeof api.catalogo.listar>
 
 const numero = new Intl.NumberFormat("pt-PT")
 
@@ -48,6 +55,17 @@ function Catalogo() {
   const filtros = Route.useSearch()
   const navigate = Route.useNavigate()
   const telemovel = useTelemovel()
+
+  // The whole catalog, loaded once; searching, filtering, sorting and paging
+  // below run in the browser without asking the server again.
+  const { data: indice } = useIndiceCatalogo()
+  const resultado = useMemo(
+    () =>
+      indice === undefined
+        ? undefined
+        : filtrarCatalogo(indice, pedidoCatalogo(filtros)),
+    [indice, filtros]
+  )
 
   // Every change that narrows or reorders the results starts over at page 1 —
   // page 7 of the old result set says nothing about the new one. Typing
@@ -67,30 +85,37 @@ function Catalogo() {
   )
   const onOrdenar = (valor: Ordenacao) =>
     aplicar({ ordenar: valor === "relevancia" ? undefined : valor })
+  // Hero filters belong to a family: changing family drops them.
+  const onFamilia = (familia: string | undefined) =>
+    void navigate({
+      search: (prev) => ({
+        ...semFiltrosDestaque(prev),
+        familia,
+        pagina: undefined,
+      }),
+    })
+  const onMarca = (marca: string | undefined) => aplicar({ marca })
+  const onFiltro = (chave: string, filtro: FiltroDestaque | undefined) =>
+    aplicar({ [chave]: escreverFiltro(filtro) })
 
-  const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
-    ...convexQuery(api.catalogo.listar, argsCatalogo(filtros)),
-    // Keep the current grid on screen (dimmed) while the next one loads
-    // instead of flashing skeletons on every filter change.
-    placeholderData: keepPreviousData,
-  })
+  const paginaPedida = Math.max(0, (filtros.pagina ?? 1) - 1)
+  const paginacao =
+    resultado === undefined
+      ? undefined
+      : paginar(resultado.grupos.length, paginaPedida, POR_PAGINA)
 
-  // The server clamps the page when filters shrink the result set; mirror it
-  // back into the URL so a shared link never points past the last page.
+  // Filters can shrink the results under a shared link's page; correct the
+  // URL so it never points past the last page.
   useEffect(() => {
-    if (!data || isFetching) return
-    const naUrl = filtros.pagina ?? 1
-    const noServidor = data.pagina + 1
-    if (naUrl !== noServidor) {
-      void navigate({
-        search: (prev) => ({
-          ...prev,
-          pagina: noServidor <= 1 ? undefined : noServidor,
-        }),
-        replace: true,
-      })
-    }
-  }, [data, isFetching, filtros.pagina, navigate])
+    if (paginacao === undefined || paginacao.pagina === paginaPedida) return
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        pagina: paginacao.pagina === 0 ? undefined : paginacao.pagina + 1,
+      }),
+      replace: true,
+    })
+  }, [paginacao, paginaPedida, navigate])
 
   // Jump back to the top of the results when the page changes on wide
   // screens (not on the first render, and not on filter changes — those
@@ -103,14 +128,20 @@ function Catalogo() {
     }
   }, [filtros.pagina, telemovel])
 
-  const opcoes = useOpcoes(data, filtros)
+  const opcoes = useOpcoes(resultado, filtros)
+  const destaques = filtrosDestaque(filtros)
+  const numDestaques = Object.keys(destaques).length
   const numFiltros = contarFiltrosAtivos(filtros)
   const limpar = () => void navigate({ search: { ordenar: filtros.ordenar } })
-  const pagina = Math.max(0, (filtros.pagina ?? 1) - 1)
+  const total = resultado?.grupos.length
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pt-5 pb-12 sm:px-6 sm:pt-8">
-      <Cabecalho filtros={filtros} total={data?.total} aCarregar={isLoading} />
+      <Cabecalho
+        filtros={filtros}
+        total={total}
+        aCarregar={resultado === undefined}
+      />
 
       {/* Sticky band under the shell's top bar: search always, plus the
           chip row on phones so filters stay one tap away while scrolling. */}
@@ -136,31 +167,32 @@ function Catalogo() {
           <FiltrosSheet
             familias={opcoes.familias}
             marcas={opcoes.marcas}
+            facetas={opcoes.facetas}
             familia={filtros.familia}
             marca={filtros.marca}
+            filtros={destaques}
             ordenar={filtros.ordenar ?? "relevancia"}
-            total={data?.total}
+            total={total}
             numAtivos={
               (filtros.familia ? 1 : 0) +
               (filtros.marca ? 1 : 0) +
+              numDestaques +
               (filtros.ordenar ? 1 : 0)
             }
-            onFamilia={(familia) => aplicar({ familia })}
-            onMarca={(marca) => aplicar({ marca })}
+            onFamilia={onFamilia}
+            onMarca={onMarca}
+            onFiltro={onFiltro}
             onOrdenar={onOrdenar}
             onLimpar={limpar}
           />
-          {data ? (
+          {resultado ? (
             <>
               {opcoes.familias.map((o) => (
                 <Chip
                   key={`f-${o.valor}`}
                   ativo={o.valor === filtros.familia}
                   onClick={() =>
-                    aplicar({
-                      familia:
-                        o.valor === filtros.familia ? undefined : o.valor,
-                    })
+                    onFamilia(o.valor === filtros.familia ? undefined : o.valor)
                   }
                 >
                   {o.rotulo}
@@ -172,9 +204,7 @@ function Catalogo() {
                   key={`m-${o.valor}`}
                   ativo={o.valor === filtros.marca}
                   onClick={() =>
-                    aplicar({
-                      marca: o.valor === filtros.marca ? undefined : o.valor,
-                    })
+                    onMarca(o.valor === filtros.marca ? undefined : o.valor)
                   }
                 >
                   {o.rotulo}
@@ -194,20 +224,19 @@ function Catalogo() {
 
       <FiltrosLargos
         filtros={filtros}
-        data={data}
+        carregado={resultado !== undefined}
         opcoes={opcoes}
-        onFamilia={(familia) => aplicar({ familia })}
-        onMarca={(marca) => aplicar({ marca })}
+        destaques={destaques}
+        onFamilia={onFamilia}
+        onMarca={onMarca}
+        onFiltro={onFiltro}
       />
 
       <Resultados
-        data={data}
-        filtros={filtros}
-        pagina={pagina}
+        grupos={resultado?.grupos}
+        paginacao={paginacao}
+        mostrarFamilia={filtros.familia === undefined}
         telemovel={telemovel}
-        aCarregar={isLoading}
-        aAtualizar={isFetching && !isLoading}
-        seguinteACarregar={isPlaceholderData}
         temFiltros={numFiltros > 0}
         onLimpar={limpar}
         onPagina={(p) =>
@@ -281,15 +310,22 @@ function Cabecalho({
   )
 }
 
-type Opcoes = { familias: Array<Opcao>; marcas: Array<Opcao> }
+type Opcoes = {
+  familias: Array<Opcao>
+  marcas: Array<Opcao>
+  facetas: ResultadoCatalogo["facetas"]
+}
 
-function useOpcoes(data: Lista | undefined, filtros: FiltrosCatalogo): Opcoes {
+function useOpcoes(
+  resultado: ResultadoCatalogo | undefined,
+  filtros: FiltrosCatalogo
+): Opcoes {
   // Families keep their canonical order and brands stay alphabetical, so the
   // chips never jump around as counts change. Options with no matches drop
   // out, except the chosen one (it must stay to be un-chosen).
   const familias = useMemo<Array<Opcao>>(() => {
     const contagens = new Map(
-      (data?.familias ?? []).map((f) => [f.valor, f.contagem])
+      (resultado?.familias ?? []).map((f) => [f.valor, f.contagem])
     )
     return FAMILIAS.filter(
       (f) => contagens.has(f) || f === filtros.familia
@@ -298,10 +334,10 @@ function useOpcoes(data: Lista | undefined, filtros: FiltrosCatalogo): Opcoes {
       rotulo: rotuloFamilia(f),
       contagem: contagens.get(f) ?? 0,
     }))
-  }, [data?.familias, filtros.familia])
+  }, [resultado?.familias, filtros.familia])
 
   const marcas = useMemo<Array<Opcao>>(() => {
-    const lista = (data?.marcas ?? []).map((m) => ({
+    const lista = (resultado?.marcas ?? []).map((m) => ({
       valor: m.valor,
       rotulo: rotuloMarca(m.valor),
       contagem: m.contagem,
@@ -314,26 +350,40 @@ function useOpcoes(data: Lista | undefined, filtros: FiltrosCatalogo): Opcoes {
       })
     }
     return lista.sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt"))
-  }, [data?.marcas, filtros.marca])
+  }, [resultado?.marcas, filtros.marca])
 
-  return { familias, marcas }
+  // A numeric span with one value has nothing to narrow, unless it is the
+  // filter already set (it must stay to be cleared).
+  const facetas = useMemo(
+    () =>
+      (resultado?.facetas ?? []).filter(
+        (f) => facetaUtil(f) || filtros[f.chave] !== undefined
+      ),
+    [resultado?.facetas, filtros]
+  )
+
+  return { familias, marcas, facetas }
 }
 
-/** Family and brand rows from `sm` up (phones use the sticky chip row). */
+/** Family, brand and hero-spec rows from `sm` up (phones use the chip row). */
 function FiltrosLargos({
   filtros,
-  data,
+  carregado,
   opcoes,
+  destaques,
   onFamilia,
   onMarca,
+  onFiltro,
 }: {
   filtros: FiltrosCatalogo
-  data: Lista | undefined
+  carregado: boolean
   opcoes: Opcoes
+  destaques: Record<string, FiltroDestaque>
   onFamilia: (familia: string | undefined) => void
   onMarca: (marca: string | undefined) => void
+  onFiltro: (chave: string, filtro: FiltroDestaque | undefined) => void
 }) {
-  if (!data) {
+  if (!carregado) {
     return (
       <div className="mt-2 hidden flex-col gap-2 sm:flex">
         <div className="h-8 w-full max-w-2xl animate-pulse rounded-full bg-muted" />
@@ -358,36 +408,47 @@ function FiltrosLargos({
         escolhida={filtros.marca}
         onEscolher={onMarca}
       />
+      {opcoes.facetas.length > 0 && (
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="w-14 shrink-0 pt-1.5 text-xs font-medium text-muted-foreground">
+            Filtros
+          </span>
+          <div
+            role="group"
+            aria-label="Especificações"
+            className="flex min-w-0 flex-1 flex-wrap gap-1.5"
+          >
+            <PilulasDestaque
+              facetas={opcoes.facetas}
+              filtros={destaques}
+              onFiltro={onFiltro}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function Resultados({
-  data,
-  filtros,
-  pagina,
+  grupos,
+  paginacao,
+  mostrarFamilia,
   telemovel,
-  aCarregar,
-  aAtualizar,
-  seguinteACarregar,
   temFiltros,
   onLimpar,
   onPagina,
 }: {
-  data: Lista | undefined
-  filtros: FiltrosCatalogo
-  /** 0-based page from the URL. */
-  pagina: number
+  /** Every matching product page, in order; undefined while loading. */
+  grupos: Array<GrupoIndice> | undefined
+  paginacao: ReturnType<typeof paginar> | undefined
+  mostrarFamilia: boolean
   telemovel: boolean
-  aCarregar: boolean
-  aAtualizar: boolean
-  /** The data on screen is the previous query's, kept while this one loads. */
-  seguinteACarregar: boolean
   temFiltros: boolean
   onLimpar: () => void
   onPagina: (pagina: number) => void
 }) {
-  if (aCarregar || data === undefined) {
+  if (grupos === undefined || paginacao === undefined) {
     return (
       <Grelha>
         <Esqueletos />
@@ -395,115 +456,63 @@ function Resultados({
     )
   }
 
-  if (data.entradas.length === 0) {
+  if (grupos.length === 0) {
     return <SemResultados temFiltros={temFiltros} onLimpar={onLimpar} />
   }
 
-  const mostrarFamilia = filtros.familia === undefined
-
-  // Phones: page N shows pages 1..N stacked ("Ver mais" appends). The earlier
-  // pages are separate (cached) queries; while the newly requested page loads,
-  // the placeholder is the page above, so show skeletons in its place.
-  const acumular = telemovel && pagina > 0
-  const aCrescer = acumular && seguinteACarregar
+  // Phones: page N shows pages 1..N stacked ("Ver mais" appends). Each page
+  // is its own block so its covers and prices stay cached as the grid grows.
+  const { pagina, numPaginas, inicio, fim } = paginacao
+  const blocos = telemovel
+    ? Array.from({ length: pagina + 1 }, (_, i) => i)
+    : [pagina]
 
   return (
     <>
-      <div
-        aria-busy={aAtualizar}
-        className={cn(
-          "transition-opacity duration-200",
-          aAtualizar && !acumular && "pointer-events-none opacity-60"
-        )}
-      >
-        <Grelha>
-          {acumular &&
-            Array.from({ length: pagina }, (_, i) => (
-              <PaginaAnterior
-                key={i}
-                filtros={filtros}
-                pagina={i}
-                mostrarFamilia={mostrarFamilia}
-              />
-            ))}
-          {aCrescer ? (
-            <Esqueletos quantos={4} />
-          ) : (
-            <CartoesComPrecos
-              key={data.pagina}
-              entradas={data.entradas}
-              mostrarFamilia={mostrarFamilia}
-            />
-          )}
-        </Grelha>
-      </div>
+      <Grelha>
+        {blocos.map((i) => (
+          <CartoesComPrecos
+            key={i}
+            grupos={grupos.slice(i * POR_PAGINA, (i + 1) * POR_PAGINA)}
+            mostrarFamilia={mostrarFamilia}
+          />
+        ))}
+      </Grelha>
       <VerMais
-        mostrados={
-          acumular
-            ? Math.min(data.total, (pagina + 1) * POR_PAGINA)
-            : data.pagina * POR_PAGINA + data.entradas.length
-        }
-        total={data.total}
-        aCarregar={aCrescer || (aAtualizar && !acumular)}
+        mostrados={fim}
+        total={grupos.length}
+        aCarregar={false}
         onMais={() => onPagina(pagina + 1)}
       />
-      <Pagination
-        pagina={data.pagina}
-        numPaginas={data.numPaginas}
-        onPagina={onPagina}
-      />
+      <Pagination pagina={pagina} numPaginas={numPaginas} onPagina={onPagina} />
       <p className="mt-4 hidden text-center text-xs text-muted-foreground tabular-nums sm:block">
-        {numero.format(data.pagina * POR_PAGINA + 1)}–
-        {numero.format(data.pagina * POR_PAGINA + data.entradas.length)} de{" "}
-        {numero.format(data.total)}
+        {numero.format(inicio + 1)}–{numero.format(fim)} de{" "}
+        {numero.format(grupos.length)}
       </p>
     </>
   )
 }
 
-/** One already-seen page above the current one in the phone's growing grid. */
-function PaginaAnterior({
-  filtros,
-  pagina,
-  mostrarFamilia,
-}: {
-  filtros: FiltrosCatalogo
-  pagina: number
-  mostrarFamilia: boolean
-}) {
-  const { data } = useQuery(
-    convexQuery(api.catalogo.listar, {
-      ...argsCatalogo(filtros),
-      pagina,
-    })
-  )
-  if (!data) return <Esqueletos quantos={4} />
-  return (
-    <CartoesComPrecos
-      entradas={data.entradas}
-      mostrarFamilia={mostrarFamilia}
-    />
-  )
-}
-
 function CartoesComPrecos({
-  entradas,
+  grupos,
   mostrarFamilia,
 }: {
-  entradas: Lista["entradas"]
+  grupos: Array<GrupoIndice>
   mostrarFamilia: boolean
 }) {
-  // Approved installers get one extra query per page with their reseller
-  // "desde" prices; everyone else renders the PVP that came with the list.
-  const revenda = useMapaDesdePorGrupo(entradas.map((e) => e.grupoModelo))
+  const chaves = grupos.map((g) => g.grupoModelo)
+  // Covers for this page only. Approved installers also get their reseller
+  // "desde" prices; everyone else sees the PVP that came with the index.
+  const capas = useCapas(chaves)
+  const revenda = useMapaDesdePorGrupo(chaves)
   return (
     <>
-      {entradas.map((entrada) => (
+      {grupos.map((g) => (
         <ProductCard
-          key={entrada.grupoModelo}
-          entrada={entrada}
+          key={g.grupoModelo}
+          entrada={{ ...g, capaUrl: capas?.get(g.grupoModelo) }}
           mostrarFamilia={mostrarFamilia}
-          precoRevendaCents={revenda?.get(entrada.grupoModelo)}
+          precoRevendaCents={revenda?.get(g.grupoModelo)}
         />
       ))}
     </>
@@ -543,7 +552,7 @@ function SemResultados({
       <p className="text-lg font-semibold">Nenhum produto encontrado</p>
       <p className="max-w-sm text-sm text-muted-foreground">
         {temFiltros
-          ? "Experimente outro termo ou remova a família ou a marca escolhida."
+          ? "Experimente outro termo ou remova um dos filtros escolhidos."
           : "O catálogo será publicado em breve. Contacte-nos para conhecer a oferta completa."}
       </p>
       {temFiltros ? (
