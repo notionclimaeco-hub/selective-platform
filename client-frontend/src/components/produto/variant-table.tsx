@@ -164,17 +164,21 @@ export function PrecoVariante({
  *
  * Phones get stacked rows (no horizontal page scroll); from `md` up it is a
  * comparison table. Approved members get a Revenda column and a struck PVP.
+ * `accao` renders each model's own control (the add-to-quote pill) at the
+ * end of its row; clicks on it never select the row.
  */
 export function VariantTable({
   variantes,
   selectedRef,
   onSelect,
   precosRevenda,
+  accao,
 }: {
   variantes: Array<Variante>
   selectedRef: string
   onSelect: (ref: string) => void
   precosRevenda?: Map<string, number> | null
+  accao?: (variante: Variante) => React.ReactNode
 }) {
   const chaves = chavesVariaveis(variantes)
   const revenda = precosRevenda != null
@@ -190,14 +194,21 @@ export function VariantTable({
         {variantes.map((v) => {
           const ativo = v.ref === selectedRef
           return (
-            <button
+            <div
               key={v.ref}
-              type="button"
               role="radio"
               aria-checked={ativo}
+              tabIndex={0}
               onClick={() => onSelect(v.ref)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onSelect(v.ref)
+                }
+              }}
               className={cn(
-                "flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors",
+                "flex w-full cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/25",
                 ativo
                   ? "border-primary bg-primary/5"
                   : "bg-card hover:border-foreground/25"
@@ -226,11 +237,14 @@ export function VariantTable({
                   </dl>
                 )}
               </div>
-              <PrecoVariante
-                pvpCents={v.pvpCents}
-                revendaCents={precosRevenda?.get(v.ref)}
-              />
-            </button>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <PrecoVariante
+                  pvpCents={v.pvpCents}
+                  revendaCents={precosRevenda?.get(v.ref)}
+                />
+                {accao && <SemSelecionar>{accao(v)}</SemSelecionar>}
+              </div>
+            </div>
           )
         })}
       </div>
@@ -255,6 +269,9 @@ export function VariantTable({
                   Revenda s/IVA
                 </th>
               )}
+              {accao && (
+                <th className="w-px py-2.5 pr-3" aria-label="Orçamento" />
+              )}
             </tr>
           </thead>
           <tbody role="radiogroup" aria-label="Modelos disponíveis">
@@ -269,6 +286,7 @@ export function VariantTable({
                   tabIndex={0}
                   onClick={() => onSelect(v.ref)}
                   onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault()
                       onSelect(v.ref)
@@ -322,6 +340,11 @@ export function VariantTable({
                       {eurExato.format(v.pvpCents / 100)}
                     </td>
                   )}
+                  {accao && (
+                    <td className="py-1.5 pr-3 text-right">
+                      <SemSelecionar>{accao(v)}</SemSelecionar>
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -329,5 +352,18 @@ export function VariantTable({
         </table>
       </div>
     </>
+  )
+}
+
+/** Keeps clicks on a row's own control from also selecting the row. */
+function SemSelecionar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="inline-flex"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>
   )
 }

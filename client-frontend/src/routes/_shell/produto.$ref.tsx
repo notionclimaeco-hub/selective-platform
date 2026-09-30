@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { convexQuery } from "@convex-dev/react-query"
 import {
   keepPreviousData,
@@ -7,8 +7,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { FunctionReturnType } from "convex/server"
-import { ArrowLeft, ChevronRight, FileText, Plus } from "lucide-react"
-import { toast } from "sonner"
+import { ArrowLeft, ChevronRight, FileText } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
@@ -22,8 +21,9 @@ import {
   rotuloVariante,
 } from "@/components/produto/variant-table"
 import type { Atributo, Variante } from "@/components/produto/variant-table"
-import { QuantityStepper } from "@/components/orcamento/quantity-stepper"
 import { useOrcamento } from "@/components/orcamento/orcamento-store"
+import type { ItemOrcamento } from "@/components/orcamento/orcamento-store"
+import { ControloQuantidade } from "@/components/produto/controlo-quantidade"
 import { eurExato, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
 import { cn } from "@/lib/utils"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
@@ -33,6 +33,8 @@ export const Route = createFileRoute("/_shell/produto/$ref")({
 })
 
 type Detalhe = NonNullable<FunctionReturnType<typeof api.produtos.obterPorRef>>
+/** A model of the group, with its own photos when it has any. */
+type VarianteGrupo = Variante & { imagensUrls?: Array<string> }
 
 function ProdutoPage() {
   const { ref } = Route.useParams()
@@ -45,7 +47,9 @@ function ProdutoPage() {
       {base === null ? (
         <ProdutoNaoEncontrado />
       ) : (
-        <ProdutoConteudo base={base} routeRef={ref} />
+        // Keyed by ref: moving to another product starts a fresh visit (no
+        // "Ver orçamento" callout until something is added there).
+        <ProdutoConteudo key={ref} base={base} routeRef={ref} />
       )}
     </>
   )
@@ -118,7 +122,7 @@ function ProdutoLayout({
 }: {
   base: Detalhe
   ativo: Detalhe
-  variantes?: Array<Variante>
+  variantes?: Array<VarianteGrupo>
   selectedRef?: string
   onSelect?: (ref: string) => void
 }) {
@@ -134,16 +138,34 @@ function ProdutoLayout({
   const especificacoes = temVariantes
     ? atributosComuns(variantes)
     : ativo.atributos
-  const varianteAtiva = variantes?.find((v) => v.ref === ativo.ref)
-  const varianteLabel =
-    temVariantes && varianteAtiva
-      ? rotuloVariante(varianteAtiva, variantes)
-      : ""
+  const orcamento = useOrcamentoDaVisita()
 
-  const compra = useCompra(ativo, varianteLabel)
+  // A group's model as a quote-list line: the page title plus the values that
+  // tell it apart from its siblings, priced at PVP (reseller prices are
+  // never stored client-side).
+  function itemDe(v: VarianteGrupo): ItemNovo {
+    return {
+      ref: v.ref,
+      nome: base.nomeGrupo,
+      marca: base.marca,
+      familia: base.familia,
+      variante: rotuloVariante(v, variantes ?? []) || undefined,
+      pvpCents: v.pvpCents,
+      capaUrl: v.imagensUrls?.at(0) ?? ativo.imagensUrls.at(0) ?? null,
+      capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
+    }
+  }
+  const porRef = new Map((variantes ?? []).map((v) => [v.ref, v]))
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pt-4 pb-12 sm:px-6 lg:pt-6">
+    <div
+      className={cn(
+        "mx-auto w-full max-w-6xl px-4 pt-4 pb-12 sm:px-6 lg:pt-6",
+        // Room for the floating "Ver orçamento" pill under the last row.
+        orcamento.mostrarAviso &&
+          "pb-[calc(var(--altura-aviso)+var(--folga-fundo)+1rem)]"
+      )}
+    >
       <Breadcrumb familia={base.familia} nome={base.nomeGrupo} />
 
       {/*
@@ -190,10 +212,18 @@ function ProdutoLayout({
               {ativo.fichasCatalogo.length > 0 && (
                 <FichasCatalogo fichas={ativo.fichasCatalogo} />
               )}
+              {!temVariantes &&
+                orcamento.controlo({
+                  ref: ativo.ref,
+                  nome: ativo.nome,
+                  marca: ativo.marca,
+                  familia: ativo.familia,
+                  pvpCents: ativo.pvpCents,
+                  capaUrl: ativo.imagensUrls[0] ?? null,
+                  capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
+                })}
             </div>
           </div>
-
-          <QuoteCta compra={compra} />
         </div>
 
         {temVariantes && selectedRef && onSelect && (
@@ -210,6 +240,13 @@ function ProdutoLayout({
                 selectedRef={selectedRef}
                 onSelect={onSelect}
                 precosRevenda={overlay}
+                accao={(v) => {
+                  const variante = porRef.get(v.ref)
+                  if (!variante) return null
+                  return orcamento.controlo(itemDe(variante), () =>
+                    onSelect(v.ref)
+                  )
+                }}
               />
             </div>
           </section>
@@ -234,7 +271,9 @@ function ProdutoLayout({
         )}
       </div>
 
-      <BarraCompra compra={compra} />
+      {orcamento.mostrarAviso && (
+        <AvisoOrcamento totalItens={orcamento.totalItens} />
+      )}
     </div>
   )
 }
@@ -386,107 +425,62 @@ function Recolhivel({ children }: { children: React.ReactNode }) {
   )
 }
 
-type Compra = {
-  quantidade: number
-  setQuantidade: (quantidade: number) => void
-  adicionar: () => void
-  jaNaLista: number | undefined
-}
+type ItemNovo = Omit<ItemOrcamento, "quantidade">
 
 /**
- * Quantity + add-to-quote state, shared by the desktop buy row and the phone
- * buy bar. Adding goes straight into the quote list (PVP snapshot) and
- * confirms with a toast that links to /orcamento.
+ * The quote list as this product page uses it: one `ControloQuantidade` per
+ * model, writing straight to the list, and whether to show the
+ * "Ver orçamento" callout. The callout belongs to this visit: it appears
+ * after the first add here and is gone when the visitor comes back to the
+ * page (they came back to add more, not to leave).
  */
-function useCompra(ativo: Detalhe, varianteLabel: string): Compra {
-  const { adicionar, obter } = useOrcamento()
-  const navigate = useNavigate()
-  const [quantidade, setQuantidade] = useState(1)
+function useOrcamentoDaVisita() {
+  const { adicionar, definirQuantidade, remover, obter, totalItens } =
+    useOrcamento()
+  const [adicionouNestaVisita, setAdicionouNestaVisita] = useState(false)
 
-  function adicionarAoOrcamento() {
-    adicionar(
-      {
-        ref: ativo.ref,
-        nome: ativo.nome,
-        marca: ativo.marca,
-        familia: ativo.familia,
-        variante: varianteLabel || undefined,
-        pvpCents: ativo.pvpCents,
-        capaUrl: ativo.imagensUrls[0] ?? null,
-        capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
-      },
-      quantidade
+  function controlo(item: ItemNovo, aoAdicionar?: () => void) {
+    return (
+      <ControloQuantidade
+        quantidade={obter(item.ref)?.quantidade ?? 0}
+        rotulo={item.ref}
+        onAdicionar={() => {
+          adicionar(item, 1)
+          setAdicionouNestaVisita(true)
+          aoAdicionar?.()
+        }}
+        onDefinir={(quantidade) => definirQuantidade(item.ref, quantidade)}
+        onRemover={() => remover(item.ref)}
+      />
     )
-    toast("Adicionado ao orçamento", {
-      description: `${quantidade} × ${ativo.ref}`,
-      action: {
-        label: "Ver orçamento",
-        onClick: () => void navigate({ to: "/orcamento" }),
-      },
-    })
-    setQuantidade(1)
   }
 
   return {
-    quantidade,
-    setQuantidade,
-    adicionar: adicionarAoOrcamento,
-    jaNaLista: obter(ativo.ref)?.quantidade,
+    controlo,
+    totalItens,
+    mostrarAviso: adicionouNestaVisita && totalItens > 0,
   }
 }
 
-/** Desktop buy row (phones use the sticky `BarraCompra`). */
-function QuoteCta({ compra }: { compra: Compra }) {
-  return (
-    <div className="hidden flex-col gap-2.5 lg:flex">
-      <div className="flex items-center gap-3">
-        <QuantityStepper
-          value={compra.quantidade}
-          onChange={compra.setQuantidade}
-        />
-        <Button size="lg" onClick={compra.adicionar} className="flex-1">
-          <Plus data-icon="inline-start" />
-          Adicionar ao orçamento
-        </Button>
-      </div>
-      {compra.jaNaLista !== undefined && (
-        <p className="text-sm text-muted-foreground">
-          {compra.jaNaLista} {compra.jaNaLista === 1 ? "unidade" : "unidades"}{" "}
-          na lista.{" "}
-          <Link
-            to="/orcamento"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Ver orçamento
-          </Link>
-        </p>
-      )}
-    </div>
-  )
-}
-
 /**
- * Phones and tablets: quantity and "Adicionar ao orçamento" pinned to the
- * bottom, above the app shell's tab bar. `data-barra-compra` makes the body
- * leave room for it and lifts the toasts over it (styles.css).
+ * Floating "Ver orçamento · N" pill, bottom centre, above the phone tab bar.
+ * `data-aviso-orcamento` makes the body leave room for it and lifts toasts
+ * over it (styles.css).
  */
-function BarraCompra({ compra }: { compra: Compra }) {
+function AvisoOrcamento({ totalItens }: { totalItens: number }) {
   return (
     <div
-      data-barra-compra
-      className="fixed inset-x-0 bottom-[var(--barra-fundo)] z-30 border-t bg-background/95 pb-[var(--folga-fundo)] backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:hidden"
+      data-aviso-orcamento
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--barra-fundo)+var(--folga-fundo)+1rem)] z-30 flex justify-center px-4"
     >
-      <div className="mx-auto flex h-[var(--altura-compra)] max-w-6xl items-center gap-2.5 px-4 sm:px-6">
-        <QuantityStepper
-          value={compra.quantidade}
-          onChange={compra.setQuantidade}
-          className="shrink-0"
-        />
-        <Button size="lg" onClick={compra.adicionar} className="h-10 flex-1">
-          <Plus data-icon="inline-start" />
-          Adicionar ao orçamento
-        </Button>
-      </div>
+      <Link
+        to="/orcamento"
+        className="pointer-events-auto inline-flex h-12 max-w-full animate-in items-center gap-2.5 rounded-full bg-foreground pr-5 pl-4 text-[15px] font-medium text-background shadow-lg duration-200 outline-none fade-in slide-in-from-bottom-4 focus-visible:ring-3 focus-visible:ring-ring/40"
+      >
+        <FileText className="size-4.5 shrink-0" />
+        <span className="truncate">Ver orçamento</span>
+        <span className="tabular-nums opacity-70">· {totalItens}</span>
+      </Link>
     </div>
   )
 }

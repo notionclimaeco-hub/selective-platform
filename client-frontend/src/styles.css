@@ -173,14 +173,15 @@
  *  - `--barra-fundo`: fixed bottom chrome under the page (app tab bar on phones).
  *  - `--folga-fundo`: the safe-area inset a bottom bar must pad itself, when
  *    nothing below it already does.
- *  - `--altura-compra`: the product page's phone buy bar.
- * Toasts and the body's bottom padding follow from these.
+ *  - `--altura-aviso`: room the product page's floating "Ver orçamento"
+ *    pill takes above that chrome (pill + gap).
+ * Toasts follow from these.
  * ------------------------------------------------------------------------- */
 :root {
   --barra-topo: 3.5rem;
   --barra-fundo: 0px;
   --folga-fundo: env(safe-area-inset-bottom);
-  --altura-compra: 4.25rem;
+  --altura-aviso: 5rem;
   --toast-fundo: 0px;
 }
 @media (width < 48rem) {
@@ -195,15 +196,10 @@
     --barra-topo: 0px;
   }
 }
-@media (width < 64rem) {
-  :root:has([data-barra-compra]) {
-    --toast-fundo: calc(
-      var(--barra-fundo) + var(--folga-fundo) + var(--altura-compra)
-    );
-  }
-  body:has([data-barra-compra]) {
-    padding-bottom: calc(var(--altura-compra) + var(--folga-fundo));
-  }
+:root:has([data-aviso-orcamento]) {
+  --toast-fundo: calc(
+    var(--barra-fundo) + var(--folga-fundo) + var(--altura-aviso)
+  );
 }
 
 /* Horizontal chip rows on phones scroll without showing a scrollbar. */
