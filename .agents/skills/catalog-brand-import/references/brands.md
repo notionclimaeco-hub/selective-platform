@@ -8,7 +8,9 @@ distributors) moved to
 
 ## Nipon
 
-- Import script: `scripts/importNipon.mjs` (products + pages).
+- 2025 reload (#45) goes through `catalog-pdf-extract` (import run `nipon-2025`,
+  brand parts in `marcas/nipon/`); photos: niponcomfort.com crawl + the photos
+  the previous catalog had per ref.
 - Many aliases already in `match.mjs`.
 
 ## Hisense

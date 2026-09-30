@@ -188,8 +188,9 @@ Zip of one-page PDFs named `<tabelaOrigem>-p<N>.pdf`
 #   gerarUploadUrl → POST PDF → registarPagina({ tabelaOrigem, pagina, ficheiro })
 ```
 
-`scripts/importNipon.mjs --pages <dir>` does the same (also imports products if
-`--products` is set). Idempotent by `(tabelaOrigem, pagina)`.
+Idempotent by `(tabelaOrigem, pagina)`. (The old `scripts/importNipon.mjs`
+bulk importer was retired after the Nipon 2025 reload, #45; price tables now
+load through `catalog-pdf-extract`.)
 
 Products resolve covers via `pdfPaginas` → `paginasCatalogo`.
 

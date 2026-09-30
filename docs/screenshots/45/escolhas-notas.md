@@ -1,0 +1,48 @@
+- nipon-cassete-1-via-multi-split-unidade-interior: only one view (unit + remote); #3 upload is the same view, dropped as duplicate.
+- nipon-chao-teto-multi-split-unidade-interior: only one view; #3 upload same view, dropped.
+- nipon-conduta-baixa-pressao-multi-split-unidade-interior: all candidates carry a warning (photo from the multi-split conduta page, may not distinguish low/medium pressure); #2 kept, #3 same view.
+- nipon-evaslim-75: single view (unit + controller); #3 upload same view, dropped.
+- nipon-hawaii: #3 upload is a different fan coil (console/floor body, not a cassette), discarded; only one view left.
+- nipon-milan: single front view; #3 upload near-duplicate.
+- nipon-multi-split-unidade-exterior: single group shot of three outdoor units; #3 same shot.
+- nipon-ni0195106-comando: only an old-catalogue upload (warning), transparent, low-res source; used as is.
+- nipon-ni0195122-comando: only an old-catalogue upload (warning), blurry/low-res; used as is.
+- nipon-ni0195912-comando: two old-catalogue uploads of different-looking holders; picked #2 (cleaner cutout); #1 is grey, soft and has dark artifacts along the bottom. Not certain which one is the NRGA/F7-F8 holder.
+- nipon-primis-duo-multi-split-unidade-interior: all warnings. Cover #3 white indoor, #4 grey/black indoor (cores branco, cinzento), then #2 indoor+outdoor shot from the mono-split page; #5 near-duplicate of #2.
+- nipon-spirit-m: #3 black two-fan monobloc (old catalogue) left out; may be an older model or the large-capacity variant; only one view kept (two white units).
+- nipon-supra-reverse: #4 front + #6 angled; #2/#7 duplicate the angle, #8 duplicates the front, #9 is a room scene. Photos show it wall-mounted although tipoUnidade is consola (reversible mounting).
+- nipon-topsmart: only an indoor+outdoor+remote shot exists, so the cover also shows the outdoor unit; no indoor-only photo.
+- nipon-venice-hn: all warnings; #2 is the concealed ducted fan coil from the site's "ventiloconvetor conduta" page (small thermostat clipped at left edge); #3 is a cassette (Hawaii), discarded.
+- nipon-venice-vn: same photo as Venice HN (horizontal concealed unit) though VN is consola/vertical; doubtful match, verify. #3 cassette discarded.
+- nipon-cassete-8-vias-multi-split-unidade-interior: #3 (upload) is the same view as #2, so dropped. Only one view exists.
+- nipon-chao-teto-xc: #6/#5 (uploads) duplicate #4/#2, so dropped.
+- nipon-conduta-xd: #7 is an ambient scene with a logo, so dropped. #5/#6 duplicate #2/#4. #8 (upload) is a more frontal angle of the same duct and is kept as a second view.
+- nipon-flexus: the #2 cutout is broken (body turned semi-transparent), so the front view uses #9, the transparent upload. #10 duplicates #4 and has a white box behind it. #8 (grey body, display low) comes from the Flexus site page but looks like a different variant or back. Check it.
+- nipon-innovus: #3 (transparent upload) is the same view as #2 but larger and cleaner. Only one view exists.
+- nipon-multi-split-ac-aqs-deposito: #1 is a transparent site original with no cutout. #2 is a ducted indoor unit (wrong product).
+- nipon-ni0195002-comando: the only candidate, low-res and blurry.
+- nipon-ni0195110-comando: the only candidate, low-res, with a light-grey box/shadow left around the controller.
+- nipon-ni0195152-comando: the only candidate, low-res, with a light-grey box/shadow around it.
+- nipon-ni0195922-comando: #1 has a grey background box left, so #2 (clean) is used. Both are tiny, and #2's colours look off (beige/navy). The same two files are reused for NI0195902/NI0195912, so this may be a generic holder.
+- nipon-primis-duo: the only photo shows white + dark-grey indoor units plus the outdoor unit together. There is no indoor-only cover and no separate photo per colour. #3 duplicates #2.
+- nipon-spirit-s: every photo shows a black outdoor unit, but the PDF table (p44) shows it white. #3 (upload) is the larger rendition of the #2 view.
+- nipon-supra-slim: the #2 cutout is broken (black border), so the front view uses #5, the transparent upload (larger than #1). #7 is a room scene. #6 duplicates #4.
+- nipon-venice-h: the only candidate is a cassette fan-coil panel, not the Venice H (horizontal cabinet, p55), so none are usable. Needs a real photo.
+- nipon-venice-v: #3 is a cassette fan coil (wrong product). #2 matches the p55 Versão V.
+- nipon-vita-multi-split-unidade-interior: #3 duplicates #2. The photo includes the remote.
+- nipon-cassete-8-vias-xb: the only view is the whole set (cassette + outdoor unit + remote), so the cover is not indoor-only. #3 is the same view.
+- nipon-conduta-alta-pressao-multi-split-unidade-interior: the site photo is the generic multi-split duct unit, the same one used for baixa pressão (the warning is real). #3 is the same view from the old catalogue. #4 is a slimmer duct from another range. #5 has a large 2-fan outdoor unit from another range. #6 is a room scene.
+- nipon-evabox-95: #3 is the same view (larger, old catalogue). #4-#9 are blurry crops or detail fragments. Only one view is available.
+- nipon-h-power: #3 is the same view. Only one view is available.
+- nipon-magnum: the only view is the whole set (cabinet + outdoor unit + remote), so there is no indoor-only cover. #3 is the same view.
+- nipon-multi-split-ac-aqs-unidade-exterior: #3 is a smaller/different outdoor unit from the old catalogue and was discarded.
+- nipon-ni0195100-comando: left empty. The only photo is low-res, cut off at the bottom, and shows an older grey remote that doesn't match the NRGA/1F design in the nipon-nrga-1f-comando group.
+- nipon-ni0195112-comando: the only candidate is low-res, on a white box with a drop shadow (not really cut out). It was used for lack of anything better.
+- nipon-ni0195902-comando: both photos are low-res. #2 shows the whole bracket (it has a dark base). #1 is cropped, with background leftovers. There is no photo of the second colour (W/B).
+- nipon-nrga-1f-comando: white (#2) is the cover, black (#1) is second. Both are low-res old-catalogue uploads.
+- nipon-serenus: #2 and #4 are two different site angles. #5 is the same view as #1.
+- nipon-spirit-sa: the site shows a black outdoor unit, but the price table (p45) shows it white. The only view is the whole set, so there is no indoor-only cover. #3 is the same view. #4 is a kitchen scene.
+- nipon-topsmart-multi-split-unidade-interior: #3 is the same view. Only one view is available.
+- nipon-venice-hf: left empty. The only photo is a 4-way cassette panel, which is the wrong product for a chão-teto fan coil. The same image also appears in venice-h and venice-vf.
+- nipon-venice-vf: #3 (cassette panel) is the wrong product and was discarded. Only one view is available.
+- nipon-vita: the #2 cutout is broken because it erased the outdoor unit. #1 (site) is already transparent and is used as the set photo. The cover is #4, an indoor-only old-catalogue upload that has a blurred remote ghost at the right edge. #3 is the same view as #1.

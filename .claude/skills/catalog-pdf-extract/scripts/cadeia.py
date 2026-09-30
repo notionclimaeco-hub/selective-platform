@@ -14,6 +14,9 @@ Partes por marca em `marcas/<marca>/` (ao lado de `scripts/`), todas opcionais:
 - `mapa.py`: `gerar(doc, ficheiro, marca, ano) -> dict` substitui o mapa
   automático (Midea: sem índice); `corrigir(mapa) -> None` edita o automático
   (Hisense: classificações e gamas).
+- `extrair.py`: `extrair_pagina(page, seccoes, numero) -> list | None` lê as
+  páginas que o leitor genérico não percebe (Nipon: fichas com um modelo por
+  coluna); None = leitor genérico.
 - `pos.py`: `corrigir(run, doc) -> None` entre `agrupar.py` e `validar.py`
   (gralhas de refs, produtos sem ref impressa, compatibilidade lida de matrizes).
 - `NOTAS.md`: particularidades da tabela.
@@ -25,31 +28,17 @@ As partes importam o toolkit como módulos (`from mapa import …`,
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import subprocess
 import sys
 from pathlib import Path
-from types import ModuleType
 
 import pymupdf
 
-from _comum import escrever_json, ler_json, raiz_repo
+from _comum import escrever_json, ler_json, parte_da_marca, raiz_repo
 from mapa import gerar_mapa, validar_mapa
 
 SCRIPTS = Path(__file__).resolve().parent
-MARCAS = SCRIPTS.parent / "marcas"
 PASSOS = ("mapa", "extrair", "agrupar", "pos", "validar", "paginas")
-
-
-def parte_da_marca(marca: str, nome: str) -> ModuleType | None:
-    """`marcas/<marca>/<nome>.py` carregado como módulo, ou None se não existe."""
-    ficheiro = MARCAS / marca / f"{nome}.py"
-    if not ficheiro.is_file():
-        return None
-    spec = importlib.util.spec_from_file_location(f"marcas_{marca}_{nome}", ficheiro)
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-    return modulo
 
 
 def construir_mapa(doc: pymupdf.Document, ficheiro: str, marca: str, ano: int) -> dict:
@@ -111,7 +100,7 @@ def main() -> None:
         n = sum(1 for s in mapa["seccoes"] if s.get("tipo") != "ignorar")
         print(f"mapa: {n} secções (estratégia {mapa.get('estrategia')})", flush=True)
     if "extrair" in passos:
-        _correr("extrair.py", str(pdf), "--mapa", "mapa.json", "--todas", pasta=pasta)
+        _correr("extrair.py", str(pdf), "--mapa", "mapa.json", "--todas", "--marca", args.marca, pasta=pasta)
     if "agrupar" in passos:
         _correr("agrupar.py", "--mapa", "mapa.json", "--marca", args.marca, "--ano", str(args.ano),
                 "--ficheiro", pdf.name, "-o", staged.name, pasta=pasta)

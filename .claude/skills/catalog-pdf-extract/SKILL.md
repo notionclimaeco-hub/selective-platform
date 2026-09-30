@@ -45,6 +45,9 @@ marca, versionada, e o `cadeia.py` carrega-a pelo caminho. Tudo opcional:
 - `mapa.py` — `gerar(doc, ficheiro, marca, ano) -> dict` substitui o mapa
   automático (Midea: sem índice) e/ou `corrigir(mapa) -> None` edita-o
   (Hisense: classificações, gamas, tabelas sob consulta).
+- `extrair.py` — `extrair_pagina(page, seccoes, numero) -> list | None` lê
+  as páginas que o leitor genérico não percebe (Nipon: fichas com um modelo
+  por coluna e os códigos por baixo); None = leitor genérico.
 - `pos.py` — `corrigir(run, doc) -> None` entre `agrupar.py` e `validar.py`.
 - `NOTAS.md` — particularidades da tabela (ler antes de recarregar a marca).
 
@@ -241,12 +244,13 @@ primeiro), que conta na aprovação; o staff só muda o que quiser.
 `pnpm test:pdf` corre os testes (pytest) sobre páginas de fixture geradas com
 PyMuPDF: emparelhamento ref/preço, refs combinadas, colunas do cabeçalho,
 matrizes de compatibilidade, agrupamento, registo, layouts Midea
-(`tests/test_midea.py`) e as partes por marca (`tests/test_marcas.py`). `tests/test_hisense.py`
+(`tests/test_midea.py`), fichas e listas da Nipon (`tests/test_nipon.py`) e as
+partes por marca (`tests/test_marcas.py`). `tests/test_hisense.py`
 corre a cadeia inteira na tabela Hisense 2026 quando o PDF e o
 `spec-registry.json` existem localmente.
 
 ## Notas por marca
 
 Cada marca tem as suas em `marcas/<marca>/NOTAS.md` (Hisense 2026, Midea
-2026). Ler antes de recarregar a marca; acrescentar o que a tabela nova
+2026, Nipon 2025). Ler antes de recarregar a marca; acrescentar o que a tabela nova
 trouxer de diferente.
