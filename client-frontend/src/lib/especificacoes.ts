@@ -2,6 +2,7 @@
 // registry, numbers in Portuguese notation, enum slugs as words. The catalog
 // card, the product page and the Filtros controls all format through here.
 
+import { ladoDeFiltro } from "@convex/lib/catalogoFiltros"
 import type { Destaque } from "@convex/lib/catalogoFiltros"
 import {
   PADRAO_CLASSE_ENERGETICA,
@@ -13,7 +14,7 @@ import {
 // The live catalog still carries a few pre-registry keys until every brand is
 // reloaded (#44–#47, cutover #53); label those here so nothing renders as a
 // raw slug meanwhile.
-const ROTULOS_LEGADO: Record<string, string> = {
+const ROTULOS_LEGADO: Partial<Record<string, string>> = {
   capacidade: "Capacidade (kW)",
   deposito: "Depósito",
   comando: "Comando",
@@ -21,9 +22,17 @@ const ROTULOS_LEGADO: Record<string, string> = {
   caudal: "Caudal",
 }
 
+/** "Classe energética (frio)": a side filter names its side. */
+function rotuloLado(chave: string): string | undefined {
+  const lado = ladoDeFiltro(chave)
+  return lado && `${lado.hero.rotulo} (${lado.lado})`
+}
+
 /** "Frio (kW)": the registry label with its unit. */
 export function rotuloChave(chave: string): string {
-  return ROTULOS_LEGADO[chave] ?? rotuloChaveRegisto(chave)
+  return (
+    ROTULOS_LEGADO[chave] ?? rotuloLado(chave) ?? rotuloChaveRegisto(chave)
+  )
 }
 
 /** "Frio": the registry label alone, for places that show the unit apart. */

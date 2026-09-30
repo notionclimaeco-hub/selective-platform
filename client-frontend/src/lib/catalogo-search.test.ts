@@ -13,17 +13,20 @@ describe("hero filters in the URL", () => {
     const filtros = validarBusca({
       familia: "ar-condicionado",
       "frio-kw": "2.5..7.1",
-      "classe-energetica": "A+++/A++,A++/A+",
+      "classe-energetica-frio": "A+++,A++",
+      "classe-energetica-calor": "A+",
     })
     expect(filtros).toMatchObject({
       "frio-kw": "2.5..7.1",
-      "classe-energetica": "A+++/A++,A++/A+",
+      "classe-energetica-frio": "A+++,A++",
+      "classe-energetica-calor": "A+",
     })
     expect(pedidoCatalogo(filtros).filtros).toEqual({
       "frio-kw": { min: 2.5, max: 7.1 },
-      "classe-energetica": { valores: ["A+++/A++", "A++/A+"] },
+      "classe-energetica-frio": { valores: ["A+++", "A++"] },
+      "classe-energetica-calor": { valores: ["A+"] },
     })
-    expect(contarFiltrosAtivos(filtros)).toBe(3)
+    expect(contarFiltrosAtivos(filtros)).toBe(4)
   })
 
   it("accepts open-ended ranges and numbers the router already parsed", () => {
@@ -45,10 +48,21 @@ describe("hero filters in the URL", () => {
         "frio-kw": "7..2",
         "calor-kw": "abc..3",
         "deposito-l": "100..200",
-        "classe-energetica": " , ",
+        "classe-energetica-frio": " , ",
       })
     ).toEqual({ familia: "ar-condicionado" })
     expect(validarBusca({ "frio-kw": "2..3" })).toEqual({})
+  })
+
+  it("keeps only energy classes on a side, and drops pair links from before the split", () => {
+    expect(
+      validarBusca({
+        familia: "ar-condicionado",
+        "classe-energetica-frio": "A+++,A+++/A++,-,Z",
+        "classe-energetica-calor": "-",
+        "classe-energetica": "A+++/A++",
+      })
+    ).toEqual({ familia: "ar-condicionado", "classe-energetica-frio": "A+++" })
   })
 
   it("writes ranges and value lists, a lone number as a number, nothing when empty", () => {

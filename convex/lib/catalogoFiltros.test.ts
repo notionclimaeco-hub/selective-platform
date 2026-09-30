@@ -264,13 +264,13 @@ describe("hero-spec filters", () => {
   });
 
   it("matches value filters on any selected value and combines keys", () => {
-    const classes = { valores: ["A+++/A++", "A+/A"] };
-    expect(nomes(ac({ "classe-energetica": classes }))).toEqual([
+    const frio = { valores: ["A+++", "A+"] };
+    expect(nomes(ac({ "classe-energetica-frio": frio }))).toEqual([
       "g-b",
       "g-sem-kw",
     ]);
     expect(
-      nomes(ac({ "classe-energetica": classes, "frio-kw": { max: 6 } })),
+      nomes(ac({ "classe-energetica-frio": frio, "frio-kw": { max: 6 } })),
     ).toEqual(["g-b"]);
   });
 
@@ -284,7 +284,9 @@ describe("hero-spec filters", () => {
     const vazios = ac({
       "deposito-l": { min: 1000 },
       "frio-kw": {},
-      "classe-energetica": { valores: [] },
+      "classe-energetica-frio": { valores: [] },
+      // The stored pairs are not a filter of their own.
+      "classe-energetica": { valores: ["A+++/A++"] },
     });
     expect(vazios.grupos).toHaveLength(5);
   });
@@ -292,32 +294,47 @@ describe("hero-spec filters", () => {
   it("returns facets computed after the other filters, own filter lifted", () => {
     const lista = ac({
       "frio-kw": { min: 4 },
-      "classe-energetica": { valores: ["A++/A+"] },
+      "classe-energetica-frio": { valores: ["A++"] },
     });
     expect(nomes(lista)).toEqual(["g-c"]);
     expect(lista.facetas).toEqual([
-      // frio-kw over the A++/A+ groups (g-a, g-c): its own min is lifted.
+      // frio-kw over the A++ cooling groups (g-a, g-c): its own min is lifted.
       { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 5 },
-      // classe over the ≥4 kW groups (g-b, g-c, g-d): g-d has no class.
+      // cooling over the ≥4 kW groups (g-b, g-c, g-d): g-d has no class.
       {
-        chave: "classe-energetica",
+        chave: "classe-energetica-frio",
         tipo: "valores",
         valores: [
-          { valor: "A+++/A++", contagem: 1 },
-          { valor: "A++/A+", contagem: 1 },
+          { valor: "A+++", contagem: 1 },
+          { valor: "A++", contagem: 1 },
         ],
+      },
+      // heating over the ≥4 kW, A++ cooling groups (g-c).
+      {
+        chave: "classe-energetica-calor",
+        tipo: "valores",
+        valores: [{ valor: "A+", contagem: 1 }],
       },
     ]);
 
     expect(ac(undefined).facetas).toEqual([
       { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 10 },
       {
-        chave: "classe-energetica",
+        chave: "classe-energetica-frio",
         tipo: "valores",
         valores: [
-          { valor: "A+++/A++", contagem: 1 },
-          { valor: "A++/A+", contagem: 2 },
-          { valor: "A+/A", contagem: 1 },
+          { valor: "A+++", contagem: 1 },
+          { valor: "A++", contagem: 2 },
+          { valor: "A+", contagem: 1 },
+        ],
+      },
+      {
+        chave: "classe-energetica-calor",
+        tipo: "valores",
+        valores: [
+          { valor: "A++", contagem: 1 },
+          { valor: "A+", contagem: 2 },
+          { valor: "A", contagem: 1 },
         ],
       },
     ]);
@@ -330,5 +347,66 @@ describe("hero-spec filters", () => {
       { valor: "ar-condicionado", contagem: 5 },
       { valor: "aqs", contagem: 1 },
     ]);
+  });
+});
+
+describe("energy-class filters", () => {
+  // Pages carry every variant's cooling/heating pair, best first.
+  const pagina = (grupoModelo: string, pares: Array<string>) =>
+    grupo(grupoModelo, {
+      destaques: [
+        { chave: "classe-energetica", tipo: "valores", valores: pares },
+      ],
+    });
+  const grupos = indice([
+    pagina("g-perfera", ["A+++/A++", "A++/A+"]),
+    pagina("g-sensira", ["A++/A+", "A+/A+"]),
+    pagina("g-portatil", ["A/-"]),
+    pagina("g-cassete", ["-/A+", "B/C"]),
+  ]);
+  const ac = (filtros: PedidoCatalogo["filtros"]) =>
+    filtrarCatalogo(grupos, { familia: "ar-condicionado", filtros });
+
+  it("offers each side's classes best first, counting pages, never '-'", () => {
+    expect(ac(undefined).facetas).toEqual([
+      {
+        chave: "classe-energetica-frio",
+        tipo: "valores",
+        valores: [
+          { valor: "A+++", contagem: 1 },
+          { valor: "A++", contagem: 2 },
+          { valor: "A+", contagem: 1 },
+          { valor: "A", contagem: 1 },
+          { valor: "B", contagem: 1 },
+        ],
+      },
+      {
+        chave: "classe-energetica-calor",
+        tipo: "valores",
+        valores: [
+          { valor: "A++", contagem: 1 },
+          { valor: "A+", contagem: 3 },
+          { valor: "C", contagem: 1 },
+        ],
+      },
+    ]);
+  });
+
+  it("matches a page when any of its pairs has a chosen class on that side", () => {
+    expect(nomes(ac({ "classe-energetica-frio": { valores: ["A++"] } })))
+      .toEqual(["g-perfera", "g-sensira"]);
+    expect(nomes(ac({ "classe-energetica-calor": { valores: ["A+"] } })))
+      .toEqual(["g-cassete", "g-perfera", "g-sensira"]);
+    expect(
+      nomes(
+        ac({
+          "classe-energetica-frio": { valores: ["A+", "B"] },
+          "classe-energetica-calor": { valores: ["C"] },
+        }),
+      ),
+    ).toEqual(["g-cassete"]);
+    // "-" is "not printed", not a class.
+    expect(nomes(ac({ "classe-energetica-calor": { valores: ["-"] } })))
+      .toEqual([]);
   });
 });
