@@ -18,7 +18,9 @@ import {
 // every SKU with its attribute list.
 //
 // Invariant: after any write to `produtos`, `sincronizarGrupo` runs for every
-// grupoModelo the write touched (old and new when a SKU changes group).
+// grupoModelo the write touched (old and new when a SKU changes group). Import
+// promotion is the one deferral: it collects the groups its batches touch and
+// syncs them before the run closes (`importacoes:sincronizarCatalogoDaRun`).
 
 // Attribute keys the listing surfaces. `classe-energetica` holds a
 // "cooling/heating" pair; the catalog shows the cooling side.

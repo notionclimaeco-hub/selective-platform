@@ -1,5 +1,5 @@
 import { v, type Infer } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, query, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import {
@@ -201,6 +201,29 @@ function faceta(
   };
 }
 
+async function paraEntrada(
+  ctx: QueryCtx,
+  g: Doc<"catalogoGrupos">,
+): Promise<CatalogoEntry> {
+  return {
+    grupoModelo: g.grupoModelo,
+    ref: g.ref,
+    nome: g.nome,
+    marca: g.marca,
+    familia: g.familia,
+    gama: g.gama,
+    tipoUnidade: g.tipoUnidade,
+    precoDesdeCents: g.precoDesdeCents,
+    precoAteCents: g.precoAteCents,
+    numVariantes: g.numVariantes,
+    frioKwMin: g.frioKwMin,
+    frioKwMax: g.frioKwMax,
+    classeEnergetica: g.classeEnergetica,
+    destaques: g.destaques ?? [],
+    capaUrl: g.capa === null ? null : await ctx.storage.getUrl(g.capa),
+  };
+}
+
 export const listar = query({
   args: {
     busca: v.optional(v.string()),
@@ -304,25 +327,7 @@ export const listar = query({
       pagina * porPagina + porPagina,
     );
 
-    const entradas = await Promise.all(
-      fatia.map(async (g): Promise<CatalogoEntry> => ({
-        grupoModelo: g.grupoModelo,
-        ref: g.ref,
-        nome: g.nome,
-        marca: g.marca,
-        familia: g.familia,
-        gama: g.gama,
-        tipoUnidade: g.tipoUnidade,
-        precoDesdeCents: g.precoDesdeCents,
-        precoAteCents: g.precoAteCents,
-        numVariantes: g.numVariantes,
-        frioKwMin: g.frioKwMin,
-        frioKwMax: g.frioKwMax,
-        classeEnergetica: g.classeEnergetica,
-        destaques: g.destaques ?? [],
-        capaUrl: g.capa === null ? null : await ctx.storage.getUrl(g.capa),
-      })),
-    );
+    const entradas = await Promise.all(fatia.map((g) => paraEntrada(ctx, g)));
 
     return {
       entradas,
@@ -336,56 +341,92 @@ export const listar = query({
   },
 });
 
+const VITRINE_MAX = 12;
+
+/**
+ * The first product pages of the default order, optionally within a familia —
+ * the landing page's showcases. Unlike `listar` it reads only the rows it
+ * returns (index on peso, nome), so a catalog change costs a few KB here
+ * instead of a full-table read per showcase. Within a peso, names sort by
+ * code unit rather than Portuguese collation (upper case before lower, accents
+ * last), so the order can differ from `listar` there — fine for a showcase.
+ */
+export const vitrine = query({
+  args: {
+    familia: v.optional(v.string()),
+    limite: v.number(),
+  },
+  returns: v.array(catalogoEntryValidator),
+  handler: async (ctx, args) => {
+    const limite = Math.max(1, Math.min(VITRINE_MAX, Math.floor(args.limite)));
+    const familia = args.familia;
+    const grupos =
+      familia === undefined
+        ? await ctx.db
+            .query("catalogoGrupos")
+            .withIndex("by_peso_nome")
+            .take(limite)
+        : await ctx.db
+            .query("catalogoGrupos")
+            .withIndex("by_familia_peso_nome", (q) => q.eq("familia", familia))
+            .take(limite);
+    return await Promise.all(grupos.map((g) => paraEntrada(ctx, g)));
+  },
+});
+
 // --- Rebuild -----------------------------------------------------------------
 
 const LOTE = 200;
 
 /**
- * Rebuild `catalogoGrupos` from `produtos`, in bounded batches that reschedule
- * themselves: first empty the table, then walk every SKU and sync the groups
- * seen in each batch. Run once after deploying the table, and after any bulk
- * migration that writes `produtos` without going through the synced helpers:
+ * Rebuild `catalogoGrupos` from `produtos` in place, in bounded batches that
+ * reschedule themselves: first walk every SKU and sync the groups seen in each
+ * batch, then walk the table and sync each row's group, which drops rows whose
+ * group no longer has published SKUs. Rows are updated, never emptied and
+ * refilled, so the shop keeps its full listing throughout, and unchanged rows
+ * are not written (no cache invalidation for a no-op rebuild). Run after
+ * deploying a new derived field, and after any bulk migration that writes
+ * `produtos` without going through the synced helpers:
  *
  *   npx convex run catalogo:reconstruir
  */
 export const reconstruir = internalMutation({
   args: {
-    fase: v.optional(v.union(v.literal("limpar"), v.literal("construir"))),
+    fase: v.optional(v.union(v.literal("construir"), v.literal("limpar"))),
     cursor: v.optional(v.union(v.string(), v.null())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const fase = args.fase ?? "limpar";
+    const fase = args.fase ?? "construir";
 
-    if (fase === "limpar") {
-      const lote = await ctx.db.query("catalogoGrupos").take(LOTE);
-      for (const g of lote) await ctx.db.delete(g._id);
-      if (lote.length === LOTE) {
-        await ctx.scheduler.runAfter(0, internal.catalogo.reconstruir, {
-          fase: "limpar",
-        });
-      } else {
-        await ctx.scheduler.runAfter(0, internal.catalogo.reconstruir, {
-          fase: "construir",
-          cursor: null,
-        });
-      }
+    if (fase === "construir") {
+      const pagina = await ctx.db
+        .query("produtos")
+        .paginate({ numItems: LOTE, cursor: args.cursor ?? null });
+      // A group straddling two batches is synced twice — harmless, idempotent.
+      await sincronizarGrupos(
+        ctx,
+        pagina.page.map((p) => p.grupoModelo),
+      );
+      await ctx.scheduler.runAfter(0, internal.catalogo.reconstruir, {
+        fase: pagina.isDone ? "limpar" : "construir",
+        cursor: pagina.isDone ? null : pagina.continueCursor,
+      });
       return null;
     }
 
     const pagina = await ctx.db
-      .query("produtos")
+      .query("catalogoGrupos")
       .paginate({ numItems: LOTE, cursor: args.cursor ?? null });
-    // A group straddling two batches is synced twice — harmless, idempotent.
     await sincronizarGrupos(
       ctx,
-      pagina.page.map((p) => p.grupoModelo),
+      pagina.page.map((g) => g.grupoModelo),
     );
     if (pagina.isDone) {
       console.log("catalogo:reconstruir concluído");
     } else {
       await ctx.scheduler.runAfter(0, internal.catalogo.reconstruir, {
-        fase: "construir",
+        fase: "limpar",
         cursor: pagina.continueCursor,
       });
     }

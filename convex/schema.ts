@@ -296,7 +296,10 @@ export default defineSchema({
     criadoEm: v.number(),
   })
     .index("by_grupoModelo", ["grupoModelo"])
-    .index("by_familia", ["familia"])
+    // The default ("relevancia") order without a search term, so the landing
+    // page's `catalogo.vitrine` reads only the rows it shows.
+    .index("by_peso_nome", ["peso", "nome"])
+    .index("by_familia_peso_nome", ["familia", "peso", "nome"])
     .index("by_marca", ["marca"]),
 
   // One-page catalog PDFs and 110 dpi PNG renders, stored once per
@@ -331,6 +334,10 @@ export default defineSchema({
     numDescontinuados: v.optional(v.number()),
     numImagensAplicadas: v.optional(v.number()),
     numCandidatasRemovidas: v.optional(v.number()),
+    // While promoting: every grupoModelo the batches touched, synced into
+    // `catalogoGrupos` only after the last batch (few large writes instead of
+    // one per batch, each of which invalidates every cached listing).
+    gruposPorSincronizar: v.optional(v.array(v.string())),
     criadoEm: v.number(),
     decididoEm: v.optional(v.number()),
     decididoPor: v.optional(v.string()),

@@ -77,11 +77,11 @@ function BaralhoComDados() {
   // first product with a photo; a family without one keeps its icon.
   const paginas = useSuspenseQueries({
     queries: FAMILIAS_DO_BARALHO.map((familia) =>
-      convexQuery(api.catalogo.listar, { familia, pagina: 0, porPagina: 6 })
+      convexQuery(api.catalogo.vitrine, { familia, limite: 6 })
     ),
   })
   const cartas = FAMILIAS_DO_BARALHO.map((familia, i): Carta => {
-    const produto = paginas[i]?.data.entradas.find((p) => p.capaUrl)
+    const produto = paginas[i]?.data.find((p) => p.capaUrl)
     return produto
       ? { familia, marca: produto.marca, capaUrl: produto.capaUrl ?? undefined }
       : { familia }

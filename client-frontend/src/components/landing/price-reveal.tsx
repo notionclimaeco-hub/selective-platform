@@ -31,10 +31,10 @@ export function PriceReveal() {
 function PalcoComDados() {
   // Same arguments as the showcase below, so both share one cached query.
   const { data } = useSuspenseQuery(
-    convexQuery(api.catalogo.listar, { pagina: 0, porPagina: 8 })
+    convexQuery(api.catalogo.vitrine, { limite: 8 })
   )
-  const comFoto = data.entradas.filter((p) => p.capaUrl)
-  const produtos = (comFoto.length >= 3 ? comFoto : data.entradas).slice(0, 3)
+  const comFoto = data.filter((p) => p.capaUrl)
+  const produtos = (comFoto.length >= 3 ? comFoto : data).slice(0, 3)
   return <Palco produtos={produtos} />
 }
 
