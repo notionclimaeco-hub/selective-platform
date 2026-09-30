@@ -311,7 +311,8 @@ function CorpoGrupo({
       {erro && <p className="text-sm text-destructive">{erro}</p>}
       </div>
 
-      <div className="min-w-0 lg:sticky lg:top-4">
+      {/* Sticks just below the app header (h-16). */}
+      <div className="min-w-0 lg:sticky lg:top-20">
         <VisorPagina
           paginas={grupo.paginas}
           pagina={paginaAtual}
