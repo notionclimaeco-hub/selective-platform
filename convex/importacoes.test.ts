@@ -686,8 +686,13 @@ describe("importacoes: promoção", () => {
     expect(await run(test, id)).toMatchObject({ estado: "aprovada", numPromovidos: 151 });
     expect(await grupo("hisense-energy")).toMatchObject({ numVariantes: 151 });
     expect(await grupo("hisense-solo")).toBeNull();
-    // The work list is cleared once the run closes.
+    // The work list is cleared once the run closes, and a late second sync
+    // chain (retomarPromocao pressed mid-sync) stops quietly.
     expect((await run(test, id))?.gruposPorSincronizar).toBeUndefined();
+    await test.mutation(internal.importacoes.sincronizarCatalogoDaRun, {
+      importacaoId: id,
+    });
+    expect(await run(test, id)).toMatchObject({ estado: "aprovada" });
   });
 
   it("retomarPromocao re-schedules a run left in a-promover and refuses other states", async () => {

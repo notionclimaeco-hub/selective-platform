@@ -619,13 +619,15 @@ function juntarGrupos(
  * Last step of promotion: sync `LOTE_SINCRONIZACAO` of the run's touched
  * groups into `catalogoGrupos` per call, rescheduling itself, then close the
  * run as `aprovada`. Re-running (after `retomarPromocao`) is harmless:
- * syncing is idempotent and skips unchanged rows.
+ * syncing is idempotent and skips unchanged rows, and a second chain that
+ * finds the run already closed stops quietly.
  */
 export const sincronizarCatalogoDaRun = internalMutation({
   args: { importacaoId: v.id("importacoes") },
   returns: v.null(),
   handler: async (ctx, args) => {
     const run = await obterRun(ctx, args.importacaoId);
+    if (run.estado === "aprovada") return null;
     exigirEstado(run, "a-promover");
     const grupos = run.gruposPorSincronizar ?? [];
     await sincronizarGrupos(ctx, grupos.slice(0, LOTE_SINCRONIZACAO));
