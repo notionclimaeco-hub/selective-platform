@@ -66,7 +66,9 @@ function ListaOrcamento({
 }) {
   const { itens, definirQuantidade, remover, limpar, repor } = useOrcamento()
   const { userId } = useRouteContext({ from: "__root__" })
-  const { vista, orgActiva } = useEmpresaActiva(Boolean(userId))
+  const { vista, orgActiva, activacaoFalhou } = useEmpresaActiva(
+    Boolean(userId)
+  )
   const estado = estadoCompra(Boolean(userId), vista)
   const revenda = useMapaPrecosPorRef(itens.map((i) => i.ref))
   const totais = totaisOrcamento(itens, revenda)
@@ -84,6 +86,8 @@ function ListaOrcamento({
         linhas: itens.map((i) => ({ ref: i.ref, qty: i.quantidade })),
       })
       transitarParaSucesso(() => {
+        // A pending "Reverter" would put the ordered lines back in the list.
+        toast.dismiss()
         onSubmetida({ encomendaId, numero, totalCents: totais.totalCents })
         limpar()
       })
@@ -114,7 +118,7 @@ function ListaOrcamento({
   const botao = (className?: string) => (
     <BotaoPrincipal
       estado={estado}
-      orgActiva={orgActiva}
+      preparacao={preparacao}
       aSubmeter={aSubmeter}
       onEntrar={() => setPedidoAberto(true)}
       onSubmeter={() => void onSubmeter()}
@@ -122,7 +126,8 @@ function ListaOrcamento({
     />
   )
   const eRevenda = revenda !== null
-  const aviso = nota(estado, erro)
+  const preparacao = prepararSubmissao(orgActiva, activacaoFalhou, revenda)
+  const aviso = nota(estado, preparacao, erro)
 
   return (
     <>
@@ -228,15 +233,14 @@ function ListaOrcamento({
 /** The primary action for the visitor's state (see `estadoCompra`). */
 function BotaoPrincipal({
   estado,
-  orgActiva,
+  preparacao,
   aSubmeter,
   onEntrar,
   onSubmeter,
   className,
 }: {
   estado: EstadoCompra
-  // `submeter` needs the company org in the Convex JWT; disabled until then.
-  orgActiva: boolean
+  preparacao: Preparacao
   aSubmeter: boolean
   onEntrar: () => void
   onSubmeter: () => void
@@ -285,25 +289,55 @@ function BotaoPrincipal({
         </Button>
       )
     case "aprovada":
-      return (
+      return preparacao === "activacao-falhou" ? (
+        <Button {...props} onClick={() => window.location.reload()}>
+          Tentar de novo
+        </Button>
+      ) : (
         <Button
           {...props}
-          disabled={aSubmeter || !orgActiva}
+          disabled={aSubmeter || preparacao !== "pronta"}
           onClick={onSubmeter}
         >
           {aSubmeter && <LoaderCircle className="animate-spin" />}
-          {aSubmeter
-            ? "A submeter…"
-            : orgActiva
-              ? "Submeter encomenda"
-              : "A activar a empresa…"}
+          {aSubmeter ? "A submeter…" : ROTULO_SUBMETER[preparacao]}
         </Button>
       )
   }
 }
 
+/**
+ * Where an approved member's submit stands. `submeter` needs the company org
+ * in the Convex JWT, and the success screen shows the total priced here, so
+ * the reseller prices must have loaded too.
+ */
+type Preparacao =
+  "pronta" | "a-activar" | "activacao-falhou" | "a-carregar-precos"
+
+function prepararSubmissao(
+  orgActiva: boolean,
+  activacaoFalhou: boolean,
+  revenda: ReadonlyMap<string, number> | null
+): Preparacao {
+  if (!orgActiva) return activacaoFalhou ? "activacao-falhou" : "a-activar"
+  return revenda === null ? "a-carregar-precos" : "pronta"
+}
+
+const ROTULO_SUBMETER: Record<
+  Exclude<Preparacao, "activacao-falhou">,
+  string
+> = {
+  pronta: "Submeter encomenda",
+  "a-activar": "A activar a empresa…",
+  "a-carregar-precos": "A carregar preços…",
+}
+
 /** One line under the action: why it is locked, or what submitting does. */
-function nota(estado: EstadoCompra, erro: string | null) {
+function nota(
+  estado: EstadoCompra,
+  preparacao: Preparacao,
+  erro: string | null
+) {
   if (erro) {
     return <p className="text-xs text-destructive">{erro}</p>
   }
@@ -323,6 +357,13 @@ function nota(estado: EstadoCompra, erro: string | null) {
         </p>
       )
     case "aprovada":
+      if (preparacao === "activacao-falhou") {
+        return (
+          <p className="text-xs text-destructive">
+            Não foi possível activar a empresa nesta sessão.
+          </p>
+        )
+      }
       return (
         <p className="text-xs text-muted-foreground">
           Os preços de revenda ficam congelados ao submeter.
