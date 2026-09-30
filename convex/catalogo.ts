@@ -2,7 +2,14 @@ import { v, type Infer } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { normalizarTexto, sincronizarGrupos } from "./lib/catalogoGrupos";
+import {
+  normalizarTexto,
+  ordenarValores,
+  sincronizarGrupos,
+  type Destaque,
+} from "./lib/catalogoGrupos";
+import { definicoesHero, type ChaveSpec } from "./lib/specRegistry";
+import { destaqueValidator } from "./schema";
 
 // Public catalog listing, served from the denormalised `catalogoGrupos` table
 // (see lib/catalogoGrupos.ts). One row per product page, already reduced to
@@ -43,6 +50,8 @@ export const catalogoEntryValidator = v.object({
   frioKwMax: v.optional(v.number()),
   // Best energy class in the group.
   classeEnergetica: v.optional(v.string()),
+  // Hero specs of the familia, in registry order (see catalogoGrupos).
+  destaques: v.array(destaqueValidator),
   // Resolved URL of the cover image, or null when the group has no photo.
   capaUrl: v.union(v.string(), v.null()),
 });
@@ -52,6 +61,31 @@ const contagemValidator = v.object({
   valor: v.string(),
   contagem: v.number(),
 });
+
+// A hero-spec filter: a range for `numero` keys (either end open), a set of
+// values for the others. Empty ranges and empty sets filter nothing.
+const filtroDestaqueValidator = v.union(
+  v.object({ min: v.optional(v.number()), max: v.optional(v.number()) }),
+  v.object({ valores: v.array(v.string()) }),
+);
+type FiltroDestaque = Infer<typeof filtroDestaqueValidator>;
+
+// What the Filtros sheet offers for one hero key: the span of a numeric key,
+// or each value with the number of product pages carrying it.
+const facetaValidator = v.union(
+  v.object({
+    chave: v.string(),
+    tipo: v.literal("intervalo"),
+    min: v.number(),
+    max: v.number(),
+  }),
+  v.object({
+    chave: v.string(),
+    tipo: v.literal("valores"),
+    valores: v.array(contagemValidator),
+  }),
+);
+type Faceta = Infer<typeof facetaValidator>;
 
 const listaValidator = v.object({
   entradas: v.array(catalogoEntryValidator),
@@ -65,6 +99,10 @@ const listaValidator = v.object({
   // hides the alternatives.
   familias: v.array(contagemValidator),
   marcas: v.array(contagemValidator),
+  // Hero-spec facets of the selected familia, in registry order, each over
+  // the pages passing every other filter (its own lifted). Empty without a
+  // familia; a key no remaining page carries is left out.
+  facetas: v.array(facetaValidator),
 });
 
 /**
@@ -94,11 +132,83 @@ function contar(
     .sort((a, b) => b.contagem - a.contagem || a.valor.localeCompare(b.valor));
 }
 
+function filtroAtivo(f: FiltroDestaque): boolean {
+  return "valores" in f
+    ? f.valores.length > 0
+    : f.min !== undefined || f.max !== undefined;
+}
+
+/**
+ * A range matches when the group's min–max overlaps it; a value set matches
+ * when the group has any of the values. A group without the key never matches.
+ */
+function passaFiltro(
+  destaque: Destaque | undefined,
+  f: FiltroDestaque,
+): boolean {
+  if ("valores" in f) {
+    return (
+      destaque?.tipo === "valores" &&
+      destaque.valores.some((valor) => f.valores.includes(valor))
+    );
+  }
+  return (
+    destaque?.tipo === "intervalo" &&
+    (f.min === undefined || destaque.max >= f.min) &&
+    (f.max === undefined || destaque.min <= f.max)
+  );
+}
+
+function destaqueDe(
+  g: Doc<"catalogoGrupos">,
+  chave: string,
+): Destaque | undefined {
+  return g.destaques?.find((d) => d.chave === chave);
+}
+
+function faceta(
+  grupos: Array<Doc<"catalogoGrupos">>,
+  def: ChaveSpec,
+): Faceta | undefined {
+  const destaques = grupos
+    .map((g) => destaqueDe(g, def.chave))
+    .filter((d) => d !== undefined);
+  if (def.tipo === "numero") {
+    const intervalos = destaques.filter((d) => d.tipo === "intervalo");
+    if (intervalos.length === 0) return undefined;
+    return {
+      chave: def.chave,
+      tipo: "intervalo",
+      min: Math.min(...intervalos.map((d) => d.min)),
+      max: Math.max(...intervalos.map((d) => d.max)),
+    };
+  }
+  const contagens = new Map<string, number>();
+  for (const d of destaques) {
+    if (d.tipo !== "valores") continue;
+    for (const valor of d.valores) {
+      contagens.set(valor, (contagens.get(valor) ?? 0) + 1);
+    }
+  }
+  if (contagens.size === 0) return undefined;
+  return {
+    chave: def.chave,
+    tipo: "valores",
+    valores: ordenarValores(def, contagens.keys()).map((valor) => ({
+      valor,
+      contagem: contagens.get(valor) ?? 0,
+    })),
+  };
+}
+
 export const listar = query({
   args: {
     busca: v.optional(v.string()),
     familia: v.optional(v.string()),
     marca: v.optional(v.string()),
+    // Hero-spec filters keyed by hero key, e.g. {"frio-kw": {min: 2, max: 4}}.
+    // Only applied with a `familia`, and only for that familia's hero keys.
+    filtros: v.optional(v.record(v.string(), filtroDestaqueValidator)),
     ordenar: v.optional(ordenacaoValidator),
     // 0-based.
     pagina: v.optional(v.number()),
@@ -122,10 +232,39 @@ export const listar = query({
     const passaMarca = (g: Doc<"catalogoGrupos">) =>
       args.marca === undefined || g.marca === args.marca;
 
+    const defsHero =
+      args.familia === undefined ? [] : definicoesHero(args.familia);
+    const filtrosAtivos = defsHero.flatMap((def) => {
+      const filtro = args.filtros?.[def.chave];
+      return filtro && filtroAtivo(filtro)
+        ? [{ chave: def.chave, filtro }]
+        : [];
+    });
+    // Every active hero filter except `excepto` (the facet being computed).
+    const passaDestaques = (g: Doc<"catalogoGrupos">, excepto?: string) =>
+      filtrosAtivos.every(
+        ({ chave, filtro }) =>
+          chave === excepto || passaFiltro(destaqueDe(g, chave), filtro),
+      );
+
     const base = todos.filter(passaBusca);
+    // Hero filters belong to the selected familia, so lifting familia for its
+    // facet lifts them too.
     const familias = contar(base.filter(passaMarca), "familia");
-    const marcas = contar(base.filter(passaFamilia), "marca");
-    const filtrados = base.filter((g) => passaFamilia(g) && passaMarca(g));
+    const daFamilia = base.filter(passaFamilia);
+    const marcas = contar(
+      daFamilia.filter((g) => passaDestaques(g)),
+      "marca",
+    );
+    const daFamiliaEMarca = daFamilia.filter(passaMarca);
+    const facetas = defsHero.flatMap((def) => {
+      const f = faceta(
+        daFamiliaEMarca.filter((g) => passaDestaques(g, def.chave)),
+        def,
+      );
+      return f ? [f] : [];
+    });
+    const filtrados = daFamiliaEMarca.filter((g) => passaDestaques(g));
 
     const ordenar = args.ordenar ?? "relevancia";
     filtrados.sort((a, b) => {
@@ -180,11 +319,20 @@ export const listar = query({
         frioKwMin: g.frioKwMin,
         frioKwMax: g.frioKwMax,
         classeEnergetica: g.classeEnergetica,
+        destaques: g.destaques ?? [],
         capaUrl: g.capa === null ? null : await ctx.storage.getUrl(g.capa),
       })),
     );
 
-    return { entradas, total, numPaginas, pagina, familias, marcas };
+    return {
+      entradas,
+      total,
+      numPaginas,
+      pagina,
+      familias,
+      marcas,
+      facetas,
+    };
   },
 });
 
