@@ -123,7 +123,7 @@ export type GrupoCatalogo = {
   tipoUnidade?: string;
   precoDesdeCents: number;
   numVariantes: number;
-  destaques?: Array<Destaque>;
+  destaques: Array<Destaque>;
   capa: string | null;
   textoBusca: string;
   peso: number;
@@ -169,10 +169,9 @@ export function codificarIndice(
       if (g.capa === null) linha.x = 1;
       if (g.gama !== undefined) linha.gama = g.gama;
       if (g.tipoUnidade !== undefined) linha.t = g.tipoUnidade;
-      const destaques = g.destaques ?? [];
-      if (destaques.length > 0) {
+      if (g.destaques.length > 0) {
         linha.d = Object.fromEntries(
-          destaques.map((d) => [
+          g.destaques.map((d) => [
             d.chave,
             d.tipo === "intervalo" ? [d.min, d.max] : d.valores,
           ]),

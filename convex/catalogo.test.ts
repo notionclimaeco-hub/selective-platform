@@ -312,29 +312,6 @@ describe("hero specs (destaques)", () => {
       { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 2.5 },
     ]);
   });
-
-  it("reconstruir fills destaques on rows written before the field existed", async () => {
-    vi.useFakeTimers();
-    try {
-      const test = t();
-      await importar(test, [sku("FTXM25")]);
-      await publicar(test, ["FTXM25"]);
-      await test.run(async (ctx) => {
-        const g = await ctx.db.query("catalogoGrupos").first();
-        await ctx.db.patch(g!._id, { destaques: undefined });
-      });
-      expect((await grupos(test))[0]?.destaques).toEqual([]);
-
-      await test.mutation(internal.catalogo.reconstruir, {});
-      await test.finishAllScheduledFunctions(vi.runAllTimers);
-
-      expect((await grupos(test))[0]?.destaques).toEqual([
-        { chave: "frio-kw", tipo: "intervalo", min: 2.5, max: 2.5 },
-      ]);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
 });
 
 describe("catalogo.vitrine", () => {

@@ -3,12 +3,7 @@ import { internalMutation, query, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { sincronizarGrupos } from "./lib/catalogoGrupos";
-import {
-  codificarIndice,
-  filtrarCatalogo,
-  lerIndice,
-  paginar,
-} from "./lib/catalogoFiltros";
+import { codificarIndice } from "./lib/catalogoFiltros";
 import { destaqueValidator } from "./schema";
 
 // Public catalog, served from the denormalised `catalogoGrupos` table (see
@@ -19,14 +14,6 @@ import { destaqueValidator } from "./schema";
 // (`capas`); the landing page's showcases read a few indexed rows (`vitrine`).
 //
 // Never returns reseller/discount pricing — only the "desde" PVP.
-
-export const ordenacaoValidator = v.union(
-  v.literal("relevancia"),
-  v.literal("preco-asc"),
-  v.literal("preco-desc"),
-  v.literal("nome"),
-  v.literal("recentes"),
-);
 
 // One catalog entry = one product page (group of SKUs sharing grupoModelo).
 export const catalogoEntryValidator = v.object({
@@ -42,10 +29,6 @@ export const catalogoEntryValidator = v.object({
   precoDesdeCents: v.number(),
   precoAteCents: v.number(),
   numVariantes: v.number(),
-  // Deprecated by `destaques`; gone with `listar` once no client reads them.
-  frioKwMin: v.optional(v.number()),
-  frioKwMax: v.optional(v.number()),
-  classeEnergetica: v.optional(v.string()),
   // Hero specs of the familia, in registry order (see catalogoGrupos).
   destaques: v.array(destaqueValidator),
   // Resolved URL of the cover image, or null when the group has no photo.
@@ -131,109 +114,20 @@ async function paraEntrada(
     precoDesdeCents: g.precoDesdeCents,
     precoAteCents: g.precoAteCents,
     numVariantes: g.numVariantes,
-    frioKwMin: g.frioKwMin,
-    frioKwMax: g.frioKwMax,
-    classeEnergetica: g.classeEnergetica,
-    destaques: g.destaques ?? [],
+    destaques: g.destaques,
     capaUrl: g.capa === null ? null : await ctx.storage.getUrl(g.capa),
   };
 }
-
-const contagemValidator = v.object({
-  valor: v.string(),
-  contagem: v.number(),
-});
-
-/**
- * Server-side listing for clients deployed before `indice`: the same
- * lib/catalogoFiltros.ts code over the whole table, one page at a time.
- * Removed once no deployed client calls it.
- */
-export const listar = query({
-  args: {
-    busca: v.optional(v.string()),
-    familia: v.optional(v.string()),
-    marca: v.optional(v.string()),
-    filtros: v.optional(
-      v.record(
-        v.string(),
-        v.union(
-          v.object({
-            min: v.optional(v.number()),
-            max: v.optional(v.number()),
-          }),
-          v.object({ valores: v.array(v.string()) }),
-        ),
-      ),
-    ),
-    ordenar: v.optional(ordenacaoValidator),
-    // 0-based.
-    pagina: v.optional(v.number()),
-    porPagina: v.optional(v.number()),
-  },
-  returns: v.object({
-    entradas: v.array(catalogoEntryValidator),
-    total: v.number(),
-    numPaginas: v.number(),
-    pagina: v.number(),
-    familias: v.array(contagemValidator),
-    marcas: v.array(contagemValidator),
-    facetas: v.array(
-      v.union(
-        v.object({
-          chave: v.string(),
-          tipo: v.literal("intervalo"),
-          min: v.number(),
-          max: v.number(),
-        }),
-        v.object({
-          chave: v.string(),
-          tipo: v.literal("valores"),
-          valores: v.array(contagemValidator),
-        }),
-      ),
-    ),
-  }),
-  handler: async (ctx, args) => {
-    const todos = await ctx.db.query("catalogoGrupos").collect();
-    const { porPagina: pedidos, pagina: paginaPedida, ...pedido } = args;
-    const resultado = filtrarCatalogo(
-      lerIndice(codificarIndice(todos)),
-      pedido,
-    );
-    const porPagina = Math.max(1, Math.min(48, Math.floor(pedidos ?? 24)));
-    const { pagina, numPaginas, inicio, fim } = paginar(
-      resultado.grupos.length,
-      paginaPedida ?? 0,
-      porPagina,
-    );
-    const porGrupo = new Map(todos.map((g) => [g.grupoModelo, g]));
-    const entradas = await Promise.all(
-      resultado.grupos
-        .slice(inicio, fim)
-        .map((g) => paraEntrada(ctx, porGrupo.get(g.grupoModelo)!)),
-    );
-    return {
-      entradas,
-      total: resultado.grupos.length,
-      numPaginas,
-      pagina,
-      familias: resultado.familias,
-      marcas: resultado.marcas,
-      facetas: resultado.facetas,
-    };
-  },
-});
 
 const VITRINE_MAX = 12;
 
 /**
  * The first product pages of the default order, optionally within a familia —
- * the landing page's showcases. Unlike `listar` it reads only the rows it
+ * the landing page's showcases. Unlike `indice` it reads only the rows it
  * returns (index on peso, nome), so a catalog change costs a few KB here
  * instead of a full-table read per showcase. Within a peso, names sort by
  * code unit rather than Portuguese collation (upper case before lower, accents
- * last), so the order can differ from `listar` there — fine for a showcase.
+ * last), so the order can differ from the catalog there — fine for a showcase.
  */
 export const vitrine = query({
   args: {
