@@ -271,9 +271,10 @@ function ProdutoLayout({
         )}
       </div>
 
-      {orcamento.mostrarAviso && (
-        <AvisoOrcamento totalItens={orcamento.totalItens} />
-      )}
+      <AvisoOrcamento
+        aberto={orcamento.mostrarAviso}
+        totalItens={orcamento.totalItens}
+      />
     </div>
   )
 }
@@ -464,10 +465,27 @@ function useOrcamentoDaVisita() {
 
 /**
  * Floating "Ver orçamento · N" pill, bottom centre, above the phone tab bar.
- * `data-aviso-orcamento` makes the body leave room for it and lifts toasts
- * over it (styles.css).
+ * It rises in when opened and sinks out when closed (list emptied): it stays
+ * mounted, showing the last count, until the exit animation ends. Reduced
+ * motion skips both. `data-aviso-orcamento` lifts toasts over it
+ * (styles.css).
  */
-function AvisoOrcamento({ totalItens }: { totalItens: number }) {
+function AvisoOrcamento({
+  aberto,
+  totalItens,
+}: {
+  aberto: boolean
+  totalItens: number
+}) {
+  const [montado, setMontado] = useState(aberto)
+  const [contagem, setContagem] = useState(totalItens)
+  // Adjust during render (not in an effect) so the opening frame is already
+  // mounted and the count never flashes "· 0" on the way out.
+  if (aberto && !montado) setMontado(true)
+  if (totalItens > 0 && totalItens !== contagem) setContagem(totalItens)
+
+  if (!montado) return null
+
   return (
     <div
       data-aviso-orcamento
@@ -475,11 +493,16 @@ function AvisoOrcamento({ totalItens }: { totalItens: number }) {
     >
       <Link
         to="/orcamento"
-        className="pointer-events-auto inline-flex h-12 max-w-full animate-in items-center gap-2.5 rounded-full bg-foreground pr-5 pl-4 text-[15px] font-medium text-background shadow-lg duration-200 outline-none fade-in slide-in-from-bottom-4 focus-visible:ring-3 focus-visible:ring-ring/40"
+        data-state={aberto ? "open" : "closed"}
+        inert={!aberto}
+        onAnimationEnd={() => {
+          if (!aberto) setMontado(false)
+        }}
+        className="pointer-events-auto inline-flex h-12 max-w-full items-center gap-2.5 rounded-full bg-foreground pr-5 pl-4 text-[15px] font-medium text-background shadow-lg duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fill-mode-forwards data-[state=closed]:fade-out data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:slide-in-from-bottom-4 motion-reduce:animate-none data-[state=closed]:motion-reduce:hidden"
       >
         <FileText className="size-4.5 shrink-0" />
         <span className="truncate">Ver orçamento</span>
-        <span className="tabular-nums opacity-70">· {totalItens}</span>
+        <span className="tabular-nums opacity-70">· {contagem}</span>
       </Link>
     </div>
   )
