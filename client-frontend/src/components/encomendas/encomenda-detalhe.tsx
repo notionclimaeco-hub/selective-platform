@@ -119,7 +119,11 @@ export function EncomendaDetalhe({
             />
           )}
 
-          <LinhasEncomenda linhas={encomenda.linhas} totais={encomenda} />
+          <LinhasEncomenda
+            linhas={encomenda.linhas}
+            totais={encomenda}
+            levantada={encomenda.levantadaAt !== undefined}
+          />
         </div>
 
         <Cartao titulo="Detalhes" className="lg:sticky lg:top-8">

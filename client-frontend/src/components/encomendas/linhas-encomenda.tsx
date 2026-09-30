@@ -28,6 +28,7 @@ export function LinhasEncomenda({
   linhas,
   totais,
   mostrarEstado = true,
+  levantada = false,
 }: {
   linhas: Array<LinhaVista>
   totais: {
@@ -36,6 +37,8 @@ export function LinhasEncomenda({
     totalPagamentoCents?: number
   }
   mostrarEstado?: boolean
+  /** The installer collected the order: warehouse qty reads "levantado". */
+  levantada?: boolean
 }) {
   const { subtotal, iva, total, estimado } = totaisEncomenda(totais)
   const activas = linhas.filter((l) => l.estadoLinha !== "retirada")
@@ -66,7 +69,12 @@ export function LinhasEncomenda({
 
       <ul className="divide-y">
         {[...activas, ...retiradas].map((linha) => (
-          <Linha key={linha.ref} linha={linha} mostrarEstado={mostrarEstado} />
+          <Linha
+            key={linha.ref}
+            linha={linha}
+            mostrarEstado={mostrarEstado}
+            levantada={levantada}
+          />
         ))}
       </ul>
 
@@ -109,12 +117,14 @@ const COLUNAS = "grid-cols-[minmax(0,1fr)_4rem_7.5rem_7.5rem] gap-4 px-5"
 function Linha({
   linha,
   mostrarEstado,
+  levantada,
 }: {
   linha: LinhaVista
   mostrarEstado: boolean
+  levantada: boolean
 }) {
   const retirada = linha.estadoLinha === "retirada"
-  const progresso = progressoLinha(linha)
+  const progresso = progressoLinha(linha, levantada)
   const riscado = retirada && "text-muted-foreground line-through"
 
   return (
@@ -201,11 +211,14 @@ type ParteProgresso = {
 }
 
 /** Post-payment delivery buckets, only when the office has set them. */
-function progressoLinha(l: LinhaVista): Array<ParteProgresso> | null {
+function progressoLinha(
+  l: LinhaVista,
+  levantada: boolean
+): Array<ParteProgresso> | null {
   if (l.qtyPorEnviar === undefined) return null
   const partes: Array<ParteProgresso> = [
     {
-      rotulo: "no armazém",
+      rotulo: levantada ? "levantado" : "no armazém",
       qty: l.qtyAguardaRecolha ?? 0,
       icon: PackageCheck,
       tom: "text-primary",
@@ -225,7 +238,8 @@ function progressoLinha(l: LinhaVista): Array<ParteProgresso> | null {
   ]
   if ((l.qtyFalhada ?? 0) > 0) {
     partes.push({
-      rotulo: "reembolsado",
+      // Failed by the supplier; the office refunds it by hand (#78).
+      rotulo: "a reembolsar",
       qty: l.qtyFalhada ?? 0,
       icon: Clock,
       tom: "text-destructive",
