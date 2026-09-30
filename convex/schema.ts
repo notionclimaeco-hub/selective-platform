@@ -81,6 +81,23 @@ export const atributoValidator = v.object({
   valor: v.string(),
 });
 
+// One hero spec of a product page, summarised over its published variants:
+// `numero` keys as a min–max span, `enum`/`texto` keys as their distinct
+// values. Also the shape of the hero-spec facets `catalogo.listar` returns.
+export const destaqueValidator = v.union(
+  v.object({
+    chave: v.string(),
+    tipo: v.literal("intervalo"),
+    min: v.number(),
+    max: v.number(),
+  }),
+  v.object({
+    chave: v.string(),
+    tipo: v.literal("valores"),
+    valores: v.array(v.string()),
+  }),
+);
+
 // Import-time vocabularies. `familia`/`sistema` are stored as free strings (per
 // spec) but validated against these lists on import so bad rows are rejected
 // with a clear error. Keep these in sync with the frontend label maps.
@@ -259,9 +276,15 @@ export default defineSchema({
     precoDesdeCents: v.number(),
     precoAteCents: v.number(),
     numVariantes: v.number(),
+    // Deprecated by `destaques`: kept until the shop reads the hero specs
+    // (#69), then dropped.
     frioKwMin: v.optional(v.number()),
     frioKwMax: v.optional(v.number()),
     classeEnergetica: v.optional(v.string()),
+    // Hero specs of the group's familia, in registry order; keys no variant
+    // carries are absent. Optional only until `catalogo:reconstruir` has
+    // backfilled every row — narrow to required with #69.
+    destaques: v.optional(v.array(destaqueValidator)),
     // Cover image (first image of the canonical variant, else any variant's).
     capa: v.union(v.id("_storage"), v.null()),
     // Lower-cased "name refs gama grupoModelo" blob for substring search.
@@ -273,7 +296,10 @@ export default defineSchema({
     criadoEm: v.number(),
   })
     .index("by_grupoModelo", ["grupoModelo"])
-    .index("by_familia", ["familia"])
+    // The default ("relevancia") order without a search term, so the landing
+    // page's `catalogo.vitrine` reads only the rows it shows.
+    .index("by_peso_nome", ["peso", "nome"])
+    .index("by_familia_peso_nome", ["familia", "peso", "nome"])
     .index("by_marca", ["marca"]),
 
   // One-page catalog PDFs and 110 dpi PNG renders, stored once per
@@ -308,6 +334,10 @@ export default defineSchema({
     numDescontinuados: v.optional(v.number()),
     numImagensAplicadas: v.optional(v.number()),
     numCandidatasRemovidas: v.optional(v.number()),
+    // While promoting: every grupoModelo the batches touched, synced into
+    // `catalogoGrupos` only after the last batch (few large writes instead of
+    // one per batch, each of which invalidates every cached listing).
+    gruposPorSincronizar: v.optional(v.array(v.string())),
     criadoEm: v.number(),
     decididoEm: v.optional(v.number()),
     decididoPor: v.optional(v.string()),

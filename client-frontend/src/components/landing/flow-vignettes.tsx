@@ -180,9 +180,9 @@ export function VinhetaPrecos() {
 
 function VinhetaPrecosComDados() {
   const { data } = useSuspenseQuery(
-    convexQuery(api.catalogo.listar, { pagina: 0, porPagina: 8 })
+    convexQuery(api.catalogo.vitrine, { limite: 8 })
   )
-  const produtos = data.entradas.filter((p) => p.capaUrl).slice(0, 3)
+  const produtos = data.filter((p) => p.capaUrl).slice(0, 3)
   const { ref, visivel } = useInView<HTMLDivElement>()
   const fase = useSequencia(visivel, [900, 700])
 

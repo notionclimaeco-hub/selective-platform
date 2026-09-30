@@ -357,11 +357,14 @@ function categoria(familia: string): CategoriaSpecs | undefined {
   return (REGISTO_SPECS as Record<string, CategoriaSpecs>)[familia];
 }
 
+/** Hero key definitions of a familia, in display order. */
+export function definicoesHero(familia: string): Array<ChaveSpec> {
+  return (categoria(familia)?.chaves ?? []).filter((c) => c.hero);
+}
+
 /** Hero keys of a familia, in display order. */
 export function heroSpecs(familia: string): Array<string> {
-  return (categoria(familia)?.chaves ?? [])
-    .filter((c) => c.hero)
-    .map((c) => c.chave);
+  return definicoesHero(familia).map((c) => c.chave);
 }
 
 /** Registered keys that apply to `componente` within `familia`. */

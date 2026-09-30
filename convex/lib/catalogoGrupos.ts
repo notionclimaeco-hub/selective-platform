@@ -1,5 +1,13 @@
+import type { Infer } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import type { destaqueValidator } from "../schema";
+import {
+  definicoesHero,
+  PADRAO_CLASSE_ENERGETICA,
+  PADRAO_LISTA,
+  type ChaveSpec,
+} from "./specRegistry";
 
 // The public catalog lists product pages (groups of SKUs sharing
 // `grupoModelo`), not SKUs. Deriving a page from its SKUs — cheapest variant,
@@ -10,7 +18,9 @@ import type { MutationCtx } from "../_generated/server";
 // every SKU with its attribute list.
 //
 // Invariant: after any write to `produtos`, `sincronizarGrupo` runs for every
-// grupoModelo the write touched (old and new when a SKU changes group).
+// grupoModelo the write touched (old and new when a SKU changes group). Import
+// promotion is the one deferral: it collects the groups its batches touch and
+// syncs them before the run closes (`importacoes:sincronizarCatalogoDaRun`).
 
 // Attribute keys the listing surfaces. `classe-energetica` holds a
 // "cooling/heating" pair; the catalog shows the cooling side.
@@ -49,6 +59,92 @@ function numeroAtributo(p: Doc<"produtos">, chave: string): number | undefined {
   // The importer normalises decimals to dots, but tolerate commas.
   const n = Number.parseFloat(bruto.replace(",", "."));
   return Number.isFinite(n) ? n : undefined;
+}
+
+export type Destaque = Infer<typeof destaqueValidator>;
+
+/**
+ * The values a SKU holds for a non-numeric hero key. List keys
+ * (`compativel-com`) hold one value per listed ref or series, so a filter on
+ * "FTXJ" finds every accessory that lists it.
+ */
+function valoresAtributo(p: Doc<"produtos">, def: ChaveSpec): Array<string> {
+  const bruto = atributo(p, def.chave);
+  if (bruto === undefined) return [];
+  const partes = def.padrao === PADRAO_LISTA ? bruto.split(",") : [bruto];
+  return partes.map((v) => v.trim()).filter((v) => v !== "");
+}
+
+/**
+ * Display order of a hero key's values: an enum's vocabulary order
+ * (sim/opcional/nao, S…3XL); energy-class pairs best-first, cooling side then
+ * heating side ("A+++/A+++" < "A+++/A++" < "A++/A+" < "-/A+"); otherwise
+ * code-unit order.
+ */
+export function ordenarValores(
+  def: ChaveSpec,
+  valores: Iterable<string>,
+): Array<string> {
+  const vocabulario = def.tipo === "enum" ? (def.valores ?? []) : [];
+  const posicao = (v: string) => {
+    const i = vocabulario.indexOf(v);
+    return i === -1 ? vocabulario.length : i;
+  };
+  const classes = def.padrao === PADRAO_CLASSE_ENERGETICA;
+  return [...valores].sort(
+    (a, b) =>
+      posicao(a) - posicao(b) ||
+      (classes ? compararParClasses(a, b) : 0) ||
+      (a < b ? -1 : a > b ? 1 : 0),
+  );
+}
+
+function compararParClasses(a: string, b: string): number {
+  // "-" (class not printed) after every class.
+  const ordem = (lado: string | undefined) =>
+    lado !== undefined && /^[A-G]\+*$/.test(lado) ? ordemClasse(lado) : 1000;
+  const [af, ac] = a.split("/");
+  const [bf, bc] = b.split("/");
+  return ordem(af) - ordem(bf) || ordem(ac) - ordem(bc);
+}
+
+/**
+ * Hero specs of a group, from the registry entry of its familia, over its
+ * published variants: min–max for `numero` keys, distinct values otherwise.
+ * A key no variant carries is left out.
+ */
+export function derivarDestaques(
+  familia: string,
+  publicadas: Array<Doc<"produtos">>,
+): Array<Destaque> {
+  const destaques: Array<Destaque> = [];
+  for (const def of definicoesHero(familia)) {
+    if (def.tipo === "numero") {
+      const numeros = publicadas
+        .map((p) => numeroAtributo(p, def.chave))
+        .filter((n) => n !== undefined);
+      if (numeros.length > 0) {
+        destaques.push({
+          chave: def.chave,
+          tipo: "intervalo",
+          min: Math.min(...numeros),
+          max: Math.max(...numeros),
+        });
+      }
+    } else {
+      const valores = new Set(
+        publicadas.flatMap((p) => valoresAtributo(p, def)),
+      );
+      if (valores.size > 0) {
+        destaques.push({
+          chave: def.chave,
+          tipo: "valores",
+          valores: ordenarValores(def, valores),
+        });
+      }
+    }
+  }
+  return destaques;
 }
 
 /** "A+++/A++" → "A+++"; "-/A+" → "A+". Undefined when neither side is a class. */
@@ -143,6 +239,7 @@ export function derivarGrupo(
     frioKwMin,
     frioKwMax,
     classeEnergetica,
+    destaques: derivarDestaques(canonica.familia, publicadas),
     capa,
     textoBusca,
     peso,
@@ -195,16 +292,20 @@ export async function sincronizarGrupos(
 
 function igual(atual: Doc<"catalogoGrupos">, novo: GrupoCampos): boolean {
   const { _id: _i, _creationTime: _t, ...camposAtuais } = atual;
-  // Field order is fixed by `derivarGrupo`, and undefined optionals are absent
-  // on stored docs, so a JSON comparison over the same key order is exact.
+  // Undefined optionals are absent on stored docs and JSON drops them too;
+  // keys are sorted at every level (`destaques` holds objects), so the
+  // comparison does not depend on how the stored doc orders its fields.
   return (
-    JSON.stringify(normalizar(camposAtuais)) ===
-    JSON.stringify(normalizar(novo))
+    JSON.stringify(camposAtuais, chavesOrdenadas) ===
+    JSON.stringify(novo, chavesOrdenadas)
   );
 }
 
-function normalizar(campos: GrupoCampos): Array<[string, unknown]> {
-  return Object.entries(campos)
-    .filter(([, valor]) => valor !== undefined)
-    .sort(([a], [b]) => a.localeCompare(b));
+function chavesOrdenadas(_chave: string, valor: unknown): unknown {
+  if (valor === null || typeof valor !== "object" || Array.isArray(valor)) {
+    return valor;
+  }
+  return Object.fromEntries(
+    Object.entries(valor).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
 }

@@ -40,6 +40,10 @@ import {
 // Promotion on approval runs in scheduled batches (`promoverLote`).
 
 const LOTE_PROMOCAO = 100;
+// Groups synced into `catalogoGrupos` per transaction once promotion ends.
+// Each group reads its SKUs, so 250 groups stays far below the read limits
+// even for Daikin, and a whole brand lands in two or three commits.
+const LOTE_SINCRONIZACAO = 250;
 
 const FAMILIAS_SET = new Set<string>(FAMILIAS);
 const SISTEMAS_SET = new Set<string>(SISTEMAS);
@@ -491,7 +495,11 @@ function camposProduto(l: Doc<"skusEmRevisao">): ProdutoImport {
  * as reactivated) all end `publicado`; existing refs keep `imagens` unless the
  * group has an image decision. Marks them `promovido` and reschedules itself. The final pass
  * marks every live ref of the brand (by `marca` or by `tabelaOrigem`) that is
- * absent from the run `descontinuado` and closes the run as `aprovada`.
+ * absent from the run `descontinuado`, then `sincronizarCatalogoDaRun` brings
+ * the public listing up to date and closes the run as `aprovada`. The listing
+ * is not synced per batch: every `catalogoGrupos` write invalidates every
+ * cached `catalogo.listar`, so the touched groups are collected on the run
+ * (`gruposPorSincronizar`) and written in a few large commits at the end.
  * Rows already `promovido` are skipped, so re-running after a failed batch
  * (`npx convex run importacoes:promoverLote '{"importacaoId": "..."}'`)
  * resumes where it stopped.
@@ -551,7 +559,6 @@ export const promoverLote = internalMutation({
         }
         await ctx.db.patch(linha._id, { promovido: true });
       }
-      await sincronizarGrupos(ctx, tocados);
       // Files a decision replaced: delete unless anything (any brand: legacy
       // uploads share one file across brands) still holds them.
       await apagarSemReferencia(ctx, substituidos);
@@ -559,6 +566,7 @@ export const promoverLote = internalMutation({
         numPromovidos: (run.numPromovidos ?? 0) + pendentes.length,
         numReativados: (run.numReativados ?? 0) + reativados,
         numImagensAplicadas: (run.numImagensAplicadas ?? 0) + aplicadas,
+        gruposPorSincronizar: juntarGrupos(run, tocados),
       });
       await ctx.scheduler.runAfter(0, internal.importacoes.promoverLote, {
         importacaoId: run._id,
@@ -587,10 +595,55 @@ export const promoverLote = internalMutation({
       tocados.add(p.grupoModelo);
       descontinuados++;
     }
-    await sincronizarGrupos(ctx, tocados);
+    await ctx.db.patch(run._id, {
+      numDescontinuados: descontinuados,
+      gruposPorSincronizar: juntarGrupos(run, tocados),
+    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.importacoes.sincronizarCatalogoDaRun,
+      { importacaoId: run._id },
+    );
+    return null;
+  },
+});
+
+function juntarGrupos(
+  run: Doc<"importacoes">,
+  tocados: Set<string>,
+): Array<string> {
+  return [...new Set([...(run.gruposPorSincronizar ?? []), ...tocados])];
+}
+
+/**
+ * Last step of promotion: sync `LOTE_SINCRONIZACAO` of the run's touched
+ * groups into `catalogoGrupos` per call, rescheduling itself, then close the
+ * run as `aprovada`. Re-running (after `retomarPromocao`) is harmless:
+ * syncing is idempotent and skips unchanged rows, and a second chain that
+ * finds the run already closed stops quietly.
+ */
+export const sincronizarCatalogoDaRun = internalMutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await obterRun(ctx, args.importacaoId);
+    if (run.estado === "aprovada") return null;
+    exigirEstado(run, "a-promover");
+    const grupos = run.gruposPorSincronizar ?? [];
+    await sincronizarGrupos(ctx, grupos.slice(0, LOTE_SINCRONIZACAO));
+    const resto = grupos.slice(LOTE_SINCRONIZACAO);
+    if (resto.length > 0) {
+      await ctx.db.patch(run._id, { gruposPorSincronizar: resto });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.importacoes.sincronizarCatalogoDaRun,
+        { importacaoId: run._id },
+      );
+      return null;
+    }
     await ctx.db.patch(run._id, {
       estado: "aprovada",
-      numDescontinuados: descontinuados,
+      gruposPorSincronizar: undefined,
     });
     await ctx.scheduler.runAfter(0, internal.importacoes.limparCandidatasDaRun, {
       importacaoId: run._id,

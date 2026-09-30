@@ -647,6 +647,54 @@ describe("importacoes: promoção", () => {
     expect(await produtoPorRef(test, "R149")).not.toBeNull();
   });
 
+  it("leaves the public listing untouched until the last batch, then syncs every touched group", async () => {
+    const test = t();
+    // SOLO is alone in its group; the run moves it into hisense-energy, so the
+    // old group's listing row must go even though no SKU of the run names it.
+    await seedLive(
+      test,
+      live("SOLO", { grupoModelo: "hisense-solo", nomeGrupo: "Solo" }),
+      "publicado",
+    );
+    const id = await criarRun(test);
+    const skus = Array.from({ length: 150 }, (_, i) =>
+      staged(`R${String(i).padStart(3, "0")}`),
+    );
+    await carregar(test, id, [staged("SOLO"), ...skus.slice(0, 99)], false);
+    await carregar(test, id, skus.slice(99));
+    const grupo = (grupoModelo: string) =>
+      test.run((ctx) =>
+        ctx.db
+          .query("catalogoGrupos")
+          .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", grupoModelo))
+          .unique(),
+      );
+
+    vi.useFakeTimers();
+    await test
+      .withIdentity(STAFF)
+      .mutation(api.importacoes.aprovarImportacao, { importacaoId: id });
+    await vi.advanceTimersByTimeAsync(0);
+    await test.finishInProgressScheduledFunctions();
+    // First batch promoted, listing not yet rewritten.
+    expect(await run(test, id)).toMatchObject({ estado: "a-promover", numPromovidos: 100 });
+    expect(await grupo("hisense-energy")).toBeNull();
+    expect(await grupo("hisense-solo")).not.toBeNull();
+
+    await test.finishAllScheduledFunctions(vi.runAllTimers);
+    vi.useRealTimers();
+    expect(await run(test, id)).toMatchObject({ estado: "aprovada", numPromovidos: 151 });
+    expect(await grupo("hisense-energy")).toMatchObject({ numVariantes: 151 });
+    expect(await grupo("hisense-solo")).toBeNull();
+    // The work list is cleared once the run closes, and a late second sync
+    // chain (retomarPromocao pressed mid-sync) stops quietly.
+    expect((await run(test, id))?.gruposPorSincronizar).toBeUndefined();
+    await test.mutation(internal.importacoes.sincronizarCatalogoDaRun, {
+      importacaoId: id,
+    });
+    expect(await run(test, id)).toMatchObject({ estado: "aprovada" });
+  });
+
   it("retomarPromocao re-schedules a run left in a-promover and refuses other states", async () => {
     const test = t();
     const id = await criarRun(test);
