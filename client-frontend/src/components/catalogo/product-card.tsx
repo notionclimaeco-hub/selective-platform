@@ -28,13 +28,10 @@ export function faixaKw(entrada: CatalogProduct): string | undefined {
 }
 
 /**
- * One product in the grid. The whole card is the link; the visual weight goes
- * to the photo and the price, everything else is quiet metadata.
- *
- * Responsive shape: on phones (< sm) the card is a horizontal row — square
- * photo on the left, text on the right — so the list is one card per row and
- * every title fits without truncation. From `sm` up it becomes the vertical
- * tile used in the multi-column grid.
+ * One product in the grid: a flat tile (hairline border, darker border on
+ * hover, no shadow) with the photo on top and quiet metadata under it. The
+ * whole card is the link. Same vertical shape at every width, two to a row on
+ * phones.
  */
 export function ProductCard({
   entrada,
@@ -47,70 +44,95 @@ export function ProductCard({
   /** Approved installers see their reseller "desde" price instead of PVP. */
   precoRevendaCents?: number
 }) {
-  const especificacoes = [
+  const detalhe = [
     faixaKw(entrada),
-    entrada.tipoUnidade ? rotuloTipoUnidade(entrada.tipoUnidade) : undefined,
-  ].filter((s): s is string => s !== undefined)
-
-  const revenda = precoRevendaCents !== undefined
-  const preco = revenda ? precoRevendaCents : entrada.precoDesdeCents
-
-  const especificacao = especificacoes.join(" · ")
-  const variantes =
-    entrada.numVariantes > 1 ? `${entrada.numVariantes} modelos` : undefined
+    entrada.numVariantes > 1 ? `${entrada.numVariantes} modelos` : undefined,
+  ]
+    .filter((s): s is string => s !== undefined)
+    .join(" · ")
 
   return (
     <Link
       to="/produto/$ref"
       params={{ ref: entrada.ref }}
-      className="group flex min-w-0 overflow-hidden rounded-xl border border-primary/10 bg-card transition-[border-color,box-shadow,transform] duration-200 outline-none hover:border-primary/35 hover:shadow-[0_8px_24px_-12px_color-mix(in_oklch,var(--primary),transparent_55%)] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 sm:flex-col sm:hover:-translate-y-0.5"
+      className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card transition-colors outline-none hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25"
     >
       <CardMedia entrada={entrada} mostrarFamilia={mostrarFamilia} />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-3 sm:p-3">
-        <p className="truncate text-[11px] font-semibold tracking-wider text-primary/80 uppercase">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-3 sm:p-3.5">
+        <p className="truncate text-[11px] font-medium text-muted-foreground">
           {rotuloMarca(entrada.marca)}
-          {entrada.gama ? (
-            <span className="font-medium tracking-normal text-muted-foreground normal-case">
-              {" "}
-              · {entrada.gama}
-            </span>
-          ) : null}
+          {entrada.tipoUnidade
+            ? ` · ${rotuloTipoUnidade(entrada.tipoUnidade)}`
+            : ""}
         </p>
-        <h3 className="line-clamp-2 text-sm leading-snug font-medium">
+        <h3 className="line-clamp-2 text-[13px] leading-snug font-medium sm:text-sm">
           {entrada.nome}
         </h3>
-        {(especificacao || variantes) && (
-          <p className="truncate text-xs text-muted-foreground">
-            {[especificacao, variantes].filter(Boolean).join(" · ")}
+        {detalhe && (
+          <p className="truncate text-xs text-muted-foreground tabular-nums">
+            {detalhe}
           </p>
         )}
-
-        <p className="mt-auto flex flex-wrap items-baseline gap-x-1 pt-2 text-base font-semibold text-primary tabular-nums">
-          {entrada.numVariantes > 1 && (
-            <span className="text-[11px] font-normal text-muted-foreground">
-              {revenda ? "Revenda desde" : "desde"}
-            </span>
-          )}
-          {entrada.numVariantes <= 1 && revenda && (
-            <span className="text-[11px] font-normal text-muted-foreground">
-              Revenda
-            </span>
-          )}
-          {eur.format(preco / 100)}
-          <span className="text-[10px] font-normal text-muted-foreground">
-            s/IVA
-          </span>
-        </p>
+        <div className="mt-auto pt-2.5">
+          <PrecoCartao
+            desdeCents={entrada.precoDesdeCents}
+            revendaCents={precoRevendaCents}
+            varios={entrada.numVariantes > 1}
+          />
+        </div>
       </div>
     </Link>
   )
 }
 
 /**
- * Photo area with the brand's gentle green wash: a diagonal accent→leaf
- * gradient and a soft glow behind the product, so white appliances read as
- * "ours" instead of floating on grey.
+ * "desde 1 685 € s/IVA" at PVP; "Revenda desde …" once the visitor is an
+ * approved member. Never a discount or a percentage.
+ */
+export function PrecoCartao({
+  desdeCents,
+  revendaCents,
+  varios,
+}: {
+  desdeCents: number
+  revendaCents?: number
+  varios: boolean
+}) {
+  const revenda = revendaCents !== undefined
+  const prefixo = revenda
+    ? varios
+      ? "Revenda desde"
+      : "Revenda"
+    : varios
+      ? "desde"
+      : undefined
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-1 text-[15px] font-semibold tabular-nums">
+      {prefixo && (
+        <span
+          className={cn(
+            "text-[11px] font-medium",
+            // "Revenda desde" takes its own line on a two-up phone card.
+            revenda
+              ? "basis-full text-primary sm:basis-auto"
+              : "text-muted-foreground"
+          )}
+        >
+          {prefixo}
+        </span>
+      )}
+      {eur.format((revendaCents ?? desdeCents) / 100)}
+      <span className="text-[10px] font-normal text-muted-foreground">
+        s/IVA
+      </span>
+    </p>
+  )
+}
+
+/**
+ * Photo tile: a flat light-grey plate so the white appliance cut-outs read on
+ * the page, with the family tag and the best energy class in the corners.
  */
 function CardMedia({
   entrada,
@@ -121,37 +143,30 @@ function CardMedia({
 }) {
   const Icon = iconeFamilia(entrada.familia)
   return (
-    <div className="relative isolate w-28 shrink-0 self-stretch overflow-hidden bg-gradient-to-br from-accent/80 via-secondary to-brand/10 min-[400px]:w-32 sm:aspect-[4/3] sm:w-auto sm:self-auto">
-      <div
-        aria-hidden
-        className="absolute inset-x-[20%] top-[25%] -z-10 aspect-square rounded-full bg-brand/15 opacity-70 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
-      />
+    <div className="relative aspect-square overflow-hidden border-b bg-secondary/60 sm:aspect-[4/3]">
       {entrada.capaUrl ? (
         <img
           src={entrada.capaUrl}
           alt=""
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 size-full object-contain p-2.5 transition-transform duration-300 ease-out group-hover:scale-[1.05] sm:static sm:p-4"
+          className="size-full object-contain p-3 mix-blend-multiply transition-transform duration-300 ease-out group-hover:scale-[1.03] sm:p-5"
         />
       ) : (
-        <div className="flex size-full flex-col items-center justify-center gap-1.5 text-primary/50">
+        <div className="flex size-full items-center justify-center text-muted-foreground/60">
           <Icon className="size-8 sm:size-9" strokeWidth={1.25} />
-          <span className="hidden text-[10px] font-medium sm:block">
-            Sem fotografia
-          </span>
         </div>
       )}
 
       {mostrarFamilia && (
-        <span className="absolute top-2 left-2 hidden max-w-[70%] truncate rounded-full bg-background/85 px-2 py-0.5 text-[11px] font-medium text-primary backdrop-blur sm:block">
+        <span className="absolute top-2 left-2 hidden max-w-[70%] truncate rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground sm:block">
           {rotuloFamilia(entrada.familia)}
         </span>
       )}
       {entrada.classeEnergetica && (
         <span
           title={`Classe energética ${entrada.classeEnergetica}`}
-          className="absolute top-1.5 right-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-sm sm:top-2 sm:right-2 sm:text-[11px]"
+          className="absolute top-2 right-2 rounded-md bg-primary px-1.5 py-0.5 text-[10px] leading-4 font-semibold text-primary-foreground sm:text-[11px]"
         >
           {entrada.classeEnergetica}
         </span>
@@ -165,12 +180,12 @@ export function ProductCardSkeleton({ className }: { className?: string }) {
     <div
       aria-hidden
       className={cn(
-        "flex overflow-hidden rounded-xl border border-primary/10 bg-card sm:flex-col",
+        "flex flex-col overflow-hidden rounded-2xl border bg-card",
         className
       )}
     >
-      <div className="w-28 shrink-0 animate-pulse self-stretch bg-gradient-to-br from-accent/80 via-secondary to-brand/10 min-[400px]:w-32 sm:aspect-[4/3] sm:w-auto" />
-      <div className="flex flex-1 flex-col gap-1.5 p-3">
+      <div className="aspect-square animate-pulse border-b bg-secondary sm:aspect-[4/3]" />
+      <div className="flex flex-col gap-1.5 p-3 sm:p-3.5">
         <div className="h-2.5 w-1/3 animate-pulse rounded bg-muted" />
         <div className="h-3.5 w-5/6 animate-pulse rounded bg-muted" />
         <div className="h-2.5 w-1/2 animate-pulse rounded bg-muted" />

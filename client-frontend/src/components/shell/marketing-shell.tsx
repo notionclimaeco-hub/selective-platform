@@ -3,6 +3,8 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { ExternalLink, Menu } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
+import { useOrcamento } from "@/components/orcamento/orcamento-store"
+import { ContadorOrcamento } from "@/components/orcamento/quote-trigger"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -29,7 +31,7 @@ import {
  */
 export function MarketingShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-svh flex-col">
+    <div data-shell="marketing" className="flex min-h-svh flex-col">
       <BarraMarketing />
       <main className="flex flex-1 flex-col">{children}</main>
       <RodapeMarketing />
@@ -112,6 +114,8 @@ function LigacaoMarketing({
 function MenuMovel() {
   const [aberto, setAberto] = useState(false)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { totalLinhas, hidratado } = useOrcamento()
+  const linhas = hidratado ? totalLinhas : 0
 
   // Close the sheet whenever navigation happens.
   useEffect(() => {
@@ -125,12 +129,22 @@ function MenuMovel() {
           <Button
             variant="outline"
             size="icon"
-            className="md:hidden"
-            aria-label="Abrir menu"
+            className="relative md:hidden"
+            aria-label={
+              linhas > 0
+                ? `Abrir menu (${linhas} na lista de orçamento)`
+                : "Abrir menu"
+            }
           />
         }
       >
         <Menu className="size-5" />
+        {linhas > 0 && (
+          <ContadorOrcamento
+            valor={linhas}
+            className="absolute -top-1.5 -right-1.5 min-w-4 px-1 text-[10px] leading-4"
+          />
+        )}
       </SheetTrigger>
       <SheetContent side="right" className="w-[min(20rem,85vw)] gap-0 p-0">
         <div className="flex h-14 items-center border-b px-4">
@@ -149,6 +163,9 @@ function MenuMovel() {
           ))}
           <Link to="/orcamento" className={LIGACAO_MOVEL}>
             Lista de orçamento
+            {linhas > 0 && (
+              <ContadorOrcamento valor={linhas} className="ml-auto" />
+            )}
           </Link>
         </nav>
         <div className="mt-auto flex flex-col gap-2 border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
