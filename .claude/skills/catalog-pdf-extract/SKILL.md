@@ -15,8 +15,9 @@ description: >
 Um **import run** por tabela de preços: o PDF entra, sai um JSON de
 **staged SKUs** (`{marca}-{ano}-staged.json`, contrato em
 `convex/lib/stagedSku.ts`) carregado no Convex (#40) e revisto pelo staff em
-`/importacoes/{id}` (#41). Aprovar promove para o catálogo; refs ausentes ficam
-`descontinuado`. Ler primeiro
+`/importacoes/{id}` (#41). Aprovar substitui o catálogo da marca: todos os SKUs
+da run ficam `publicado` (novos, rascunhos e refs que voltam) e as refs da
+marca ausentes da run ficam `descontinuado`. Ler primeiro
 [references/standards.md](references/standards.md) (taxonomia, registo de
 specs, convenção de nomes) e `CONTEXT.md` (secção *Catalog import*).
 

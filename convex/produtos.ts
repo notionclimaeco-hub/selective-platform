@@ -622,9 +622,10 @@ export const definirEstadoPorRefs = internalMutation({
 });
 
 /**
- * Publish every product that has at least one image. Leaves products without
- * images untouched. Idempotent — already-published products are counted but
- * not rewritten. Run via `npx convex run produtos:publicarComImagens`.
+ * Publish every draft (`rascunho`) that has at least one image. Products
+ * without images and `descontinuado` ones are left untouched (approving an
+ * import run already publishes its SKUs; this is for legacy CSV imports).
+ * Idempotent. Run via `npx convex run produtos:publicarComImagens`.
  */
 export const publicarComImagens = internalMutation({
   args: {},
@@ -648,6 +649,7 @@ export const publicarComImagens = internalMutation({
         jaPublicados++;
         continue;
       }
+      if (produto.estado !== "rascunho") continue;
       await ctx.db.patch(produto._id, { estado: "publicado" });
       tocados.add(produto.grupoModelo);
       alterados++;

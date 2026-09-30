@@ -104,7 +104,7 @@ export function textoAprovacao(
   marca: string,
   porRever: number
 ): { descricao: string; confirmarLabel: string } {
-  const base = `Promove ${numSkus} SKUs para o catálogo e marca como descontinuadas as referências de ${marca} ausentes desta tabela.`
+  const base = `Publica ${numSkus} SKUs no catálogo (substituem os atuais) e marca como descontinuadas as referências de ${marca} ausentes desta tabela.`
   if (porRever === 0) return { descricao: base, confirmarLabel: "Aprovar" }
   const grupos =
     porRever === 1

@@ -114,7 +114,7 @@ O artefacto canónico de uma extração é **um JSON por import run** (`{marca}-
 - Campos novos: `ean?`, `compativelCom?: string[]` (refs ou códigos de série aceites — UE multi/VRF, comandos) e `avisos: string[]` (avisos do registo + dúvidas do extractor; o revisor tem de abrir todo o grupo com avisos).
 - **Obrigatórios:** `ref`, `nome`, `nomeGrupo`, `marca`, `familia`, `componente`, `atributos`, `pvpCents`, `ivaIncluido`, `tabelaOrigem`, `grupoModelo`, `pdfPaginas`, `avisos`. Restantes: **omitidos quando desconhecidos — nunca inventar**.
 - `marca` é **slug minúsculo**; `familia`, `sistema`, `componente` e `segmento` validam contra a Taxonomia (valor inválido = SKU rejeitado).
-- Sem `imagens` / `estado`: são geridos pela app (SKUs novos entram como `rascunho`; imagens vêm do pipeline de packshots).
+- Sem `imagens` / `estado`: são geridos pela app (a aprovação da run publica todos os SKUs e descontinua as refs da marca que faltam; imagens vêm da escolha de fotos na revisão).
 - **Sem grupos cross-brand** — todos os SKUs de um `grupoModelo` têm a mesma `marca`.
 - **Descontinuados, não apagados (v4):** ao aprovar um import run, as refs da mesma `tabelaOrigem`/marca ausentes do run aprovado passam a `estado: descontinuado` (linhas de encomenda referenciam refs). A regra `removerAusentes` do v3 deixa de existir.
 

@@ -492,22 +492,24 @@ async function aprovarEPromover(test: T, importacaoId: Id<"importacoes">) {
 }
 
 describe("importacoes: promoção", () => {
-  it("promotes every staged ref, preserving estado and imagens of live refs", async () => {
+  it("publishes every staged ref (new, draft, revived), keeping imagens of live refs", async () => {
     const test = t();
     const foto = await storeBlob(test);
     await seedLive(test, live("PUB", { pvpCents: 50000 }), "publicado", [foto]);
     await seedLive(test, live("DESC", { pvpCents: 50000 }), "descontinuado");
+    await seedLive(test, live("RASC", { pvpCents: 50000 }), "rascunho");
     const id = await criarRun(test);
     await carregar(test, id, [
       staged("PUB", { nome: "Mural Energy PUB 2026" }),
       staged("DESC"),
+      staged("RASC"),
       staged("NOVO"),
     ]);
     await aprovarEPromover(test, id);
 
     expect(await run(test, id)).toMatchObject({
       estado: "aprovada",
-      numPromovidos: 3,
+      numPromovidos: 4,
       numReativados: 1,
       numDescontinuados: 0,
     });
@@ -516,12 +518,21 @@ describe("importacoes: promoção", () => {
       imagens: [foto],
       nome: "Mural Energy PUB 2026",
     });
-    expect(await produtoPorRef(test, "DESC")).toMatchObject({ estado: "rascunho" });
+    expect(await produtoPorRef(test, "DESC")).toMatchObject({ estado: "publicado" });
+    expect(await produtoPorRef(test, "RASC")).toMatchObject({ estado: "publicado" });
     expect(await produtoPorRef(test, "NOVO")).toMatchObject({
-      estado: "rascunho",
+      estado: "publicado",
       imagens: [],
       tabelaOrigem: "hisense-2026",
     });
+    // The public listing sees the new group.
+    const grupo = await test.run((ctx) =>
+      ctx.db
+        .query("catalogoGrupos")
+        .withIndex("by_grupoModelo", (q) => q.eq("grupoModelo", "hisense-energy"))
+        .unique(),
+    );
+    expect(grupo).not.toBeNull();
     const rows = await test.run((ctx) =>
       ctx.db
         .query("skusEmRevisao")
@@ -531,6 +542,37 @@ describe("importacoes: promoção", () => {
         .collect(),
     );
     expect(rows).toEqual([]);
+  });
+
+  it("publicarRunAprovada publishes the drafts of a run approved before approval published", async () => {
+    const test = t();
+    const id = await criarRun(test);
+    await carregar(test, id, [staged("N1"), staged("N2")]);
+    await aprovarEPromover(test, id);
+    // Simulate the old behaviour: promoted refs left as drafts, one discontinued since.
+    await test.mutation(internal.produtos.definirEstadoPorRefs, { refs: ["N1"], estado: "rascunho" });
+    await test.mutation(internal.produtos.definirEstadoPorRefs, { refs: ["N2"], estado: "descontinuado" });
+    const r = await test.mutation(internal.importacoes.publicarRunAprovada, { importacaoId: id });
+    expect(r).toEqual({ publicados: 1 });
+    expect(await produtoPorRef(test, "N1")).toMatchObject({ estado: "publicado" });
+    expect(await produtoPorRef(test, "N2")).toMatchObject({ estado: "descontinuado" });
+    const outra = await criarRun(test);
+    await expect(
+      test.mutation(internal.importacoes.publicarRunAprovada, { importacaoId: outra }),
+    ).rejects.toThrow(/aprovada/);
+  });
+
+  it("publicarComImagens publishes drafts with images and never revives discontinued refs", async () => {
+    const test = t();
+    const foto = await storeBlob(test);
+    await seedLive(test, live("RASC"), "rascunho", [foto]);
+    await seedLive(test, live("DESC"), "descontinuado", [foto]);
+    await seedLive(test, live("SEM"), "rascunho");
+    const r = await test.mutation(internal.produtos.publicarComImagens, {});
+    expect(r).toMatchObject({ alterados: 1 });
+    expect(await produtoPorRef(test, "RASC")).toMatchObject({ estado: "publicado" });
+    expect(await produtoPorRef(test, "DESC")).toMatchObject({ estado: "descontinuado" });
+    expect(await produtoPorRef(test, "SEM")).toMatchObject({ estado: "rascunho" });
   });
 
   it("marks absent refs of the brand descontinuado, across an older tabelaOrigem, never deleting", async () => {
