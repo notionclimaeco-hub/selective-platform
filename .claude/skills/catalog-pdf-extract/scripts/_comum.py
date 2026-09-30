@@ -3,10 +3,12 @@ validar → enviar). No PyMuPDF here: this module is pure text handling."""
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import unicodedata
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 # --- Refs ---------------------------------------------------------------------
@@ -121,6 +123,18 @@ def raiz_repo(inicio: Path | str = ".") -> Path:
         if (cand / "package.json").is_file() and (cand / "convex").is_dir():
             return cand
     return p
+
+
+def parte_da_marca(marca: str, nome: str) -> ModuleType | None:
+    """`marcas/<marca>/<nome>.py` (ao lado de `scripts/`) carregado como
+    módulo, ou None se não existe."""
+    ficheiro = Path(__file__).resolve().parent.parent / "marcas" / marca / f"{nome}.py"
+    if not ficheiro.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location(f"marcas_{marca}_{nome}", ficheiro)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
 
 
 def carregar_registo(caminho: Path | str | None = None) -> dict:

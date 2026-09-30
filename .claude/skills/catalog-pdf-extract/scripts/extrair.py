@@ -15,6 +15,10 @@ As linhas de uma página vão para a secção cujo título está impresso mais
 acima delas nessa página; nunca herdam a classificação da secção anterior.
 Matrizes de compatibilidade (`tipo: compatibilidade`) dão `compativelCom`
 na UE e linhas `conjunto` nas células com preço.
+
+Com `--marca`, `marcas/<marca>/extrair.py` pode ler as páginas que o leitor
+genérico não percebe: `extrair_pagina(page, seccoes, numero)` devolve as
+linhas da página (mesmo formato) ou None para usar o leitor genérico.
 """
 
 from __future__ import annotations
@@ -27,7 +31,7 @@ from pathlib import Path
 
 import pymupdf
 
-from _comum import EAN_RX, e_ref, escrever_json, ler_json, parse_preco, slug
+from _comum import EAN_RX, e_ref, escrever_json, ler_json, parse_preco, parte_da_marca, slug
 from mapa import normalizar, palavras_da_pagina, posicao_titulo, validar_mapa
 
 DIST_COLAGEM = 6.0        # pt: banda de descrição colada antes da linha
@@ -1040,7 +1044,9 @@ def extrair_pagina(page: pymupdf.Page, seccoes: list[dict], numero: int) -> list
     return linhas
 
 
-def extrair_seccao(doc: pymupdf.Document, mapa: dict, seccao_id: str) -> list[dict]:
+def extrair_seccao(doc: pymupdf.Document, mapa: dict, seccao_id: str, leitor=None) -> list[dict]:
+    """Linhas de uma secção. `leitor(page, seccoes, numero)` (parte da marca)
+    lê a página no lugar de `extrair_pagina` quando não devolve None."""
     seccoes = mapa["seccoes"]
     alvo = next((s for s in seccoes if s["id"] == seccao_id), None)
     if alvo is None:
@@ -1051,7 +1057,10 @@ def extrair_seccao(doc: pymupdf.Document, mapa: dict, seccao_id: str) -> list[di
         # da página) só servem para terminar a região da secção de cima.
         na_pagina = [s for s in seccoes if numero in s["paginas"] and (
             s.get("tipo") != "ignorar" or str(numero) in (s.get("posicoes") or {}))]
-        for l in extrair_pagina(doc[numero - 1], na_pagina, numero):
+        lidas = leitor(doc[numero - 1], na_pagina, numero) if leitor else None
+        if lidas is None:
+            lidas = extrair_pagina(doc[numero - 1], na_pagina, numero)
+        for l in lidas:
             if l["seccao"] == seccao_id:
                 linhas.append(l)
     return linhas
@@ -1066,6 +1075,7 @@ def main() -> None:
     ap.add_argument("--seccao", action="append", default=[])
     ap.add_argument("--todas", action="store_true")
     ap.add_argument("--out", type=Path, help="pasta de saída (default: a do PDF)")
+    ap.add_argument("--marca", help="usa marcas/<marca>/extrair.py quando existe")
     args = ap.parse_args()
 
     mapa_path = args.mapa or args.pdf.with_name("mapa.json")
@@ -1081,9 +1091,11 @@ def main() -> None:
     ids = [s["id"] for s in mapa["seccoes"] if s.get("tipo") != "ignorar"] if args.todas else args.seccao
     out_dir = args.out or args.pdf.parent
     doc = pymupdf.open(args.pdf)
+    parte = parte_da_marca(args.marca, "extrair") if args.marca else None
+    leitor = getattr(parte, "extrair_pagina", None)
     total = 0
     for sid in ids:
-        linhas = extrair_seccao(doc, mapa, sid)
+        linhas = extrair_seccao(doc, mapa, sid, leitor)
         escrever_json(out_dir / f"linhas-{sid}.json", {"seccao": sid, "linhas": linhas})
         sem_preco = sum(1 for l in linhas if l["pvpCents"] is None and not l.get("soCompatibilidade"))
         baixa = sum(1 for l in linhas for c in l["confianca"].values() if c < 0.8)

@@ -101,7 +101,7 @@ def _gama_de(seccao: dict, componente: str, serie: str | None) -> str:
         gama = re.sub(r"(?i)\s*\b(unidades?\s+)?exteriore?s?\b", "", gama).strip()
     if componente == "unidade-interior" or (componente == "conjunto" and seccao.get("componente") == "unidade-interior"):
         gama = re.sub(r"(?i)\s*\b(unidades?\s+)?interiore?s?\b", "", gama).strip()
-    if serie and slug(serie) not in slug(gama):
+    if serie and f"-{slug(serie)}-" not in f"-{slug(gama)}-":     # palavras inteiras: "V" ≠ "Venice"
         gama = f"{gama} {serie}"
     if seccao.get("sistema") == "vrf" and "vrf" not in gama.lower():
         gama = f"VRF {gama}"
@@ -150,7 +150,8 @@ def _atributos_ordenados(campos: dict[str, str], contexto: dict[str, str], famil
             d[k] = v
     dims = campos.get("dimensoes")
     if dims:
-        if familia in ("ar-condicionado", "bombas-de-calor", "ventiloconvectores") and componente in (
+        # O registo só tem dimensoes-ui/-ue em AC e bombas de calor (ventiloconvectores: dimensoes).
+        if familia in ("ar-condicionado", "bombas-de-calor") and componente in (
                 "conjunto", "unidade-interior", "unidade-exterior"):
             exterior = componente == "unidade-exterior" or sistema == "monobloco"   # monobloco = só UE
             d["dimensoes-ue" if exterior else "dimensoes-ui"] = dims

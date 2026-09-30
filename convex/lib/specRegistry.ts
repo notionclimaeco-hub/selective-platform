@@ -254,6 +254,9 @@ export const REGISTO_SPECS = {
       chave(REFRIGERANTE),
       chave(ALIMENTACAO),
       chave(DIMENSOES),
+      // Área da serpentina para ligação solar (Nipon Flexus "1S"): distingue o
+      // modelo com serpentina do modelo igual sem ela.
+      chave(numero("serpentina-solar-m2", "Serpentina solar", "m²")),
     ],
   },
   ventilacao: {
