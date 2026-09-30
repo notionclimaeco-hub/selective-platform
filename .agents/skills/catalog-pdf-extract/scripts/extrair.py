@@ -326,7 +326,8 @@ def _linha_de_bandas(bandas: list[dict], colunas: dict[str, float], pagina: int,
             numeros.append((x0, _num(tt), len(texto_tokens) - 1))
             return
         up = normalizar(t).upper().replace(" ", "")
-        if up in CATEGORIA_HINT:
+        # "(U.I.)" a seguir à tubagem é uma nota da coluna, não a categoria da linha.
+        if up in CATEGORIA_HINT and not t.startswith("("):
             if hint is None:
                 hint = CATEGORIA_HINT[up]
             return

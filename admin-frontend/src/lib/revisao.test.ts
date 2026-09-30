@@ -147,7 +147,7 @@ describe("textoAprovacao", () => {
   it("is the plain approval when nothing is left to review", () => {
     const t = textoAprovacao(709, "Hisense", 0)
     expect(t.confirmarLabel).toBe("Aprovar")
-    expect(t.descricao).toMatch(/^Promove 709 SKUs/)
+    expect(t.descricao).toMatch(/^Publica 709 SKUs/)
   })
 
   it("says how many groups are unreviewed and asks to approve anyway", () => {
@@ -156,6 +156,6 @@ describe("textoAprovacao", () => {
     )
     const t = textoAprovacao(709, "Hisense", 86)
     expect(t.confirmarLabel).toBe("Aprovar mesmo assim")
-    expect(t.descricao).toMatch(/^86 grupos ainda por rever.*Promove 709 SKUs/)
+    expect(t.descricao).toMatch(/^86 grupos ainda por rever.*Publica 709 SKUs/)
   })
 })

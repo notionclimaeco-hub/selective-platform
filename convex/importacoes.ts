@@ -486,9 +486,10 @@ function camposProduto(l: Doc<"skusEmRevisao">): ProdutoImport {
 
 /**
  * One promotion batch. Upserts up to LOTE_PROMOCAO unpromoted rows through
- * the catalog path (existing refs keep `imagens` and `estado`; new refs insert
- * as `rascunho`; a `descontinuado` ref that reappears is revived as
- * `rascunho`), marks them `promovido` and reschedules itself. The final pass
+ * the catalog path and publishes them: the approved run replaces the brand's
+ * catalog, so new refs, drafts and a `descontinuado` ref that reappears (counted
+ * as reactivated) all end `publicado`; existing refs keep `imagens` unless the
+ * group has an image decision. Marks them `promovido` and reschedules itself. The final pass
  * marks every live ref of the brand (by `marca` or by `tabelaOrigem`) that is
  * absent from the run `descontinuado` and closes the run as `aprovada`.
  * Rows already `promovido` are skipped, so re-running after a failed batch
@@ -520,9 +521,9 @@ export const promoverLote = internalMutation({
           .withIndex("by_ref", (q) => q.eq("ref", linha.ref))
           .unique();
         const r = await upsertProdutoPorRef(ctx, camposProduto(linha), tocados);
-        if (anterior?.estado === "descontinuado") {
-          await ctx.db.patch(r.produtoId, { estado: "rascunho" });
-          reativados++;
+        if (anterior?.estado === "descontinuado") reativados++;
+        if (anterior?.estado !== "publicado") {
+          await ctx.db.patch(r.produtoId, { estado: "publicado" });
         }
         const decisao = await ctx.db
           .query("imagensGrupo")
@@ -595,6 +596,34 @@ export const promoverLote = internalMutation({
       importacaoId: run._id,
     });
     return null;
+  },
+});
+
+/**
+ * One-off for runs approved while promotion still inserted `rascunho`:
+ * publish the run's refs that are drafts (discontinued ones stay so).
+ * `npx convex run importacoes:publicarRunAprovada '{"importacaoId": "..."}'`
+ */
+export const publicarRunAprovada = internalMutation({
+  args: { importacaoId: v.id("importacoes") },
+  returns: v.object({ publicados: v.number() }),
+  handler: async (ctx, args) => {
+    const run = await obterRun(ctx, args.importacaoId);
+    exigirEstado(run, "aprovada");
+    const tocados = new Set<string>();
+    let publicados = 0;
+    for (const l of await linhasDaRun(ctx, run._id)) {
+      const p = await ctx.db
+        .query("produtos")
+        .withIndex("by_ref", (q) => q.eq("ref", l.ref))
+        .unique();
+      if (p?.estado !== "rascunho") continue;
+      await ctx.db.patch(p._id, { estado: "publicado" });
+      tocados.add(p.grupoModelo);
+      publicados++;
+    }
+    await sincronizarGrupos(ctx, tocados);
+    return { publicados };
   },
 });
 

@@ -125,7 +125,7 @@ A brand's yearly PDF price list, the only source of SKUs, PVPs and specs in the 
 _Avoid_: Catalog PDF, brochure, tabela
 
 **Import run**:
-One pass of a price table through extraction, staging and review, ending in approval or rejection for that brand and year.
+One pass of a price table through extraction, staging and review, ending in approval or rejection for that brand and year. Approving a run replaces the brand's catalog: every staged SKU becomes a published catalog SKU and every catalog SKU of the brand absent from the run becomes a discontinued SKU.
 _Avoid_: Import, upload, batch
 
 **Staged SKU**:
