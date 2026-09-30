@@ -12,15 +12,16 @@ from typing import Any
 # --- Refs ---------------------------------------------------------------------
 
 # A product reference: uppercase start, at least one digit, only the characters
-# brand tables print inside a ref. Combined refs ("A / B") are split before.
-REF_RX = re.compile(r"^\d?[A-Z][A-Z0-9][A-Z0-9\-/.#()*]{2,}$")
+# brand tables print inside a ref (lowercase too after the first two: Midea
+# "MVi-252WV2RN1(B)", "MDV-V80WHN8(At)"). Combined refs ("A / B") are split before.
+REF_RX = re.compile(r"^\d?[A-Z][A-Z0-9][A-Za-z0-9\-/.#()*]{2,}$")
 EAN_RX = re.compile(r"^\d{13}$")
 PRECO_RX = re.compile(r"^(\d{1,3}(?:\.\d{3})*|\d+)(?:,(\d{2}))?\s*€?$")
 DIMENSOES_RX = re.compile(r"^\(?\d+(?:\+\d+)?\)?\s*[x×]\s*\(?\d+(?:\+\d+)?\)?\s*[x×]\s*\(?\d+(?:\+\d+)?\)?$")
 TUBAGEM_RX = re.compile(r"^\(?\d(?:-\d)?/\d+\)?[”\"'’]*$")
 TENSAO_RX = re.compile(r"^\d{3}V?-\d{3}V/\d{2,3}Hz$")
 CLASSE_RX = re.compile(r"^(A\+{0,3}|[B-G])$")
-REFRIGERANTE_RX = re.compile(r"^R-?(32|290|410A|407C|134A|454B|1234ZE)$", re.I)
+REFRIGERANTE_RX = re.compile(r"^R-?(32|290|410A|407C|134A|454B|454C|1234ZE)$", re.I)
 BTU_RX = re.compile(r"^\d{1,3}k$")
 NUMERO_PT_RX = re.compile(r"^\d+(?:,\d+)?$")
 INTERVALO_RX = re.compile(r"^\(?(\d+(?:,\d+)?)\s*-\s*(\d+(?:,\d+)?)\)?$")

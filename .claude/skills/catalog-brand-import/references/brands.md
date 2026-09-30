@@ -25,9 +25,11 @@ distributors) moved to
 
 ## Midea
 
-- Products CSV used `tabelaOrigem: midea-sgt`; PDF zip is `midea-2026-p*.pdf`.
+- Products CSV used `tabelaOrigem: midea-sgt-2026`; PDF zip is `midea-2026-p*.pdf`.
   Import overrides products to `tabelaOrigem: midea-2026` so pages resolve.
 - PDF pages cover 2–12 and 14–22 (no page 13 in the zip).
+- 2026 reload (#44) goes through `catalog-pdf-extract` (import run `midea-2026`);
+  the old refs with a trailing `*` (a PDF note marker) come back without it.
 
 ## Daikin
 
