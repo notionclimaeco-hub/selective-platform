@@ -118,6 +118,27 @@ describe("pedir pagamento", () => {
     ).rejects.toThrow(/aguardando_pagamento/);
   });
 
+  it("gives the member's order views the widget token only while payable", async () => {
+    const { test, asInstaller, encomendaId } = await encomendaProntaACobrar();
+    await registarPedido(test, encomendaId);
+
+    const vista = await asInstaller.query(api.encomendas.obter, { encomendaId });
+    expect(vista?.revolutToken).toBe("public-token");
+    const lista = await asInstaller.query(api.encomendas.minhas, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(lista.page[0]?.revolutToken).toBe("public-token");
+
+    await test.mutation(internal.pagamentos.aplicarEvento, {
+      revolutOrderId: REVOLUT_ID,
+      evento: "ORDER_COMPLETED",
+      recebidoEm: 2_000,
+    });
+    const paga = await asInstaller.query(api.encomendas.obter, { encomendaId });
+    expect(paga?.estado).toBe("paga");
+    expect(paga?.revolutToken).toBeUndefined();
+  });
+
   it("serves the public payment page by token, hiding the widget token once paid", async () => {
     const { test, encomendaId } = await encomendaProntaACobrar();
     expect(await test.query(api.pagamentos.porToken, { token: TOKEN })).toBeNull();

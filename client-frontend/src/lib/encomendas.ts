@@ -44,8 +44,8 @@ export const ESTADO_LINHA_LABELS: Record<EstadoLinha, string> = {
 }
 
 export const MOTIVO_CANCELAMENTO_LABELS: Record<MotivoCancelamento, string> = {
-  installer: "Pela sua empresa",
-  office: "Pelo escritório",
+  installer: "Cancelada pela sua empresa",
+  office: "Cancelada pelo escritório",
   payment_expired: "Prazo de pagamento expirado",
   all_lines_dropped: "Linhas retiradas pelo escritório",
 }

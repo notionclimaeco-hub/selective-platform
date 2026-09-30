@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router"
 import type { FunctionReturnType } from "convex/server"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, LoaderCircle, ShieldCheck } from "lucide-react"
+import { toast } from "sonner"
 
 import type { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { eurExato } from "@/lib/catalogo"
 import { formatarData, totaisEncomenda } from "@/lib/encomendas"
+import { usePagarPorBanco } from "@/lib/pagar-por-banco"
 import { cn } from "@/lib/utils"
 import { EstadoBadge } from "./estado-badge"
 
@@ -15,8 +17,9 @@ export type EncomendaResumo = FunctionReturnType<
 
 /**
  * Orders list: one card per order on phones, one table from `md`. Each row
- * is a single stretched link to the order; the Pagar button sits above it
- * (`relative z-10`) so the two never nest.
+ * is a single stretched link to the order; the Pagar button (opens Revolut's
+ * Pay by Bank window in place) sits above it (`relative z-10`) so the two
+ * never nest.
  */
 export function ListaEncomendas({
   encomendas,
@@ -84,9 +87,9 @@ function CartaoEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
           {eurExato.format(totaisEncomenda(e).total / 100)}
         </span>
       </div>
-      {e.pagamentoToken && (
+      {e.revolutToken && (
         <div className="px-4 pb-4">
-          <BotaoPagar token={e.pagamentoToken} className="h-10 w-full" />
+          <BotaoPagar revolutToken={e.revolutToken} className="h-10 w-full" />
         </div>
       )}
     </li>
@@ -119,8 +122,8 @@ function LinhaEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
         {eurExato.format(totaisEncomenda(e).total / 100)}
       </span>
       <span className="flex justify-end">
-        {e.pagamentoToken ? (
-          <BotaoPagar token={e.pagamentoToken} size="sm" />
+        {e.revolutToken ? (
+          <BotaoPagar revolutToken={e.revolutToken} size="sm" />
         ) : (
           <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         )}
@@ -129,23 +132,38 @@ function LinhaEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
   )
 }
 
+/** Opens Revolut's Pay by Bank window right from the list. */
 function BotaoPagar({
-  token,
+  revolutToken,
   size,
   className,
 }: {
-  token: string
+  revolutToken: string
   size?: "sm"
   className?: string
 }) {
+  const { fase, pagar } = usePagarPorBanco({
+    aoErro: (mensagem) => toast.error(`Pagamento não iniciado: ${mensagem}`),
+  })
+  const ocupado = fase === "a_abrir" || fase === "a_confirmar"
+
   return (
     <Button
-      render={<Link to="/pagamento/$token" params={{ token }} />}
-      nativeButton={false}
       size={size}
+      disabled={ocupado}
+      onClick={() => void pagar(revolutToken)}
       className={cn("relative z-10", className)}
     >
-      Pagar
+      {ocupado ? (
+        <LoaderCircle data-icon="inline-start" className="animate-spin" />
+      ) : (
+        <ShieldCheck data-icon="inline-start" />
+      )}
+      {fase === "a_abrir"
+        ? "A abrir…"
+        : fase === "a_confirmar"
+          ? "A confirmar…"
+          : "Pagar"}
     </Button>
   )
 }

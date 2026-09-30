@@ -199,7 +199,7 @@
     --barra-topo: 0px;
   }
 }
-:root:has([data-aviso-orcamento]) {
+:root:has([data-aviso-orcamento], [data-aviso-pagar]) {
   --toast-fundo: calc(
     var(--barra-fundo) + var(--folga-fundo) + var(--altura-aviso)
   );
