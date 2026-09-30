@@ -29,6 +29,9 @@ export function getRouter() {
     routeTree,
     context: { queryClient, convexClient: convex, convexQueryClient },
     scrollRestoration: true,
+    // Restore (and reset to the top) in one jump: `html` scrolls smoothly for
+    // in-page anchors, which would otherwise animate every back/forward.
+    scrollRestorationBehavior: "instant",
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
     Wrap: ({ children }) => (

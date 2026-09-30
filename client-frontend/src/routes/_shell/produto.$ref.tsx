@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react"
-import { createFileRoute, Link } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router"
 import { convexQuery } from "@convex-dev/react-query"
 import {
   keepPreviousData,
@@ -139,6 +144,7 @@ function ProdutoLayout({
     ? atributosComuns(variantes)
     : ativo.atributos
   const orcamento = useOrcamentoDaVisita()
+  const [titulo, tituloVisivel] = useVisivel<HTMLHeadingElement>()
 
   // A group's model as a quote-list line: the page title plus the values that
   // tell it apart from its siblings, priced at PVP (reseller prices are
@@ -160,20 +166,24 @@ function ProdutoLayout({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-6xl px-4 pt-4 pb-12 sm:px-6 lg:pt-6",
+        "mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 lg:pt-4",
         // Room for the floating "Ver orçamento" pill under the last row.
         orcamento.mostrarAviso &&
           "pb-[calc(var(--altura-aviso)+var(--folga-fundo)+1rem)]"
       )}
     >
-      <Breadcrumb familia={base.familia} nome={base.nomeGrupo} />
+      <BarraVoltar
+        familia={base.familia}
+        nome={base.nomeGrupo}
+        tituloVisivel={tituloVisivel}
+      />
 
       {/*
         One grid, read in source order on phones. Desktop: gallery | buy box,
         then the model picker across the full width (it can have many
         columns), then description | specifications.
       */}
-      <div className="mt-4 grid items-start gap-x-12 gap-y-8 lg:mt-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div className="mt-2 grid items-start gap-x-12 gap-y-8 lg:mt-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <div className="min-w-0">
           <ProductGallery
             familia={base.familia}
@@ -190,7 +200,10 @@ function ProdutoLayout({
             </p>
             {/* Page title is nomeGrupo (no capacity); capacity lives in the
                 variant rows / SKU `nome` used by the quote list. */}
-            <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+            <h1
+              ref={titulo}
+              className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
+            >
               {base.nomeGrupo}
             </h1>
             {especificacoes.length > 0 && (
@@ -279,31 +292,109 @@ function ProdutoLayout({
   )
 }
 
-function Breadcrumb({ familia, nome }: { familia: string; nome: string }) {
+/**
+ * True while the element is on screen (below the shell's top bar). Starts
+ * true so SSR and the first paint show the breadcrumb.
+ */
+function useVisivel<T extends Element>() {
+  const ref = useRef<T>(null)
+  const [visivel, setVisivel] = useState(true)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observador = new IntersectionObserver(
+      (entradas) => setVisivel(entradas.some((e) => e.isIntersecting)),
+      // The sticky bars cover the top ~7rem; count the title as gone once
+      // it slides under them.
+      { rootMargin: "-112px 0px 0px 0px" }
+    )
+    observador.observe(el)
+    return () => observador.disconnect()
+  }, [])
+  return [ref, visivel] as const
+}
+
+/**
+ * Back button + where we are. Sticks under the shell's top bar below `lg`
+ * so going back is one tap from anywhere in the model list; once the title
+ * has scrolled away the breadcrumb gives way to the product name. Back
+ * returns through history (the catalog comes back with its filters and
+ * scroll); a visitor who landed here directly goes to the family instead.
+ */
+function BarraVoltar({
+  familia,
+  nome,
+  tituloVisivel,
+}: {
+  familia: string
+  nome: string
+  tituloVisivel: boolean
+}) {
+  const router = useRouter()
+  const podeVoltar = useCanGoBack()
+
   return (
-    <nav
-      aria-label="Localização"
-      className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+    <div
+      className={cn(
+        "sticky top-[var(--barra-topo)] z-30 -mx-4 flex h-12 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur transition-colors supports-[backdrop-filter]:bg-background/85 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-transparent lg:bg-transparent lg:px-0 lg:backdrop-blur-none",
+        tituloVisivel && "border-transparent"
+      )}
     >
-      <Link
-        to="/produtos"
-        className="shrink-0 transition-colors hover:text-foreground"
-      >
-        Catálogo
-      </Link>
-      <ChevronRight className="size-3.5 shrink-0" />
-      <Link
-        to="/produtos"
-        search={{ familia: familia }}
-        className="shrink-0 transition-colors hover:text-foreground"
-      >
-        {rotuloFamilia(familia)}
-      </Link>
-      <ChevronRight className="hidden size-3.5 shrink-0 sm:block" />
-      <span className="hidden truncate text-foreground sm:block">{nome}</span>
-    </nav>
+      {podeVoltar ? (
+        <button
+          type="button"
+          onClick={() => router.history.back()}
+          aria-label="Voltar"
+          className={BOTAO_VOLTAR}
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+      ) : (
+        <Link
+          to="/produtos"
+          search={{ familia }}
+          aria-label="Voltar ao catálogo"
+          className={BOTAO_VOLTAR}
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+      )}
+
+      {tituloVisivel ? (
+        <nav
+          aria-label="Localização"
+          className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+        >
+          <Link
+            to="/produtos"
+            className="shrink-0 transition-colors hover:text-foreground"
+          >
+            Catálogo
+          </Link>
+          <ChevronRight className="size-3.5 shrink-0" />
+          <Link
+            to="/produtos"
+            search={{ familia }}
+            className="shrink-0 transition-colors hover:text-foreground"
+          >
+            {rotuloFamilia(familia)}
+          </Link>
+          <ChevronRight className="hidden size-3.5 shrink-0 sm:block" />
+          <span className="hidden truncate text-foreground sm:block">
+            {nome}
+          </span>
+        </nav>
+      ) : (
+        <p className="min-w-0 animate-in truncate text-sm font-semibold duration-150 fade-in">
+          {nome}
+        </p>
+      )}
+    </div>
   )
 }
+
+const BOTAO_VOLTAR =
+  "flex size-9 shrink-0 items-center justify-center rounded-full border bg-background text-foreground transition-colors outline-none hover:border-foreground/25 focus-visible:ring-3 focus-visible:ring-ring/25"
 
 /**
  * The selected model's price. PVP for everyone; approved members see their
