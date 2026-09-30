@@ -16,7 +16,6 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import type { ReactNode } from "react"
 
-import { OrcamentoDrawer } from "@/components/orcamento/orcamento-drawer"
 import { ShellByAuth } from "@/components/shell/shell-by-auth"
 import { OrcamentoProvider } from "@/components/orcamento/orcamento-store"
 import { clientAuthRedirect } from "@/lib/auth-gate"
@@ -110,7 +109,6 @@ function RootComponent() {
         <RootDocument>
           <OrcamentoProvider>
             <Outlet />
-            <OrcamentoDrawer />
           </OrcamentoProvider>
         </RootDocument>
       </ConvexProviderWithClerk>

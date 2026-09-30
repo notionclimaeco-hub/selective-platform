@@ -175,6 +175,8 @@
  *    nothing below it already does.
  *  - `--altura-aviso`: room the product page's floating "Ver orçamento"
  *    pill takes above that chrome (pill + gap).
+ *  - `--altura-barra-orcamento`: the Orçamento page's phone bar (total +
+ *    action) above that chrome.
  * Toasts follow from these.
  * ------------------------------------------------------------------------- */
 :root {
@@ -182,6 +184,7 @@
   --barra-fundo: 0px;
   --folga-fundo: env(safe-area-inset-bottom);
   --altura-aviso: 5rem;
+  --altura-barra-orcamento: 4.25rem;
   --toast-fundo: 0px;
 }
 @media (width < 48rem) {
@@ -200,6 +203,13 @@
   --toast-fundo: calc(
     var(--barra-fundo) + var(--folga-fundo) + var(--altura-aviso)
   );
+}
+@media (width < 48rem) {
+  :root:has([data-barra-orcamento]) {
+    --toast-fundo: calc(
+      var(--barra-fundo) + var(--folga-fundo) + var(--altura-barra-orcamento)
+    );
+  }
 }
 
 /* Horizontal chip rows on phones scroll without showing a scrollbar. */
@@ -438,5 +448,77 @@
     stroke-dashoffset: 0;
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Orçamento → "Encomenda submetida" (sucesso-encomenda.tsx). While
+ * `html[data-transicao="orcamento"]` is set, the list and the phone bar get
+ * view-transition names: the list lifts and fades, the bar drops away. The new
+ * state is shown live (no cross-fade) so the card's own entrance plays: the
+ * card rises, the seal pops, the check draws (`traco-desenhar`), then the
+ * text and buttons rise in turn (`.animate-rise` with `--delay`).
+ * ------------------------------------------------------------------------- */
+html[data-transicao="orcamento"] .orcamento-lista {
+  view-transition-name: orcamento-lista;
+}
+html[data-transicao="orcamento"] .orcamento-barra {
+  view-transition-name: orcamento-barra;
+}
+html[data-transicao="orcamento"] .orcamento-sucesso {
+  view-transition-name: orcamento-sucesso;
+}
+::view-transition-old(orcamento-lista) {
+  animation: orcamento-sair 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-old(orcamento-barra) {
+  animation: orcamento-barra-descer 0.25s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(orcamento-sucesso) {
+  animation: none;
+}
+@keyframes orcamento-sair {
+  to {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.97);
+  }
+}
+@keyframes orcamento-barra-descer {
+  to {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+}
+@keyframes sucesso-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.sucesso-cartao {
+  animation: rise-in 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) 0.1s both;
+}
+.sucesso-selo {
+  animation: sucesso-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+.sucesso-visto {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: traco-desenhar 0.35s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sucesso-cartao,
+  .sucesso-selo,
+  .sucesso-visto {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }
