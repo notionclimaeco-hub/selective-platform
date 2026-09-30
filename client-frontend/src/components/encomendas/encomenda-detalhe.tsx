@@ -59,7 +59,8 @@ export function EncomendaDetalhe({
   const assunto = encodeURIComponent(`Encomenda ENC-${encomenda.numero}`)
 
   // The webhook moves the order to `paga` while the page is open (usually
-  // right after the Revolut window closes): say so once.
+  // right after the Revolut window closes), and the desk's last receção to
+  // `pronta_a_levantar`: say so once.
   const estadoAnterior = useRef(encomenda.estado)
   useEffect(() => {
     if (
@@ -67,6 +68,12 @@ export function EncomendaDetalhe({
       encomenda.estado === "paga"
     ) {
       toast.success("Pagamento recebido.")
+    }
+    if (
+      estadoAnterior.current === "paga" &&
+      encomenda.estado === "pronta_a_levantar"
+    ) {
+      toast.success("A encomenda está pronta a levantar.")
     }
     estadoAnterior.current = encomenda.estado
   }, [encomenda.estado])

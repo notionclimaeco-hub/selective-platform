@@ -12,6 +12,7 @@ export const ESTADO_ENCOMENDA_LABELS: Record<EstadoEncomenda, string> = {
   aguardando_stock: "A confirmar stock",
   aguardando_pagamento: "Aguarda pagamento",
   paga: "Paga",
+  pronta_a_levantar: "Pronta a levantar",
   cancelada: "Cancelada",
   concluida: "Concluída",
 }
@@ -23,6 +24,7 @@ export const ESTADO_ENCOMENDA_CLASSES: Record<EstadoEncomenda, string> = {
   aguardando_stock: "bg-secondary text-secondary-foreground ring-border",
   aguardando_pagamento: "bg-secondary text-secondary-foreground ring-border",
   paga: "bg-primary/10 text-primary ring-primary/20",
+  pronta_a_levantar: "bg-primary/10 text-primary ring-primary/20",
   cancelada: "bg-destructive/10 text-destructive ring-destructive/20",
   concluida: "bg-primary/10 text-primary ring-primary/20",
 }
@@ -33,6 +35,7 @@ export const ESTADO_ENCOMENDA_PONTO: Record<EstadoEncomenda, string> = {
   aguardando_stock: "bg-muted-foreground/60",
   aguardando_pagamento: "bg-muted-foreground/60",
   paga: "bg-primary",
+  pronta_a_levantar: "bg-primary",
   cancelada: "bg-destructive",
   concluida: "bg-primary",
 }
@@ -125,6 +128,8 @@ type EncomendaParaPassos = {
   stockRequestedAt?: number
   paymentRequestedAt?: number
   paidAt?: number
+  prontaAt?: number
+  levantadaAt?: number
   cancelledAt?: number
 }
 
@@ -147,6 +152,7 @@ function indicePasso(e: EncomendaParaPassos): number {
       return 2
     case "paga":
       return 3
+    case "pronta_a_levantar":
     case "concluida":
       return 4
     case "cancelada":
@@ -209,7 +215,16 @@ function detalhePasso(
       if (estado === "feito") return "Concluída"
       return "Após o pagamento"
     case "levantamento":
-      if (estado === "feito") return "No nosso armazém"
+      if (estado === "feito") {
+        return e.levantadaAt
+          ? `Levantada ${formatarData(e.levantadaAt)}`
+          : "Nada a levantar"
+      }
+      if (estado === "actual") {
+        return e.prontaAt
+          ? `No nosso armazém desde ${formatarData(e.prontaAt)}`
+          : "No nosso armazém"
+      }
       return "Avisamos quando chegar"
   }
 }

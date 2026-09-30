@@ -16,17 +16,25 @@ import { precoRevendaCents } from "./lib/precoRevenda";
 import {
   assertPodeCancelar,
   assertPodeEditarLinhas,
+  assertPodeMoverQty,
   assertPodePedirStock,
+  assertPodeRegistarLevantamento,
   assertQty,
+  estadoAposMovimento,
   estadoLinhaAposQty,
   FILTROS_ENCOMENDA,
   IVA_PADRAO_PERCENT,
   linhasRestantes,
   MAX_LINHAS_ENCOMENDA,
   MAX_QTY_LINHA,
+  qtyMovimento,
+  registarFalha,
+  registarGuia,
+  registarRecepcao,
   tituloEncomenda,
   totalRestanteCents,
   type MotivoCancelamento,
+  type QtyBuckets,
 } from "./lib/encomendaEstados";
 import { agendarRender } from "./notion/agendar";
 import { internal } from "./_generated/api";
@@ -66,6 +74,8 @@ const encomendaValidator = v.object({
   totalPagamentoCents: v.optional(v.number()),
   paymentExpiresAt: v.optional(v.number()),
   paidAt: v.optional(v.number()),
+  prontaAt: v.optional(v.number()),
+  levantadaAt: v.optional(v.number()),
 });
 
 // No `custoCents` (internal). The post-pay qty buckets are present only after
@@ -111,6 +121,8 @@ function paraCliente(
     totalPagamentoCents: doc.totalPagamentoCents,
     paymentExpiresAt: doc.estado === "aguardando_pagamento" ? doc.paymentExpiresAt : undefined,
     paidAt: doc.paidAt,
+    prontaAt: doc.prontaAt,
+    levantadaAt: doc.levantadaAt,
   };
 }
 
@@ -560,5 +572,135 @@ export const adicionarLinha = internalMutation({
 
     await recalcularTotal(ctx, encomenda._id);
     return linhaParaCliente(await linhaOuErro(ctx, linhaId));
+  },
+});
+
+// --- office, after payment (#78) ------------------------------------------------
+
+/** One qty move on a line, with what the desk needs for its log and exceção. */
+const movimentoValidator = v.object({
+  ref: v.string(),
+  nome: v.string(),
+  qty: v.number(),
+  precoRevendaCents: v.number(),
+  ivaPercent: v.number(),
+  numero: v.number(),
+  estado: estadoEncomendaValidator,
+});
+
+function bucketsDe(linha: Doc<"installerOrderLines">): QtyBuckets | null {
+  if (
+    linha.qtyPorEnviar === undefined ||
+    linha.qtyEmTransito === undefined ||
+    linha.qtyAguardaRecolha === undefined ||
+    linha.qtyFalhada === undefined
+  ) {
+    return null;
+  }
+  return {
+    qtyPorEnviar: linha.qtyPorEnviar,
+    qtyEmTransito: linha.qtyEmTransito,
+    qtyAguardaRecolha: linha.qtyAguardaRecolha,
+    qtyFalhada: linha.qtyFalhada,
+  };
+}
+
+/**
+ * Apply one bucket move to a line of a `paga` order, then advance the header
+ * once every remaining line is at the warehouse or failed.
+ */
+async function moverQty(
+  ctx: MutationCtx,
+  linhaId: Id<"installerOrderLines">,
+  pedida: number | undefined,
+  origem: keyof QtyBuckets,
+  mover: (b: QtyBuckets, q: number) => QtyBuckets,
+  extra: (
+    linha: Doc<"installerOrderLines">,
+    q: number,
+  ) => Partial<Doc<"installerOrderLines">> = () => ({}),
+) {
+  const linha = await linhaOuErro(ctx, linhaId);
+  const encomenda = await encomendaOuErro(ctx, linha.encomendaId);
+  assertPodeMoverQty(encomenda.estado);
+  const buckets = bucketsDe(linha);
+  if (linha.estadoLinha === "retirada" || buckets === null) {
+    throw new Error("Line has no paid quantities");
+  }
+  const qty = qtyMovimento(pedida ?? null, buckets[origem]);
+  await ctx.db.patch(linha._id, { ...mover(buckets, qty), ...extra(linha, qty) });
+
+  const linhas = await linhasDe(ctx, encomenda._id);
+  const estado = estadoAposMovimento(
+    linhas.map((l) => ({ estadoLinha: l.estadoLinha, qty: l.qty, buckets: bucketsDe(l) })),
+  );
+  if (estado === "pronta_a_levantar") {
+    await ctx.db.patch(encomenda._id, { estado, prontaAt: Date.now() });
+  } else if (estado === "concluida") {
+    await ctx.db.patch(encomenda._id, { estado });
+  }
+  return {
+    ref: linha.ref,
+    nome: linha.nome,
+    qty,
+    precoRevendaCents: linha.precoRevendaCents,
+    ivaPercent: encomenda.ivaPercent,
+    numero: encomenda.numero,
+    estado,
+  };
+}
+
+/** Registar guia: por enviar → em trânsito, keeping the supplier's guia nº. */
+export const registarGuiaLinha = internalMutation({
+  args: {
+    linhaId: v.id("installerOrderLines"),
+    guia: v.string(),
+    qty: v.optional(v.number()),
+  },
+  returns: movimentoValidator,
+  handler: async (ctx, args) => {
+    const numero = args.guia.trim();
+    if (numero.length === 0) throw new Error("Guia do fornecedor is required");
+    return await moverQty(
+      ctx,
+      args.linhaId,
+      args.qty,
+      "qtyPorEnviar",
+      registarGuia,
+      (linha, qty) => ({
+        guiasFornecedor: [
+          ...(linha.guiasFornecedor ?? []),
+          { numero, qty, em: Date.now() },
+        ],
+      }),
+    );
+  },
+});
+
+/** Receção armazém: em trânsito → no armazém. */
+export const registarRececaoLinha = internalMutation({
+  args: { linhaId: v.id("installerOrderLines"), qty: v.optional(v.number()) },
+  returns: movimentoValidator,
+  handler: async (ctx, args) =>
+    await moverQty(ctx, args.linhaId, args.qty, "qtyEmTransito", registarRecepcao),
+});
+
+/** Falhar qtd: por enviar → falhada. The desk opens a Reembolso exceção. */
+export const falharQtyLinha = internalMutation({
+  args: { linhaId: v.id("installerOrderLines"), qty: v.optional(v.number()) },
+  returns: movimentoValidator,
+  handler: async (ctx, args) =>
+    await moverQty(ctx, args.linhaId, args.qty, "qtyPorEnviar", registarFalha),
+});
+
+/** The installer collected everything: `pronta_a_levantar` → `concluida`. */
+export const registarLevantamento = internalMutation({
+  args: { encomendaId: v.id("installerOrders") },
+  returns: encomendaValidator,
+  handler: async (ctx, args) => {
+    const encomenda = await encomendaOuErro(ctx, args.encomendaId);
+    assertPodeRegistarLevantamento(encomenda.estado);
+    await ctx.db.patch(encomenda._id, { estado: "concluida", levantadaAt: Date.now() });
+    return await vistaCliente(ctx, await encomendaOuErro(ctx, encomenda._id));
   },
 });
