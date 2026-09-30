@@ -183,8 +183,13 @@ async function main() {
   let okPages = 0
   let okImages = 0
 
+  // "tecto-chão" (acento combinado no URL) e "tecto-chao" são páginas diferentes
+  // (AC e ventiloconvector) com o mesmo slug: a segunda leva sufixo.
+  const slugsUsados = new Set()
   for (const pageUrl of pages) {
-    const pageSlug = slugFromUrl(pageUrl)
+    let pageSlug = slugFromUrl(pageUrl)
+    for (let n = 2; slugsUsados.has(pageSlug); n++) pageSlug = `${slugFromUrl(pageUrl)}-${n}`
+    slugsUsados.add(pageSlug)
     console.log(`page: ${pageSlug}`)
     let html
     let title = ""
