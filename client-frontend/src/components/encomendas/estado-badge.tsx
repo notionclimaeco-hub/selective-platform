@@ -21,16 +21,12 @@ export function EstadoBadge({
         "inline-flex items-center gap-1.5 rounded-full font-medium whitespace-nowrap ring-1 ring-inset",
         tamanho === "sm" ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm",
         ESTADO_ENCOMENDA_CLASSES[estado],
-        className,
+        className
       )}
     >
       <span
         aria-hidden
-        className={cn(
-          "size-1.5 rounded-full",
-          ESTADO_ENCOMENDA_PONTO[estado],
-          estado === "aguardando_pagamento" && "animate-pulse",
-        )}
+        className={cn("size-1.5 rounded-full", ESTADO_ENCOMENDA_PONTO[estado])}
       />
       {ESTADO_ENCOMENDA_LABELS[estado]}
     </span>

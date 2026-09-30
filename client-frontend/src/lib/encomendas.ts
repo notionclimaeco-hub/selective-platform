@@ -3,6 +3,7 @@
 import type {
   EstadoEncomenda,
   EstadoLinha,
+  FiltroEncomenda,
   MotivoCancelamento,
 } from "@convex/lib/encomendaEstados"
 
@@ -15,51 +16,57 @@ export const ESTADO_ENCOMENDA_LABELS: Record<EstadoEncomenda, string> = {
   concluida: "Concluída",
 }
 
-/** Badge colours: amber = waiting on us, orange = waiting on the installer,
- *  green = money/goods moving, grey = terminal without goods. */
+/** Badge colours, tokens only: primary once the money is in, destructive
+ *  when cancelled, neutral while the order is on its way. */
 export const ESTADO_ENCOMENDA_CLASSES: Record<EstadoEncomenda, string> = {
-  recebida: "bg-amber-50 text-amber-800 ring-amber-600/20",
-  aguardando_stock: "bg-sky-50 text-sky-800 ring-sky-600/20",
-  aguardando_pagamento: "bg-orange-50 text-orange-800 ring-orange-600/25",
-  paga: "bg-emerald-50 text-emerald-800 ring-emerald-600/20",
-  cancelada: "bg-muted text-muted-foreground ring-border",
-  concluida: "bg-emerald-50 text-emerald-800 ring-emerald-600/20",
+  recebida: "bg-secondary text-secondary-foreground ring-border",
+  aguardando_stock: "bg-secondary text-secondary-foreground ring-border",
+  aguardando_pagamento: "bg-secondary text-secondary-foreground ring-border",
+  paga: "bg-primary/10 text-primary ring-primary/20",
+  cancelada: "bg-destructive/10 text-destructive ring-destructive/20",
+  concluida: "bg-primary/10 text-primary ring-primary/20",
 }
 
-/** Dot colour used by the badge and the list rows. */
+/** Dot colour used by the badge. */
 export const ESTADO_ENCOMENDA_PONTO: Record<EstadoEncomenda, string> = {
-  recebida: "bg-amber-500",
-  aguardando_stock: "bg-sky-500",
-  aguardando_pagamento: "bg-orange-500",
-  paga: "bg-emerald-500",
-  cancelada: "bg-muted-foreground/50",
-  concluida: "bg-emerald-600",
-}
-
-/** What the installer should expect next, per header state. */
-export const ESTADO_ENCOMENDA_TEXTO: Record<EstadoEncomenda, string> = {
-  recebida:
-    "Recebemos a encomenda. O escritório vai pedir stock aos fornecedores. Os preços ficam congelados.",
-  aguardando_stock:
-    "Estamos a confirmar stock com os fornecedores. Quando todas as linhas estiverem confirmadas, enviamos o pedido de pagamento.",
-  aguardando_pagamento:
-    "Stock confirmado. Pague por transferência bancária através do link de pagamento (válido 7 dias); a fatura-recibo é emitida após o pagamento.",
-  paga: "Pagamento recebido. Estamos a encomendar aos fornecedores; o levantamento é no nosso armazém.",
-  cancelada: "Esta encomenda foi cancelada. Pode voltar a encomendar a partir do catálogo.",
-  concluida: "Todos os equipamentos estão disponíveis para levantamento ou foram reembolsados.",
+  recebida: "bg-muted-foreground/60",
+  aguardando_stock: "bg-muted-foreground/60",
+  aguardando_pagamento: "bg-muted-foreground/60",
+  paga: "bg-primary",
+  cancelada: "bg-destructive",
+  concluida: "bg-primary",
 }
 
 export const ESTADO_LINHA_LABELS: Record<EstadoLinha, string> = {
-  por_confirmar: "Por confirmar",
+  por_confirmar: "Stock por confirmar",
   confirmada: "Stock confirmado",
   retirada: "Retirada",
 }
 
 export const MOTIVO_CANCELAMENTO_LABELS: Record<MotivoCancelamento, string> = {
-  installer: "Cancelada pela sua empresa.",
-  office: "Cancelada pelo escritório.",
-  payment_expired: "O prazo de pagamento expirou.",
-  all_lines_dropped: "Todas as linhas foram retiradas pelo escritório.",
+  installer: "Cancelada pela sua empresa",
+  office: "Cancelada pelo escritório",
+  payment_expired: "Prazo de pagamento expirado",
+  all_lines_dropped: "Linhas retiradas pelo escritório",
+}
+
+/** The orders list chips, in display order; "Todas" is the absent filter. */
+export const FILTROS_LISTA: ReadonlyArray<{
+  valor: FiltroEncomenda
+  rotulo: string
+}> = [
+  { valor: "a-pagar", rotulo: "A pagar" },
+  { valor: "em-curso", rotulo: "Em curso" },
+  { valor: "concluidas", rotulo: "Concluídas" },
+  { valor: "canceladas", rotulo: "Canceladas" },
+]
+
+/** `?filtro=` on /encomendas; anything unknown means "Todas". */
+export function lerFiltroEncomendas(search: Record<string, unknown>): {
+  filtro?: FiltroEncomenda
+} {
+  const filtro = FILTROS_LISTA.find((f) => f.valor === search.filtro)?.valor
+  return filtro ? { filtro } : {}
 }
 
 export function podeCancelarEncomenda(estado: EstadoEncomenda): boolean {
@@ -175,10 +182,12 @@ export function passosEncomenda(e: EncomendaParaPassos): Array<Passo> {
 function detalhePasso(
   chave: (typeof PASSOS)[number]["chave"],
   estado: PassoEstado,
-  e: EncomendaParaPassos,
+  e: EncomendaParaPassos
 ): string {
   if (estado === "cancelado") {
-    return e.cancelledAt ? `Cancelada ${formatarData(e.cancelledAt)}` : "Cancelada"
+    return e.cancelledAt
+      ? `Cancelada ${formatarData(e.cancelledAt)}`
+      : "Cancelada"
   }
   switch (chave) {
     case "recebida":
@@ -188,7 +197,9 @@ function detalhePasso(
         return `Confirmado ${formatarData(e.paymentRequestedAt)}`
       }
       if (estado === "actual") return "Com os fornecedores"
-      return e.stockRequestedAt ? formatarData(e.stockRequestedAt) : "Após a receção"
+      return e.stockRequestedAt
+        ? formatarData(e.stockRequestedAt)
+        : "Após a receção"
     case "pagamento":
       if (e.paidAt) return `Recebido ${formatarData(e.paidAt)}`
       if (estado === "actual") return "À sua espera"

@@ -231,6 +231,44 @@ describe("encomendas.submeter", () => {
   });
 });
 
+describe("encomendas.minhas", () => {
+  it("filters by the installer's chips before paginating", async () => {
+    const test = t();
+    const { asInstaller } = await cenario(test);
+    const estados = [
+      "recebida",
+      "aguardando_stock",
+      "aguardando_pagamento",
+      "paga",
+      "concluida",
+      "cancelada",
+    ] as const;
+    for (const estado of estados) {
+      const { encomendaId } = await asInstaller.mutation(
+        api.encomendas.submeter,
+        { linhas: [{ ref: "HS-001", qty: 1 }] },
+      );
+      await test.run((ctx) => ctx.db.patch(encomendaId, { estado }));
+    }
+
+    async function numeros(
+      filtro?: "a-pagar" | "em-curso" | "concluidas" | "canceladas",
+    ) {
+      const lista = await asInstaller.query(api.encomendas.minhas, {
+        paginationOpts: { numItems: 10, cursor: null },
+        ...(filtro ? { filtro } : {}),
+      });
+      return lista.page.map((e) => e.numero);
+    }
+
+    expect(await numeros()).toEqual([6, 5, 4, 3, 2, 1]);
+    expect(await numeros("a-pagar")).toEqual([3]);
+    expect(await numeros("em-curso")).toEqual([4, 2, 1]);
+    expect(await numeros("concluidas")).toEqual([5]);
+    expect(await numeros("canceladas")).toEqual([6]);
+  });
+});
+
 describe("encomendas.cancelar", () => {
   it("installer may cancel before pay, never after paga", async () => {
     const test = t();

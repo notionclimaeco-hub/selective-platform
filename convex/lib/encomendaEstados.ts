@@ -29,6 +29,18 @@ export function assertQty(qty: number): number {
   return qty;
 }
 
+// --- installer list filters -------------------------------------------------
+
+/** The chips on the installer's orders list, each a fixed set of states. */
+export const FILTROS_ENCOMENDA = {
+  "a-pagar": ["aguardando_pagamento"],
+  "em-curso": ["recebida", "aguardando_stock", "paga"],
+  concluidas: ["concluida"],
+  canceladas: ["cancelada"],
+} as const satisfies Record<string, ReadonlyArray<EstadoEncomenda>>;
+
+export type FiltroEncomenda = keyof typeof FILTROS_ENCOMENDA;
+
 // --- header gates -----------------------------------------------------------
 
 /** Installer or office cancel; also ORDER_FAILED and all-lines-dropped. */
@@ -53,7 +65,7 @@ export function assertPodePedirStock(estado: EstadoEncomenda): void {
   }
 }
 
-/** Office confirm / drop / qty / add-line. Not after the pró-forma exists. */
+/** Office confirm / drop / qty / add-line. Not once payment is requested. */
 export function podeEditarLinhas(estado: EstadoEncomenda): boolean {
   return estado === "recebida" || estado === "aguardando_stock";
 }

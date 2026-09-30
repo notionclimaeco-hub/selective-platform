@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import type { PaymentsModulePayByBankInstance } from "@revolut/checkout/types/types"
 import {
   CheckCircle2,
   Clock,
@@ -21,6 +20,7 @@ import {
   formatarDataEncomenda,
   prazoRelativo,
 } from "@/lib/encomendas"
+import { usePagarPorBanco } from "@/lib/pagar-por-banco"
 import { cn } from "@/lib/utils"
 
 /**
@@ -32,8 +32,6 @@ import { cn } from "@/lib/utils"
 export const Route = createFileRoute("/_minimal/pagamento/$token")({
   component: PagamentoPage,
 })
-
-type Fase = "pronto" | "a_abrir" | "aberto" | "erro" | "cancelado"
 
 function PagamentoPage() {
   const { token } = Route.useParams()
@@ -179,7 +177,7 @@ function textoEstado(p: Vista): {
         tom: "bg-card text-muted-foreground",
         titulo: "Encomenda cancelada",
         texto: p.cancelReason
-          ? `${MOTIVO_CANCELAMENTO_LABELS[p.cancelReason]} Esta encomenda já não pode ser paga.`
+          ? `${MOTIVO_CANCELAMENTO_LABELS[p.cancelReason]}. Esta encomenda já não pode ser paga.`
           : "Esta encomenda foi cancelada e já não pode ser paga.",
       }
     default:
@@ -204,49 +202,7 @@ function PagarPorBanco({
   expiraEm?: number
   agora: number
 }) {
-  const [fase, setFase] = useState<Fase>("pronto")
-  const [erro, setErro] = useState<string | null>(null)
-  const instancia = useRef<PaymentsModulePayByBankInstance | null>(null)
-
-  useEffect(() => () => instancia.current?.destroy(), [])
-
-  async function pagar() {
-    setErro(null)
-    setFase("a_abrir")
-    try {
-      const publicToken = import.meta.env.VITE_REVOLUT_PUBLIC_KEY as
-        string | undefined
-      if (!publicToken) throw new Error("VITE_REVOLUT_PUBLIC_KEY em falta")
-      const mode =
-        import.meta.env.VITE_REVOLUT_MODE === "sandbox" ? "sandbox" : "prod"
-      const { default: RevolutCheckout } = await import("@revolut/checkout")
-      const { payByBank } = await RevolutCheckout.payments({
-        publicToken,
-        mode,
-        locale: "pt",
-      })
-      instancia.current?.destroy()
-      instancia.current = payByBank({
-        // The Revolut order already exists (created when the office asked
-        // for payment); the widget only needs its public token.
-        createOrder: async () => ({ publicId: revolutToken }),
-        location: "PT",
-        onSuccess: () => setFase("aberto"),
-        onError: ({ error }) => {
-          setErro(error.message)
-          setFase("erro")
-        },
-        onCancel: () => setFase("cancelado"),
-      })
-      instancia.current.show()
-      setFase("aberto")
-    } catch (e) {
-      setErro(
-        e instanceof Error ? e.message : "Não foi possível abrir o pagamento."
-      )
-      setFase("erro")
-    }
-  }
+  const { fase, erro, pagar } = usePagarPorBanco()
 
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
@@ -267,13 +223,13 @@ function PagarPorBanco({
           className="mt-5 h-12 w-full text-base"
           size="lg"
           disabled={fase === "a_abrir"}
-          onClick={() => void pagar()}
+          onClick={() => void pagar(revolutToken)}
         >
           <Landmark data-icon="inline-start" />
           {fase === "a_abrir" ? "A abrir…" : "Pagar com o meu banco"}
         </Button>
 
-        {fase === "aberto" && (
+        {(fase === "janela" || fase === "a_confirmar") && (
           <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
             Assim que o banco confirmar a transferência, esta página actualiza
             automaticamente. Pode demorar alguns segundos.

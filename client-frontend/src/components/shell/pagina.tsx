@@ -67,15 +67,17 @@ export function Aviso({
   accao,
 }: {
   titulo?: string
-  children: React.ReactNode
+  children?: React.ReactNode
   accao?: React.ReactNode
 }) {
   return (
     <section className="rounded-xl border bg-card p-6">
       {titulo && <h2 className="font-semibold">{titulo}</h2>}
-      <p className={cn("text-sm text-muted-foreground", titulo && "mt-2")}>
-        {children}
-      </p>
+      {children && (
+        <p className={cn("text-sm text-muted-foreground", titulo && "mt-2")}>
+          {children}
+        </p>
+      )}
       {accao && <div className="mt-4">{accao}</div>}
     </section>
   )

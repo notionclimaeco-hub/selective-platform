@@ -19,6 +19,7 @@ import {
   assertPodePedirStock,
   assertQty,
   estadoLinhaAposQty,
+  FILTROS_ENCOMENDA,
   IVA_PADRAO_PERCENT,
   linhasRestantes,
   MAX_LINHAS_ENCOMENDA,
@@ -58,8 +59,10 @@ const encomendaValidator = v.object({
   stockRequestedAt: v.optional(v.number()),
   paymentRequestedAt: v.optional(v.number()),
   cancelledAt: v.optional(v.number()),
-  // Payment (#8): the link is live only while `aguardando_pagamento`.
+  // Payment (#8): the link and the Revolut widget's public order token are
+  // live only while `aguardando_pagamento`.
   pagamentoToken: v.optional(v.string()),
+  revolutToken: v.optional(v.string()),
   totalPagamentoCents: v.optional(v.number()),
   paymentExpiresAt: v.optional(v.number()),
   paidAt: v.optional(v.number()),
@@ -104,6 +107,7 @@ function paraCliente(
     paymentRequestedAt: doc.paymentRequestedAt,
     cancelledAt: doc.cancelledAt,
     pagamentoToken: doc.estado === "aguardando_pagamento" ? doc.pagamentoToken : undefined,
+    revolutToken: doc.estado === "aguardando_pagamento" ? doc.revolutToken : undefined,
     totalPagamentoCents: doc.totalPagamentoCents,
     paymentExpiresAt: doc.estado === "aguardando_pagamento" ? doc.paymentExpiresAt : undefined,
     paidAt: doc.paidAt,
@@ -348,18 +352,38 @@ export const cancelar = mutation({
   },
 });
 
+/** One company's orders, newest first; `filtro` is the list's estado chip. */
 export const minhas = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    filtro: v.optional(
+      v.union(
+        v.literal("a-pagar"),
+        v.literal("em-curso"),
+        v.literal("concluidas"),
+        v.literal("canceladas"),
+      ),
+    ),
+  },
   returns: paginationResultValidator(encomendaValidator),
   handler: async (ctx, args) => {
     const installer = await requireInstaller(ctx);
-    const resultado = await ctx.db
+    const daEmpresa = ctx.db
       .query("installerOrders")
       .withIndex("by_empresaId", (q) =>
         q.eq("empresaId", installer.company._id),
       )
-      .order("desc")
-      .paginate(args.paginationOpts);
+      .order("desc");
+    // A chip spans several states, so it filters the company's index range
+    // (one company's orders) rather than using an index of its own.
+    const estados = args.filtro ? FILTROS_ENCOMENDA[args.filtro] : null;
+    const resultado = await (
+      estados === null
+        ? daEmpresa
+        : daEmpresa.filter((q) =>
+            q.or(...estados.map((estado) => q.eq(q.field("estado"), estado))),
+          )
+    ).paginate(args.paginationOpts);
 
     const page = [];
     for (const encomenda of resultado.page) {

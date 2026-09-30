@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Authenticated, useMutation, useQuery } from "convex/react"
+import { toast } from "sonner"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
@@ -42,22 +43,19 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
   if (vista !== undefined && vista?.kind !== "empresa") {
     return (
       <Aviso
-        titulo="Ainda sem empresa"
+        titulo="Sem empresa"
         accao={
           <Button render={<Link to="/registo" />} nativeButton={false}>
             Registar empresa
           </Button>
         }
-      >
-        Complete o registo da empresa para ver encomendas.
-      </Aviso>
+      />
     )
   }
   if (!orgActiva && activacaoFalhou) {
     return (
       <Aviso titulo="Empresa não activa nesta sessão">
-        Não foi possível activar a organização da empresa. Use o seletor de
-        organização no topo da página e tente de novo.
+        Escolha a empresa no seletor de organização e tente de novo.
       </Aviso>
     )
   }
@@ -75,19 +73,20 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
             Voltar às encomendas
           </Button>
         }
-      >
-        Esta encomenda não existe ou não pertence à sua empresa.
-      </Aviso>
+      />
     )
   }
 
-  async function onCancelar() {
+  async function onCancelar(): Promise<boolean> {
     setErro(null)
     setACancelar(true)
     try {
-      await cancelar({ encomendaId: id })
+      const cancelada = await cancelar({ encomendaId: id })
+      toast.success(`ENC-${cancelada.numero} cancelada.`)
+      return true
     } catch {
-      setErro("Não foi possível cancelar a encomenda. Tente novamente.")
+      setErro("Não foi possível cancelar. Tente de novo.")
+      return false
     } finally {
       setACancelar(false)
     }
@@ -97,7 +96,7 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
     <EncomendaDetalhe
       encomenda={encomenda}
       agora={agora}
-      onCancelar={() => void onCancelar()}
+      onCancelar={onCancelar}
       aCancelar={aCancelar}
       erro={erro}
     />
@@ -106,9 +105,9 @@ function Detalhe({ id }: { id: Id<"installerOrders"> }) {
 
 function Esqueleto() {
   return (
-    <div className="flex flex-col gap-6" aria-busy>
-      <div className="h-16 w-64 animate-pulse rounded-xl bg-secondary/60" />
-      <div className="h-32 animate-pulse rounded-xl border bg-secondary/60" />
+    <div className="flex flex-col gap-4" aria-busy>
+      <div className="h-16 w-56 animate-pulse rounded-xl bg-secondary/60" />
+      <div className="h-24 animate-pulse rounded-xl border bg-secondary/60" />
       <div className="h-72 animate-pulse rounded-xl border bg-secondary/60" />
     </div>
   )
