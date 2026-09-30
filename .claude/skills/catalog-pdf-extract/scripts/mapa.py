@@ -35,11 +35,38 @@ CAMPOS_CLASSIFICACAO = ("familia", "segmento", "sistema", "tipoUnidade", "compon
 
 # --- Text helpers -------------------------------------------------------------
 
+EURO_TROCADO_RX = re.compile(r"\d,\d{2}¬")
+_glifos_trocados: dict[int, bool] = {}
+
+
+def glifos_trocados(doc: pymupdf.Document) -> bool:
+    """PDFs com fontes Type3 sem mapa Unicode fiável (Midea 2026) imprimem o euro
+    como '¬' e deixam '€' e '(' soltos no fim das palavras, '+' como 'z' nas
+    classes ('Azzz') e a polegada como '˛'. Deteta-se pelo preço com '¬'."""
+    chave = id(doc)
+    if chave not in _glifos_trocados:
+        _glifos_trocados[chave] = any(EURO_TROCADO_RX.search(p.get_text()) for p in doc)
+    return _glifos_trocados[chave]
+
+
+def reparar_glifos(w: str) -> str:
+    w = w.replace("€", "").replace("¬", "€").replace("˛", '"')
+    if w == "d":                      # "9 d a d 20" = "9 ≤ a ≤ 20"
+        return "≤"
+    if len(w) > 1:
+        w = w.rstrip("(")
+    return re.sub(r"^A(z{1,3})$", lambda m: "A" + "+" * len(m.group(1)), w)
+
+
 def palavras_da_pagina(page: pymupdf.Page) -> list[tuple[float, float, float, float, str]]:
-    """(x0, y0, x1, y1, palavra) com hífenes suaves (U+00AD) normalizados."""
+    """(x0, y0, x1, y1, palavra) com hífenes suaves (U+00AD) normalizados e,
+    nos PDFs de glifos trocados, os glifos reparados."""
+    reparar = glifos_trocados(page.parent)
     out = []
     for x0, y0, x1, y1, w, *_ in page.get_text("words"):
         w = w.replace("\xad", "-").strip()
+        if reparar:
+            w = reparar_glifos(w)
         if w:
             out.append((x0, y0, x1, y1, w))
     return out
@@ -358,7 +385,7 @@ def localizar_titulo(page: pymupdf.Page, titulo: str) -> tuple[float, str] | Non
     """(y, texto impresso) da banda que imprime o título — ≥ 60 % das palavras
     numa banda curta ou em duas bandas consecutivas ('Recuperadores…' +
     'sem bateria DX') — ou None."""
-    alvo = [w for w in normalizar(titulo).split() if len(w) >= 2]
+    alvo = [w for w in normalizar(titulo).split() if len(w) >= 2 or w.isdigit()]   # "DC 2 Tubos" ≠ "DC 4 Tubos"
     if not alvo:
         return None
     bandas = bandas_texto(page)
@@ -480,7 +507,7 @@ def gerar_mapa(doc: pymupdf.Document, ficheiro: str, marca: str | None = None,
             mapa["estrategia"] = "indice"
             mapa["desfasamento"] = desfasamento
             seccoes = _seccoes_de(doc, entradas)
-        else:
+        if not idx or not seccoes:        # "índice" falso (matriz cheia de números): cabeçalhos
             mapa["estrategia"] = "cabecalhos"
             mapa["desfasamento"] = 0
             seccoes = []

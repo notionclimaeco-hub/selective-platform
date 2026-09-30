@@ -68,6 +68,18 @@ def _seccao(mapa: dict, sid: str) -> dict:
     raise KeyError(f"secção '{sid}' não existe no mapa")
 
 
+def _seccao_linha(mapa: dict, l: dict) -> dict:
+    """Secção da linha com o `porRef` do mapa aplicado: numa tabela que mistura
+    produtos ("UE + depósito", "UE + módulo hidráulico") o prefixo da ref dá
+    familia/componente/tipoUnidade/gama próprios."""
+    s = _seccao(mapa, l["seccao"])
+    for regra in s.get("porRef") or []:
+        if l["ref"].upper().startswith(regra["prefixo"].upper()):
+            fixo = {"componenteFixo": True} if "componente" in regra else {}
+            return {**s, **{k: v for k, v in regra.items() if k != "prefixo"}, **fixo}
+    return s
+
+
 def _tem_capacidade(l: dict) -> bool:
     return any(k in l["campos"] for k in CAPACIDADE)
 
@@ -98,8 +110,8 @@ def _gama_de(seccao: dict, componente: str, serie: str | None) -> str:
 
 def _nome_grupo(seccao: dict, familia: str, componente: str, gama: str) -> str:
     tipo = seccao.get("tipoUnidade") or ""
-    rotulo = TIPO_LABEL.get(tipo)
-    if not rotulo and familia != "ar-condicionado":
+    rotulo = seccao["rotulo"] if "rotulo" in seccao else TIPO_LABEL.get(tipo)
+    if not rotulo and familia != "ar-condicionado" and "rotulo" not in seccao:
         rotulo = FAM_LABEL.get(familia, "")
     if rotulo is None:
         rotulo = ""
@@ -114,6 +126,8 @@ def _nome_grupo(seccao: dict, familia: str, componente: str, gama: str) -> str:
 def _sufixo_capacidade(attrs: dict[str, str], familia: str = "") -> str:
     if familia == "aqs" and attrs.get("deposito-l"):    # AQS varia pelo depósito, não pelos kW
         return f"{attrs['deposito-l']} L"
+    if familia == "bombas-de-calor" and attrs.get("calor-kw"):   # aerotermia vende-se pelo aquecimento
+        return f"{attrs['calor-kw']} kW"
     if attrs.get("frio-kw"):
         return f"{attrs['frio-kw']} kW"
     if attrs.get("calor-kw"):
@@ -184,7 +198,7 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
     kw_por_ref: dict[str, dict[str, str]] = {}
     for l in base:
         if l.get("refs") and len(l["refs"]) == 2:
-            s = _seccao(mapa, l["seccao"])
+            s = _seccao_linha(mapa, l)
             kw = {k: v for k, v in l["campos"].items() if k in ("frio-kw", "calor-kw", "btu")}
             if s["componente"] == "conjunto":          # tabela 1×1: "UI / UE"
                 ui_do_conjunto.add(l["refs"][0])
@@ -210,7 +224,7 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
         if not l.get("marcadorRef") or "alimentacao" in l["campos"]:
             continue
         for n in l.get("notas", []):                     # só as notas da mesma tabela/página
-            m = re.match(r"^(\*+)\s*modelo\s+(trif|monof)", n, re.I)
+            m = re.match(r"^(\*+)\s*(?:nota:?\s*)?modelos?\s+(?:na\s+vers[ãa]o\s+)?(trif|monof)", n, re.I)
             if m and len(m.group(1)) == l["marcadorRef"]:
                 l["campos"]["alimentacao"] = "trifasica" if m.group(2).lower() == "trif" else "monofasica"
     alim_por_ref = {l["ref"]: l["campos"]["alimentacao"] for l in base
@@ -223,7 +237,9 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
                     break
     ultimo_kw: dict[str, dict[str, str]] = {}          # secção → kW da última linha com capacidade
     for l in base:
-        s = _seccao(mapa, l["seccao"])
+        s = _seccao_linha(mapa, l)
+        for k, v in (s.get("atributos") or {}).items():  # specs da secção lidas de ícones (R32, 4 tubos)
+            l["campos"].setdefault(k, v)
         familia = s["familia"]
         comp = l.get("componenteHint")
         if comp is None:
@@ -234,7 +250,8 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
             elif l["ref"] in acessorio_do_conjunto:
                 comp = "acessorio"
             elif familia != "acessorios-e-controlo" and not _tem_capacidade(l) and (
-                    l.get("refs") is None) and s["componente"] in ("conjunto", "unidade-interior", "unidade-exterior"):
+                    l.get("refs") is None) and not s.get("componenteFixo") and s["componente"] in (
+                    "conjunto", "unidade-interior", "unidade-exterior"):
                 comp = "acessorio"
             else:
                 comp = s["componente"]
@@ -263,7 +280,7 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
         l["_familia"] = familia
         # UI/UE vendidas à parte herdam os kW do conjunto (a tabela só os imprime
         # no conjunto): pela ref do "UI / UE" ou pela linha com capacidade acima.
-        if comp in ("unidade-interior", "unidade-exterior") and not _tem_capacidade(l):
+        if comp in ("unidade-interior", "unidade-exterior") and not _tem_capacidade(l) and s.get("herdarKw", True):
             herdados = kw_por_ref.get(l["ref"]) or ultimo_kw.get(l["seccao"], {})
             for k, v in herdados.items():
                 l["campos"].setdefault(k, v)
@@ -306,8 +323,8 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
     # 4. Grupos: secção + componente + família de prefixo (+ série do subcabeçalho).
     chaves_grupo: dict[str, tuple] = {}
     for ref, l in por_ref.items():
-        s = _seccao(mapa, l["seccao"])
-        if l["_familia"] == "acessorios-e-controlo" or l["_familia"] != _seccao(mapa, l["seccao"])["familia"]:
+        s = _seccao_linha(mapa, l)
+        if l["_familia"] == "acessorios-e-controlo" or l["_familia"] != s["familia"]:
             chaves_grupo[ref] = (l["seccao"], l["_componente"], "acc", esqueleto(ref))
         else:
             chaves_grupo[ref] = (l["seccao"], l["_componente"], "serie", l["contexto"].get("serie"))
@@ -331,7 +348,7 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
     skus: list[dict] = []
     grupos: dict[tuple, list[dict]] = defaultdict(list)
     for ref, l in por_ref.items():
-        s = _seccao(mapa, l["seccao"])
+        s = _seccao_linha(mapa, l)
         comp = l["_componente"]
         familia = l["_familia"]
         chave = chaves_grupo[ref]
@@ -385,6 +402,9 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
                 avisos.append("preço sob consulta (a tabela não imprime preço)")
             else:
                 avisos.append("sem preço na linha do PDF")
+        if l.get("precoImpresso"):
+            avisos.append(f"preço mal formatado no PDF ('{l['precoImpresso']}'), lido como "
+                          f"{pvp / 100:.2f} € — confirmar")
         if l.get("numPrecos", 0) > 1:
             avisos.append(f"{l['numPrecos']} preços na mesma linha do PDF; ficou o da direita")
 

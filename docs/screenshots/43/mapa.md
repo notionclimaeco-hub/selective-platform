@@ -1,6 +1,6 @@
 ## Mapa de secções — Hisense 2026 (`HISENSE (3).pdf`, 56 páginas, estratégia índice)
 
-Gerado por `mapa.py` e corrigido por `mapa-correcoes.py` (decisões de modelo assinaladas com ✎).
+Gerado por `mapa.py` e corrigido por `marcas/hisense/mapa.py` (skill catalog-pdf-extract) (decisões de modelo assinaladas com ✎).
 
 | secção | páginas | familia / segmento / sistema / tipoUnidade / componente | gama | notas |
 | --- | --- | --- | --- | --- |

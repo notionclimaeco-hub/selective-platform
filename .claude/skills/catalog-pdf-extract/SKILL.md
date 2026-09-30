@@ -22,11 +22,36 @@ marca ausentes da run ficam `descontinuado`. Ler primeiro
 specs, convenção de nomes) e `CONTEXT.md` (secção *Catalog import*).
 
 ```
-mapa.py → (corrigir mapa.json à mão) → extrair.py → agrupar.py → validar.py → paginas.py → enviar.py → revisão → aprovar
+mapa.py (+ marcas/<marca>/mapa.py) → extrair.py → agrupar.py → marcas/<marca>/pos.py
+  → validar.py → paginas.py → enviar.py → revisão → aprovar
 ```
 
-Os scripts vivem em `scripts/` (relativo a esta pasta); Python 3 + PyMuPDF
-(`pip install pymupdf`), sem Node. Pasta de trabalho por marca:
+Os scripts genéricos vivem em `scripts/` (relativo a esta pasta); Python 3 +
+PyMuPDF (`pip install pymupdf`), sem Node. `scripts/cadeia.py` corre a cadeia
+inteira de uma marca e chama as partes próprias dela:
+
+```bash
+S=.claude/skills/catalog-pdf-extract/scripts
+python3 $S/cadeia.py --marca midea --ano 2026                   # mapa → … → páginas
+python3 $S/cadeia.py --marca midea --ano 2026 --desde extrair   # sem regerar o mapa
+python3 $S/cadeia.py --marca midea --ano 2026 --enviar          # + enviar.py
+```
+
+### Partes por marca (`marcas/<marca>/`)
+
+O que só serve a uma tabela não entra nos scripts genéricos: fica na pasta da
+marca, versionada, e o `cadeia.py` carrega-a pelo caminho. Tudo opcional:
+
+- `mapa.py` — `gerar(doc, ficheiro, marca, ano) -> dict` substitui o mapa
+  automático (Midea: sem índice) e/ou `corrigir(mapa) -> None` edita-o
+  (Hisense: classificações, gamas, tabelas sob consulta).
+- `pos.py` — `corrigir(run, doc) -> None` entre `agrupar.py` e `validar.py`.
+- `NOTAS.md` — particularidades da tabela (ler antes de recarregar a marca).
+
+As partes importam o toolkit como módulos (`from mapa import
+palavras_da_pagina`, `from _comum import grupo_modelo`). Quando um problema
+aparece em mais de uma marca, sobe para `scripts/` com teste. Marca nova sem
+pasta = cadeia só com os scripts genéricos. Pasta de trabalho por marca:
 `product-scaffold/pdf-extract/{marca}/` (gitignored) com o PDF lá dentro.
 Antes de começar: `pnpm registry:json` (exporta o registo de specs para
 `product-scaffold/spec-registry.json`, que `validar.py` lê).
@@ -47,14 +72,17 @@ python3 $S/mapa.py hisense-tabela-precos-2026.pdf --marca hisense --ano 2026   #
 ```
 
 Lê o outline (Mitsubishi), as páginas de índice (Daikin, Hisense, Nipon) ou o
-cabeçalho de cada página (Midea) e propõe **secções**: título → páginas →
+cabeçalho de cada página (quando não há índice) e propõe **secções**: título → páginas →
 `familia/segmento/sistema/tipoUnidade/componente` + `gama`. Cada página tem de
 pertencer a pelo menos uma secção (`tipo: ignorar` para capa, índice,
 marketing, condições); várias secções podem partilhar uma página — as linhas
 vão para a secção cujo título está impresso acima delas nessa página, nunca
 herdam a secção anterior.
 
-**Corrigir `mapa.json` à mão antes de extrair.** O que costuma precisar:
+**Corrigir o mapa antes de extrair**, em `marcas/<marca>/mapa.py`
+(`corrigir(mapa)`), para que a correção sobreviva a uma nova extração. Editar
+`mapa.json` à mão só para experimentar (`cadeia.py --desde extrair` não o
+regera). O que costuma precisar:
 
 - `familia`/`componente` em branco (`?` na listagem) e classificações
   erradas (ex.: uma secção VRF que foi para `bombas-de-calor`).
@@ -69,6 +97,20 @@ herdam a secção anterior.
   (o script já funde subgamas de cor e títulos partilhados).
 - Decisões de modelo que só o agente pode tomar: um "Kit de conexão UTA" com
   kW é `acessorios-e-controlo` ou `ventilacao`? Registar no PR.
+- Campos opcionais por secção, para layouts que o automático não resolve:
+  `posicoes: {"<página>": y}` (título repetido na página, ou impresso só na
+  faixa do topo), `regiao: {x0, x1}` (páginas de caixas em duas colunas),
+  `atributos: {refrigerante: "R32", tubos: "4"}` (specs impressas como ícone),
+  `rotulo: ""` (a gama já diz o tipo: "Cassete Compacta", não "Mini Cassete
+  Cassete Compacta"), `porRef: [{prefixo, familia?, componente?, tipoUnidade?,
+  gama?, rotulo?, herdarKw?}]` (produtos diferentes na mesma tabela: UE +
+  depósito, UE + módulo hidráulico; o componente do `porRef` ou
+  `componenteFixo: true` não cai para acessório por não ter kW). Secções
+  `ignorar` com `posicoes` terminam a região da secção de cima (matriz de
+  combinações a meio da página).
+
+Quando o mapa automático não serve (Midea: sem índice, cabeçalho de página só
+com a gama larga), `marcas/<marca>/mapa.py` escreve-o todo em `gerar(...)`.
 
 `python3 $S/mapa.py --validar mapa.json` confirma o ficheiro editado.
 
@@ -113,6 +155,15 @@ repetidas fundidas (páginas juntas; `cor` cai quando difere; preços diferentes
 listados como acessórios passam a `aqs/deposito`. Nomes: `nomeGrupo` =
 `{tipo} {gama}` (+ ` | Unidade Interior/Exterior`), `nome` = nomeGrupo +
 capacidade (+ `(até N UI)`, `trifásico` quando o grupo varia por fase).
+
+### Pós-processamento da marca (`marcas/<marca>/pos.py`, opcional)
+
+Correções que o PDF pede e o toolkit não deve generalizar (gralhas de refs,
+colunas trocadas, produtos com preço e sem ref impressa, compatibilidade lida
+de matrizes de capacidades) vão em `corrigir(run, doc)`, que o `cadeia.py`
+chama entre `agrupar.py` e `validar.py`. Cada correção lê o PDF ou
+justifica-se num comentário, e a que muda o que o PDF imprime deixa aviso no
+SKU (exemplo: `marcas/midea/pos.py`).
 
 ## 4. Validar
 
@@ -189,23 +240,13 @@ primeiro), que conta na aprovação; o staff só muda o que quiser.
 
 `pnpm test:pdf` corre os testes (pytest) sobre páginas de fixture geradas com
 PyMuPDF: emparelhamento ref/preço, refs combinadas, colunas do cabeçalho,
-matrizes de compatibilidade, agrupamento, registo. `tests/test_hisense.py`
+matrizes de compatibilidade, agrupamento, registo, layouts Midea
+(`tests/test_midea.py`) e as partes por marca (`tests/test_marcas.py`). `tests/test_hisense.py`
 corre a cadeia inteira na tabela Hisense 2026 quando o PDF e o
 `spec-registry.json` existem localmente.
 
 ## Notas por marca
 
-- **Hisense 2026**: índice em duas colunas com números de página às vezes
-  errados (o mapa confirma cada título na página); `UI / UE` nos conjuntos
-  1×1, `UI / painel` nas cassetes multi; `** Modelo trifásico` só vale na
-  página onde está (U4 = monofásico, U6 = trifásico ficam sem `alimentacao`
-  fora dela); a mesma ref `HC25YC0U` tem preço de conjunto (p14) e de UI multi
-  (p20) — fica o primeiro com aviso; tabelas VRF inteiras "sob consulta"
-  (`pvpCents: 0` + aviso); "Kit de conexão UTA" traz kW/CV e fica em
-  acessórios (o registo de acessórios aceita `frio-kw`/`calor-kw`/`cv`/
-  `refrigerante`/`alimentacao`); "Unidades interiores 100% ar novo" (AVA-*)
-  são UI VRF com kW → `ar-condicionado/vrf/uta/unidade-interior`; monoblocos
-  (Hi-Therma II M, R32 Monobloco) e chillers imprimem "UE" mas o `agrupar.py`
-  fá-los `conjunto` (a UE é o produto); `(U.I.)` na coluna da tubagem não é
-  categoria; p20 "Multi-Inverter Max Comfort" são UI (refs sem `G`, iguais às
-  do conjunto p14 → aviso de preços diferentes, genuíno).
+Cada marca tem as suas em `marcas/<marca>/NOTAS.md` (Hisense 2026, Midea
+2026). Ler antes de recarregar a marca; acrescentar o que a tabela nova
+trouxer de diferente.
