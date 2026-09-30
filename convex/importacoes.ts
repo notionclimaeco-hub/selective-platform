@@ -94,6 +94,14 @@ export const skuEmRevisaoValidator = v.object({
 
 // --- Shared helpers ----------------------------------------------------------
 
+/**
+ * The run as the admin sees it: without `gruposPorSincronizar`, the internal
+ * work list promotion keeps on the document until the listing is synced.
+ */
+function runParaCliente({ gruposPorSincronizar: _interno, ...run }: Doc<"importacoes">) {
+  return run;
+}
+
 async function obterRun(
   ctx: QueryCtx | MutationCtx,
   importacaoId: Id<"importacoes">,
@@ -765,7 +773,8 @@ export const listar = query({
   returns: v.array(importacaoValidator),
   handler: async (ctx) => {
     await requireStaff(ctx);
-    return await ctx.db.query("importacoes").order("desc").take(100);
+    const runs = await ctx.db.query("importacoes").order("desc").take(100);
+    return runs.map(runParaCliente);
   },
 });
 
@@ -860,7 +869,7 @@ export const obter = query({
 
     const pdfUrl = run.pdf === undefined ? null : await ctx.storage.getUrl(run.pdf);
     return {
-      importacao: { ...run, pdfUrl },
+      importacao: { ...runParaCliente(run), pdfUrl },
       grupos: filtrados.slice(inicio, inicio + porPagina),
       totalGrupos: filtrados.length,
       numPaginas,

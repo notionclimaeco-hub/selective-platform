@@ -680,6 +680,16 @@ describe("importacoes: promoção", () => {
     expect(await run(test, id)).toMatchObject({ estado: "a-promover", numPromovidos: 100 });
     expect(await grupo("hisense-energy")).toBeNull();
     expect(await grupo("hisense-solo")).not.toBeNull();
+    // The review page and the runs index keep loading mid-promotion (the run
+    // carries its internal work list then).
+    expect((await run(test, id))?.gruposPorSincronizar?.length).toBeGreaterThan(0);
+    const aMeio = await test
+      .withIdentity(STAFF)
+      .query(api.importacoes.obter, { importacaoId: id, pagina: 0, porPagina: 10 });
+    expect(aMeio?.importacao).toMatchObject({ estado: "a-promover" });
+    expect(aMeio?.importacao).not.toHaveProperty("gruposPorSincronizar");
+    const lista = await test.withIdentity(STAFF).query(api.importacoes.listar, {});
+    expect(lista[0]).not.toHaveProperty("gruposPorSincronizar");
 
     await test.finishAllScheduledFunctions(vi.runAllTimers);
     vi.useRealTimers();
