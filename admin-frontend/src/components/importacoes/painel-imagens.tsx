@@ -1,7 +1,13 @@
 import { useEffect, useReducer, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { Check, ExternalLink, Loader2, X } from "lucide-react"
+import {
+  Check,
+  ExternalLink,
+  Loader2,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@convex/_generated/api"
@@ -119,8 +125,10 @@ type Recorte =
 /**
  * The group's photo decision on the review page: an ordered strip (the
  * group list, or one ref's override) above the candidates by source, with
- * uploads as new candidates. Nothing is written until "Guardar"; the toast
- * after a save offers "Reverter" to the previous decision.
+ * uploads as new candidates. Clicking a candidate toggles it; with no saved
+ * decision one cutout starts selected (the agent's picks, when it saved
+ * some, load as the saved decision). Nothing is written until "Guardar";
+ * the toast after a save offers "Reverter" to the previous decision.
  */
 export function PainelImagens({
   grupoModelo,
@@ -128,14 +136,12 @@ export function PainelImagens({
   refs,
   cores,
   podeEditar,
-  onFechar,
 }: {
   grupoModelo: string
   marca: string
   refs: Array<string>
   cores: Array<string>
   podeEditar: boolean
-  onFechar: () => void
 }) {
   const dados = useQuery(api.imagens.obterGrupoImagens, { grupoModelo })
   const gerarUploadUrl = useMutation(api.imagens.gerarUploadUrl)
@@ -417,16 +423,6 @@ export function PainelImagens({
             {cores.length} cores, 1 lista
           </span>
         )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="ml-auto"
-          onClick={onFechar}
-          disabled={ocupado}
-          aria-label="Fechar"
-        >
-          <X />
-        </Button>
       </header>
 
       {dados === undefined ? (
@@ -434,8 +430,16 @@ export function PainelImagens({
       ) : (
         <>
           <div className="flex flex-col gap-1.5">
+            {dados.escolhidas?.porAgente && (
+              <span className="flex items-center gap-1 text-xs font-medium text-sky-800">
+                <Sparkles className="size-3" />
+                Escolha do agente: já conta na aprovação. Guarde para a
+                confirmar ou altere.
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">
-              A primeira imagem é a capa. Arraste para reordenar.
+              A primeira imagem é a capa. Arraste para reordenar; clique numa
+              candidata para a juntar ou tirar.
             </span>
             <div className={XADREZ_IMGS}>
               <FaixaOrdenavel
@@ -574,14 +578,6 @@ export function PainelImagens({
           </span>
         )}
         <Button
-          variant="outline"
-          size="sm"
-          onClick={onFechar}
-          disabled={ocupado}
-        >
-          Cancelar
-        </Button>
-        <Button
           size="sm"
           onClick={() => void guardar()}
           disabled={!podeEditar || ocupado || dados === undefined}
@@ -609,11 +605,13 @@ function MiniaturaCandidata({
       <button
         type="button"
         aria-pressed={escolhida}
-        aria-label={escolhida ? "Já escolhida" : "Escolher imagem"}
+        aria-label={escolhida ? "Tirar imagem" : "Escolher imagem"}
+        title={candidata.aviso}
         onClick={onEscolher}
         className={cn(
           "block aspect-square w-full overflow-hidden rounded-lg border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-          escolhida && "ring-2 ring-primary"
+          escolhida && "ring-2 ring-primary",
+          candidata.aviso && "border-amber-300"
         )}
       >
         <img
@@ -638,6 +636,19 @@ function MiniaturaCandidata({
       {candidata.cor && (
         <span className="pointer-events-none absolute bottom-1 left-1 max-w-[calc(100%-0.5rem)] truncate rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium">
           {rotuloValor(candidata.cor)}
+        </span>
+      )}
+      {candidata.aviso && (
+        <span
+          className="pointer-events-none absolute top-1 left-1 flex size-5 items-center justify-center rounded-full bg-amber-100 text-amber-800"
+          aria-hidden="true"
+        >
+          <TriangleAlert className="size-3" />
+        </span>
+      )}
+      {candidata.aviso && (
+        <span className="mt-1 line-clamp-2 block text-[10px] leading-tight text-amber-800">
+          {candidata.aviso}
         </span>
       )}
       {origem?.tipo === "link" && (

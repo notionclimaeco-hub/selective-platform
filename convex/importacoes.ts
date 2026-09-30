@@ -15,6 +15,7 @@ import {
 import { requireStaff } from "./lib/auth";
 import { conferirSegredo } from "./lib/importSecret";
 import {
+  AGENTE,
   candidatasARemover,
   ficheirosEscolhidos,
   listaParaRef,
@@ -403,12 +404,12 @@ export const rejeitarImportacao = mutation({
 
 /**
  * Approve a run. Gate: every group with a warning or a price change must be
- * reviewed. Promotion itself runs in scheduled batches (`promoverLote`) so a
+ * reviewed, unless `forcar` (staff chose to approve anyway). Promotion itself runs in scheduled batches (`promoverLote`) so a
  * Daikin-sized table stays under transaction limits; `a-promover` is the
  * visible in-between state.
  */
 export const aprovarImportacao = mutation({
-  args: { importacaoId: v.id("importacoes") },
+  args: { importacaoId: v.id("importacoes"), forcar: v.optional(v.boolean()) },
   returns: v.object({ agendado: v.boolean() }),
   handler: async (ctx, args) => {
     const identity = await requireStaff(ctx);
@@ -416,7 +417,7 @@ export const aprovarImportacao = mutation({
     exigirEstado(run, "em-revisao");
 
     const porRever = gruposPorRever(resumirGrupos(await linhasDaRun(ctx, run._id)));
-    if (porRever.length > 0) {
+    if (porRever.length > 0 && args.forcar !== true) {
       const lista = porRever.slice(0, 10).join(", ");
       const resto = porRever.length > 10 ? ", …" : "";
       throw new Error(
@@ -647,6 +648,8 @@ export const resumoGrupoValidator = v.object({
   revisto: v.boolean(),
   precisaRevisao: v.boolean(),
   temImagens: v.boolean(),
+  fotosARever: v.boolean(),
+  escolhaAgente: v.boolean(),
 });
 
 export const filtroGruposValidator = v.union(
@@ -705,6 +708,7 @@ export const obter = query({
     soAlterados: v.optional(v.boolean()),
     soPorRever: v.optional(v.boolean()),
     soSemImagens: v.optional(v.boolean()),
+    soFotosARever: v.optional(v.boolean()),
   },
   returns: v.union(
     v.null(),
@@ -719,6 +723,7 @@ export const obter = query({
       pagina: v.number(),
       gruposPorRever: v.number(),
       gruposSemImagens: v.number(),
+      gruposFotosARever: v.number(),
       familias: v.array(v.string()),
     }),
   ),
@@ -729,10 +734,16 @@ export const obter = query({
 
     const resumos = resumirGrupos(await linhasDaRun(ctx, run._id));
     for (const r of resumos) {
+      const candidatas = await ctx.db
+        .query("imagensCandidatas")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", r.grupoModelo))
+        .collect();
+      r.fotosARever = candidatas.length > 0 && candidatas.every((c) => c.aviso !== undefined);
       const decisao = await ctx.db
         .query("imagensGrupo")
         .withIndex("by_grupo", (q) => q.eq("grupoModelo", r.grupoModelo))
         .unique();
+      r.escolhaAgente = decisao?.atualizadoPor === AGENTE;
       if (decisao && ficheirosEscolhidos(decisao).size > 0) {
         r.temImagens = true;
         continue;
@@ -744,6 +755,7 @@ export const obter = query({
       r.temImagens = vivos.some((p) => p.imagens.length > 0);
     }
     const semImagens = resumos.filter((r) => !r.temImagens).length;
+    const fotosARever = resumos.filter((r) => r.fotosARever).length;
     const porRever = gruposPorRever(resumos).length;
     const filtrados = filtrarPorCriterios(
       filtrarGrupos(resumos, args.filtro ?? "todos"),
@@ -754,6 +766,7 @@ export const obter = query({
         soAlterados: args.soAlterados,
         soPorRever: args.soPorRever,
         soSemImagens: args.soSemImagens,
+        soFotosARever: args.soFotosARever,
       },
     );
     const familias = [...new Set(resumos.map((r) => r.familia))].sort();
@@ -772,6 +785,7 @@ export const obter = query({
       pagina,
       gruposPorRever: porRever,
       gruposSemImagens: semImagens,
+      gruposFotosARever: fotosARever,
       familias,
     };
   },

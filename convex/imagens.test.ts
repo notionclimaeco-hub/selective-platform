@@ -467,3 +467,90 @@ describe("adicionarCandidata: dedupe and recorte checks", () => {
     expect(ok.candidataId).toBeDefined();
   });
 });
+
+describe("escolhas do agente", () => {
+  async function tresCandidatas(tt: T) {
+    const src = await ficheiro(tt, "src");
+    const cut = await ficheiro(tt, "cut");
+    const ue = await ficheiro(tt, "ue");
+    await tt.mutation(api.imagens.registarCandidatas, {
+      secret: SECRET,
+      candidatas: [
+        candidata(src, "hs"),
+        candidata(cut, "hc", { fonte: "recorte", origemHash: "hs" }),
+        candidata(ue, "hu", { aviso: "UE genérica da gama" }),
+      ],
+    });
+    const lista = await tt.query(api.imagens.candidatasDaMarca, { secret: SECRET, marca: "hisense" });
+    const grupo = lista.find((g) => g.grupoModelo === "hisense-air-master");
+    const id = (f: Id<"_storage">) => grupo?.candidatas.find((c) => c.ficheiro === f)?._id as Id<"imagensCandidatas">;
+    return { src, cut, ue, grupo, id };
+  }
+
+  it("candidatasDaMarca lists each group's candidates with URLs and whether a person already chose", async () => {
+    const tt = t();
+    const { grupo, cut, src } = await tresCandidatas(tt);
+    expect(grupo?.escolhaHumana).toBe(false);
+    expect(grupo?.candidatas).toHaveLength(3);
+    const recorte = grupo?.candidatas.find((c) => c.ficheiro === cut);
+    expect(recorte).toMatchObject({ fonte: "recorte", url: expect.any(String) });
+    expect(recorte?.origem).toBe(grupo?.candidatas.find((c) => c.ficheiro === src)?._id);
+    await expect(tt.query(api.imagens.candidatasDaMarca, { secret: "errado", marca: "hisense" })).rejects.toThrow();
+  });
+
+  it("gravarEscolhasAgente saves the ordered picks as the agent's decision", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const { cut, ue, id } = await tresCandidatas(tt);
+    const r = await tt.mutation(api.imagens.gravarEscolhasAgente, {
+      secret: SECRET, marca: "hisense",
+      escolhas: [{ grupoModelo: "hisense-air-master", candidatas: [id(ue), id(cut)] }],
+    });
+    expect(r).toEqual({ gravadas: 1, mantidas: 0 });
+    const g = await staff.query(api.imagens.obterGrupoImagens, { grupoModelo: "hisense-air-master" });
+    expect(g.escolhidas?.imagens.map((i) => i.ficheiro)).toEqual([ue, cut]);
+    expect(g.escolhidas?.porAgente).toBe(true);
+
+    // Re-running replaces the agent's own decision.
+    await tt.mutation(api.imagens.gravarEscolhasAgente, {
+      secret: SECRET, marca: "hisense",
+      escolhas: [{ grupoModelo: "hisense-air-master", candidatas: [id(cut)] }],
+    });
+    const g2 = await staff.query(api.imagens.obterGrupoImagens, { grupoModelo: "hisense-air-master" });
+    expect(g2.escolhidas?.imagens.map((i) => i.ficheiro)).toEqual([cut]);
+  });
+
+  it("never overwrites a decision a person saved", async () => {
+    const tt = t();
+    const staff = tt.withIdentity(STAFF);
+    const { src, cut, id } = await tresCandidatas(tt);
+    await staff.mutation(api.imagens.definirImagensGrupo, {
+      grupoModelo: "hisense-air-master", marca: "hisense", imagens: [src], refsDoGrupo: [],
+    });
+    const r = await tt.mutation(api.imagens.gravarEscolhasAgente, {
+      secret: SECRET, marca: "hisense",
+      escolhas: [{ grupoModelo: "hisense-air-master", candidatas: [id(cut)] }],
+    });
+    expect(r).toEqual({ gravadas: 0, mantidas: 1 });
+    const g = await staff.query(api.imagens.obterGrupoImagens, { grupoModelo: "hisense-air-master" });
+    expect(g.escolhidas?.imagens.map((i) => i.ficheiro)).toEqual([src]);
+    expect(g.escolhidas?.porAgente).toBe(false);
+    const lista = await tt.query(api.imagens.candidatasDaMarca, { secret: SECRET, marca: "hisense" });
+    expect(lista[0]?.escolhaHumana).toBe(true);
+  });
+
+  it("rejects a candidate from another group, an empty pick and a wrong secret", async () => {
+    const tt = t();
+    const { src: srcFicheiro, id } = await tresCandidatas(tt);
+    const src = id(srcFicheiro);
+    await expect(tt.mutation(api.imagens.gravarEscolhasAgente, {
+      secret: SECRET, marca: "hisense", escolhas: [{ grupoModelo: "outro-grupo", candidatas: [src] }],
+    })).rejects.toThrow(/não pertence/);
+    await expect(tt.mutation(api.imagens.gravarEscolhasAgente, {
+      secret: SECRET, marca: "hisense", escolhas: [{ grupoModelo: "hisense-air-master", candidatas: [] }],
+    })).rejects.toThrow(/vazia/);
+    await expect(tt.mutation(api.imagens.gravarEscolhasAgente, {
+      secret: "errado", marca: "hisense", escolhas: [],
+    })).rejects.toThrow();
+  });
+});

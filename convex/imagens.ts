@@ -5,7 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireStaff } from "./lib/auth";
 import { sincronizarGrupo } from "./lib/catalogoGrupos";
 import { conferirSegredo } from "./lib/importSecret";
-import { ficheirosEscolhidos, validarPorRef } from "./lib/imagensGrupo";
+import { AGENTE, ficheirosEscolhidos, validarPorRef } from "./lib/imagensGrupo";
 import { fonteCandidataValidator, porRefValidator } from "./schema";
 
 /**
@@ -274,6 +274,7 @@ const candidataEntradaValidator = v.object({
   cor: v.optional(v.string()),
   // For "recorte" rows uploaded by the script: hash of the source candidate.
   origemHash: v.optional(v.string()),
+  aviso: v.optional(v.string()),
 });
 
 /** A candidate is identified by (grupoModelo, hash): the same bytes may be a candidate in several groups. */
@@ -307,9 +308,10 @@ export const registarCandidatas = mutation({
       const existente = await candidataPorHash(ctx, c.grupoModelo, c.hash);
       if (existente) {
         repetidas++;
-        const patch: { origemUrl?: string; cor?: string } = {};
+        const patch: { origemUrl?: string; cor?: string; aviso?: string } = {};
         if (c.origemUrl !== undefined) patch.origemUrl = c.origemUrl;
         if (c.cor !== undefined) patch.cor = c.cor;
+        if (c.aviso !== undefined && c.aviso !== existente.aviso) patch.aviso = c.aviso;
         if (Object.keys(patch).length > 0) await ctx.db.patch(existente._id, patch);
         if (existente.ficheiro !== c.ficheiro) await ctx.storage.delete(c.ficheiro);
         continue;
@@ -329,6 +331,7 @@ export const registarCandidatas = mutation({
         altura: c.altura,
         cor: c.cor,
         origem,
+        aviso: c.aviso,
         criadoEm: agora,
       });
       criadas++;
@@ -431,6 +434,7 @@ export const obterGrupoImagens = query({
         recorteId: v.optional(v.id("imagensCandidatas")),
         largura: v.number(),
         altura: v.number(),
+        aviso: v.optional(v.string()),
       }),
     ),
     escolhidas: v.union(
@@ -438,6 +442,8 @@ export const obterGrupoImagens = query({
       v.object({
         imagens: v.array(imagemUrlValidator),
         porRef: v.array(v.object({ ref: v.string(), imagens: v.array(imagemUrlValidator) })),
+        // Saved by the agent's photo picks, not yet by a person.
+        porAgente: v.boolean(),
       }),
     ),
     atuais: v.array(v.object({ ref: v.string(), imagens: v.array(imagemUrlValidator) })),
@@ -455,7 +461,7 @@ export const obterGrupoImagens = query({
       candidatas.push({
         _id: r._id, ficheiro: r.ficheiro, url: await ctx.storage.getUrl(r.ficheiro),
         fonte: r.fonte, origemUrl: r.origemUrl, cor: r.cor, origem: r.origem,
-        recorteId: recortePor.get(r._id), largura: r.largura, altura: r.altura,
+        recorteId: recortePor.get(r._id), largura: r.largura, altura: r.altura, aviso: r.aviso,
       });
     }
     const decisao = await ctx.db
@@ -468,6 +474,7 @@ export const obterGrupoImagens = query({
           porRef: await Promise.all(
             (decisao.porRef ?? []).map(async (p) => ({ ref: p.ref, imagens: await comUrls(ctx, p.imagens) })),
           ),
+          porAgente: decisao.atualizadoPor === AGENTE,
         }
       : null;
     const produtos = await ctx.db
@@ -501,6 +508,109 @@ export const definirImagensGrupo = mutation({
     }
     await gravarDecisao(ctx, { ...args, por: identity.subject, porRef: args.porRef });
     return null;
+  },
+});
+
+// --- Escolhas do agente (script, segredo) -----------------------------------
+
+/**
+ * Every group of a brand that has candidates, with their URLs, for the
+ * agent's contact sheets (scripts/imagens/folhas.mjs). `escolhaHumana`: a
+ * person already saved this group, so the agent's pick would be ignored.
+ */
+export const candidatasDaMarca = query({
+  args: { secret: v.string(), marca: v.string() },
+  returns: v.array(
+    v.object({
+      grupoModelo: v.string(),
+      escolhaHumana: v.boolean(),
+      candidatas: v.array(
+        v.object({
+          _id: v.id("imagensCandidatas"),
+          ficheiro: v.id("_storage"),
+          url: v.union(v.string(), v.null()),
+          fonte: fonteCandidataValidator,
+          origemUrl: v.optional(v.string()),
+          cor: v.optional(v.string()),
+          origem: v.optional(v.id("imagensCandidatas")),
+          largura: v.number(),
+          altura: v.number(),
+          aviso: v.optional(v.string()),
+        }),
+      ),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+    const rows = await ctx.db
+      .query("imagensCandidatas")
+      .withIndex("by_marca", (q) => q.eq("marca", args.marca))
+      .collect();
+    const porGrupo = new Map<string, Array<Doc<"imagensCandidatas">>>();
+    for (const r of rows) porGrupo.set(r.grupoModelo, [...(porGrupo.get(r.grupoModelo) ?? []), r]);
+    const decisoes = await ctx.db
+      .query("imagensGrupo")
+      .withIndex("by_marca", (q) => q.eq("marca", args.marca))
+      .collect();
+    const humanas = new Set(decisoes.filter((d) => d.atualizadoPor !== AGENTE).map((d) => d.grupoModelo));
+    const out = [];
+    for (const [grupoModelo, lista] of [...porGrupo].sort(([a], [b]) => a.localeCompare(b))) {
+      const candidatas = [];
+      for (const r of lista) {
+        candidatas.push({
+          _id: r._id, ficheiro: r.ficheiro, url: await ctx.storage.getUrl(r.ficheiro),
+          fonte: r.fonte, origemUrl: r.origemUrl, cor: r.cor, origem: r.origem,
+          largura: r.largura, altura: r.altura, aviso: r.aviso,
+        });
+      }
+      out.push({ grupoModelo, escolhaHumana: humanas.has(grupoModelo), candidatas });
+    }
+    return out;
+  },
+});
+
+/**
+ * Save the agent's photo picks as group decisions (first = cover), authored
+ * by AGENTE. A group a person already saved is left alone (`mantidas`);
+ * re-running replaces the agent's own earlier picks.
+ */
+export const gravarEscolhasAgente = mutation({
+  args: {
+    secret: v.string(),
+    marca: v.string(),
+    escolhas: v.array(
+      v.object({ grupoModelo: v.string(), candidatas: v.array(v.id("imagensCandidatas")) }),
+    ),
+  },
+  returns: v.object({ gravadas: v.number(), mantidas: v.number() }),
+  handler: async (ctx, args) => {
+    conferirSegredo(args.secret);
+    let gravadas = 0;
+    let mantidas = 0;
+    for (const e of args.escolhas) {
+      if (e.candidatas.length === 0) throw new Error(`${e.grupoModelo}: escolha vazia.`);
+      const imagens: Array<Id<"_storage">> = [];
+      for (const id of e.candidatas) {
+        const c = await ctx.db.get(id);
+        if (c === null || c.grupoModelo !== e.grupoModelo || c.marca !== args.marca) {
+          throw new Error(`${e.grupoModelo}: candidata ${id} não pertence ao grupo.`);
+        }
+        imagens.push(c.ficheiro);
+      }
+      const atual = await ctx.db
+        .query("imagensGrupo")
+        .withIndex("by_grupo", (q) => q.eq("grupoModelo", e.grupoModelo))
+        .unique();
+      if (atual !== null && atual.atualizadoPor !== AGENTE) {
+        mantidas++;
+        continue;
+      }
+      await gravarDecisao(ctx, {
+        grupoModelo: e.grupoModelo, marca: args.marca, imagens, porRef: undefined, por: AGENTE,
+      });
+      gravadas++;
+    }
+    return { gravadas, mantidas };
   },
 });
 

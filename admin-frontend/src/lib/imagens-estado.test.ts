@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { ESTADO_INICIAL, apenasRefs, decisaoParaRefs, listaAtiva, origemCandidata, paraGuardar, reduzir } from "./imagens-estado"
+import { ESTADO_INICIAL, apenasRefs, decisaoParaRefs, listaAtiva, origemCandidata, paraGuardar, recortePorOmissao, reduzir } from "./imagens-estado"
 import type { Candidata } from "./imagens-estado"
 
+// Default fonte "web": a site photo would be preselected by `iniciar`.
 const c = (id: string, extra: Partial<Candidata> = {}): Candidata => ({
-  _id: `id-${id}`, ficheiro: id, url: `u/${id}`, fonte: "site", ...extra,
+  _id: `id-${id}`, ficheiro: id, url: `u/${id}`, fonte: "web", ...extra,
 })
 
 describe("iniciar", () => {
@@ -21,6 +22,22 @@ describe("iniciar", () => {
     expect(e.porRef.R2.map((i) => i.ficheiro)).toEqual(["y"])
     expect(e.porRef.R1).toBeUndefined()
   })
+  it("sem decisão: pré-seleciona um único recorte, de preferência de foto do site sem aviso", () => {
+    const candidatas = [
+      c("pdf", { fonte: "pdf", aviso: "miniatura" }), c("pdf-cut", { fonte: "recorte", origem: "id-pdf" }),
+      c("web", { fonte: "web" }), c("web-cut", { fonte: "recorte", origem: "id-web" }),
+      c("site", { fonte: "site" }), c("site-cut", { fonte: "recorte", origem: "id-site" }),
+    ]
+    expect(recortePorOmissao(candidatas)?.ficheiro).toBe("site-cut")
+    expect(recortePorOmissao(candidatas.slice(0, 4))?.ficheiro).toBe("web-cut")
+    expect(recortePorOmissao(candidatas.slice(0, 2))?.ficheiro).toBe("pdf-cut")
+    expect(recortePorOmissao([c("a", { fonte: "site" })])?.ficheiro).toBe("a") // no cutout rows: site photo already transparent
+    expect(recortePorOmissao([c("w")])).toBeNull()
+    const e = reduzir(ESTADO_INICIAL, { tipo: "iniciar", candidatas, escolhidas: null,
+      atuais: [{ ref: "R1", imagens: [{ ficheiro: "x", url: "u/x" }] }] })
+    expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["site-cut"])
+    expect(e.porRef).toEqual({})
+  })
 })
 
 describe("escolher / remover / reordenar / capa", () => {
@@ -29,7 +46,8 @@ describe("escolher / remover / reordenar / capa", () => {
     let e = reduzir(base, { tipo: "escolher", ficheiro: "a" })
     e = reduzir(e, { tipo: "escolher", ficheiro: "b" })
     expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["a", "b"])
-    expect(reduzir(e, { tipo: "escolher", ficheiro: "a" })).toBe(e) // no duplicates
+    // clicking a chosen one again unselects it
+    expect(listaAtiva(reduzir(e, { tipo: "escolher", ficheiro: "a" })).map((i) => i.ficheiro)).toEqual(["b"])
     e = reduzir(e, { tipo: "remover", ficheiro: "a" })
     expect(listaAtiva(e).map((i) => i.ficheiro)).toEqual(["b"])
   })

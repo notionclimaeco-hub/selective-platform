@@ -1,6 +1,6 @@
 // Pure state for the review page's image panel. The active list is the group
 // list or, when a ref is selected, that ref's override (seeded from the group).
-export type Fonte = "site" | "megaclima" | "pdf" | "upload" | "recorte"
+export type Fonte = "site" | "megaclima" | "web" | "pdf" | "upload" | "recorte"
 export type Imagem = { ficheiro: string; url: string }
 export type Candidata = Imagem & {
   _id: string
@@ -9,6 +9,8 @@ export type Candidata = Imagem & {
   cor?: string
   origem?: string
   recorteId?: string
+  // Why the agent doubts this photo; the reviewer should look before choosing it.
+  aviso?: string
 }
 export type Estado = {
   grupo: Array<Imagem>
@@ -53,6 +55,26 @@ function mover<T>(arr: Array<T>, de: number, para: number): Array<T> {
 const iguais = (a: Array<Imagem>, b: Array<Imagem>) =>
   a.length === b.length && a.every((x, i) => x.ficheiro === b[i]?.ficheiro)
 
+/**
+ * Default pick when the staff has not decided yet: exactly one cutout, the
+ * first one cut from an official-site photo that carries no warning, then any
+ * cutout without warning, then any cutout. A group with candidates but no
+ * cutout rows only has photos that were already transparent (their cutout
+ * dedupes into the original), so the first site photo without warning stands
+ * in. Nothing otherwise.
+ */
+export function recortePorOmissao(candidatas: ReadonlyArray<Candidata>): Imagem | null {
+  const recortes = candidatas.filter((c) => c.fonte === "recorte")
+  const origemDe = (r: Candidata) => candidatas.find((c) => c._id === r.origem)
+  const semAviso = (r: Candidata) => !r.aviso && !origemDe(r)?.aviso
+  const escolha =
+    recortes.find((r) => semAviso(r) && origemDe(r)?.fonte === "site") ??
+    recortes.find(semAviso) ??
+    recortes.at(0) ??
+    candidatas.find((c) => c.fonte === "site" && !c.aviso)
+  return escolha ? { ficheiro: escolha.ficheiro, url: escolha.url } : null
+}
+
 export function reduzir(e: Estado, a: Acao): Estado {
   switch (a.tipo) {
     case "iniciar": {
@@ -61,6 +83,10 @@ export function reduzir(e: Estado, a: Acao): Estado {
         for (const p of a.escolhidas.porRef) porRef[p.ref] = p.imagens
         return { grupo: a.escolhidas.imagens, porRef, refAtiva: null, candidatas: a.candidatas }
       }
+      // No decision yet: one cutout preselected; the live products' images
+      // only when there is nothing to cut.
+      const recorte = recortePorOmissao(a.candidatas)
+      if (recorte) return { grupo: [recorte], porRef: {}, refAtiva: null, candidatas: a.candidatas }
       const grupo = a.atuais[0]?.imagens ?? []
       const porRef: Record<string, Array<Imagem>> = {}
       for (const p of a.atuais) if (!iguais(p.imagens, grupo)) porRef[p.ref] = p.imagens
@@ -70,8 +96,11 @@ export function reduzir(e: Estado, a: Acao): Estado {
       return { ...e, refAtiva: a.ref }
     }
     case "escolher": {
+      // Toggle: a chosen candidate clicked again leaves the list.
       const lista = listaAtiva(e)
-      if (lista.some((i) => i.ficheiro === a.ficheiro)) return e
+      if (lista.some((i) => i.ficheiro === a.ficheiro)) {
+        return comLista(e, lista.filter((i) => i.ficheiro !== a.ficheiro))
+      }
       const c = e.candidatas.find((x) => x.ficheiro === a.ficheiro)
       if (!c) return e
       return comLista(e, [...lista, { ficheiro: c.ficheiro, url: c.url }])

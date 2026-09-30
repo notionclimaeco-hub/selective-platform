@@ -2,16 +2,17 @@ import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import {
+  Camera,
   Check,
   ChevronDown,
   ChevronRight,
   ImageIcon,
+  Sparkles,
   TriangleAlert,
 } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
-import { Button } from "@/components/ui/button"
 import {
   rotuloComponente,
   rotuloFamilia,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/revisao"
 import { cn } from "@/lib/utils"
 import { TabelaVariantes } from "./tabela-variantes"
-import type { AlvoPainel } from "./painel-pagina"
+import { VisorPagina } from "./painel-pagina"
 import { PainelImagens } from "./painel-imagens"
 
 type Obter = NonNullable<FunctionReturnType<typeof api.importacoes.obter>>
@@ -64,12 +65,10 @@ export function GrupoCard({
   importacaoId,
   resumo,
   podeRever,
-  onVerPagina,
 }: {
   importacaoId: Id<"importacoes">
   resumo: ResumoGrupo
   podeRever: boolean
-  onVerPagina: (alvo: AlvoPainel) => void
 }) {
   const [aberto, setAberto] = useState(!grupoInalterado(resumo))
   const precisa = resumo.precisaRevisao && !resumo.revisto
@@ -146,6 +145,18 @@ export function GrupoCard({
                 Sem imagens
               </Chip>
             )}
+            {resumo.fotosARever && (
+              <Chip className="bg-amber-100 text-amber-800">
+                <Camera className="mr-1 size-3" />
+                Fotos a rever
+              </Chip>
+            )}
+            {resumo.escolhaAgente && (
+              <Chip className="bg-sky-100 text-sky-800">
+                <Sparkles className="mr-1 size-3" />
+                Escolha do agente
+              </Chip>
+            )}
           </span>
         </span>
       </button>
@@ -155,23 +166,25 @@ export function GrupoCard({
           importacaoId={importacaoId}
           resumo={resumo}
           podeRever={podeRever}
-          onVerPagina={onVerPagina}
         />
       )}
     </li>
   )
 }
 
+/**
+ * Open group: images and the variant table on the left, the price-table
+ * pages on the right (stacked on narrow screens). The page badges in the
+ * table move the viewer to that page.
+ */
 function CorpoGrupo({
   importacaoId,
   resumo,
   podeRever,
-  onVerPagina,
 }: {
   importacaoId: Id<"importacoes">
   resumo: ResumoGrupo
   podeRever: boolean
-  onVerPagina: (alvo: AlvoPainel) => void
 }) {
   const grupo = useQuery(api.importacoes.obterGrupo, {
     importacaoId,
@@ -180,7 +193,8 @@ function CorpoGrupo({
   const marcar = useMutation(api.importacoes.marcarGrupoRevisto)
   const [erro, setErro] = useState<string | null>(null)
   const [aMarcar, setAMarcar] = useState(false)
-  const [imagensAbertas, setImagensAbertas] = useState(false)
+  // The page shown on the right; null until the group loads (first cited page).
+  const [pagina, setPagina] = useState<number | null>(null)
 
   async function alternarRevisto() {
     setErro(null)
@@ -215,11 +229,11 @@ function CorpoGrupo({
 
   const avisos = avisosDoGrupo(grupo.skus)
   const comuns = atributosComuns(grupo.skus)
-  const abrirPagina = (pagina: number) =>
-    onVerPagina({ titulo: grupo.nomeGrupo, paginas: grupo.paginas, pagina })
+  const paginaAtual = pagina ?? grupo.paginas.at(0)?.pagina ?? 0
 
   return (
-    <div className="flex flex-col gap-3 border-t p-3">
+    <div className="grid gap-3 border-t p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-3">
       {avisos.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           {avisos.map((a, i) => (
@@ -248,36 +262,26 @@ function CorpoGrupo({
         </dl>
       )}
 
+      <PainelImagens
+        grupoModelo={resumo.grupoModelo}
+        marca={resumo.marca}
+        refs={grupo.skus.map((s) => s.ref)}
+        cores={[
+          ...new Set(grupo.skus.flatMap((s) => valorDe(s, "cor") ?? [])),
+        ]}
+        podeEditar={podeRever}
+      />
+
       <TabelaVariantes
         skus={grupo.skus}
         familia={resumo.familia}
-        onVerPagina={abrirPagina}
+        onVerPagina={setPagina}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {grupo.paginas.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => abrirPagina(grupo.paginas[0]?.pagina ?? 0)}
-            >
-              Ver página
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-expanded={imagensAbertas}
-            onClick={() => setImagensAbertas((v) => !v)}
-          >
-            <ImageIcon data-icon="inline-start" />
-            Imagens
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            {resumo.grupoModelo}
-          </span>
-        </div>
+        <span className="text-xs text-muted-foreground">
+          {resumo.grupoModelo}
+        </span>
         <button
           type="button"
           role="switch"
@@ -305,19 +309,15 @@ function CorpoGrupo({
         </button>
       </div>
       {erro && <p className="text-sm text-destructive">{erro}</p>}
+      </div>
 
-      {imagensAbertas && (
-        <PainelImagens
-          grupoModelo={resumo.grupoModelo}
-          marca={resumo.marca}
-          refs={grupo.skus.map((s) => s.ref)}
-          cores={[
-            ...new Set(grupo.skus.flatMap((s) => valorDe(s, "cor") ?? [])),
-          ]}
-          podeEditar={podeRever}
-          onFechar={() => setImagensAbertas(false)}
+      <div className="min-w-0 lg:sticky lg:top-4">
+        <VisorPagina
+          paginas={grupo.paginas}
+          pagina={paginaAtual}
+          onPagina={setPagina}
         />
-      )}
+      </div>
     </div>
   )
 }

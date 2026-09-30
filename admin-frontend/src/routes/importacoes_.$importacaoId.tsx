@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import {
   Authenticated,
@@ -20,8 +20,6 @@ import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
 import { ConfirmDialog } from "@/components/produtos/confirm-dialog"
 import { GrupoCard } from "@/components/importacoes/grupo-card"
-import { PainelPagina } from "@/components/importacoes/painel-pagina"
-import type { AlvoPainel } from "@/components/importacoes/painel-pagina"
 import { RejeitarDialog } from "@/components/importacoes/rejeitar-dialog"
 import { Button } from "@/components/ui/button"
 import { Paginacao } from "@/components/ui/paginacao"
@@ -32,6 +30,7 @@ import {
   rotuloFamilia,
   rotuloMarca,
 } from "@/lib/labels"
+import { textoAprovacao } from "@/lib/revisao"
 import { useDebounced } from "@/lib/use-debounced"
 import { cn } from "@/lib/utils"
 
@@ -47,16 +46,9 @@ type Importacao = Obter["importacao"]
 
 function ImportacaoPage() {
   const { importacaoId } = Route.useParams()
-  const [painel, setPainel] = useState<AlvoPainel | null>(null)
-  const fecharPainel = useCallback(() => setPainel(null), [])
 
   return (
-    <main
-      className={cn(
-        "mx-auto flex max-w-5xl flex-col gap-5 px-4 pt-8 pb-28 sm:px-6",
-        painel && "md:mr-[min(40rem,50vw)]"
-      )}
-    >
+    <main className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pt-8 pb-28 sm:px-6">
       <Link
         to="/importacoes"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -74,19 +66,8 @@ function ImportacaoPage() {
         </p>
       </Unauthenticated>
       <Authenticated>
-        <Revisao
-          importacaoId={importacaoId as Id<"importacoes">}
-          onVerPagina={setPainel}
-        />
+        <Revisao importacaoId={importacaoId as Id<"importacoes">} />
       </Authenticated>
-
-      {painel && (
-        <PainelPagina
-          alvo={painel}
-          onPagina={(pagina) => setPainel({ ...painel, pagina })}
-          onClose={fecharPainel}
-        />
-      )}
     </main>
   )
 }
@@ -134,13 +115,7 @@ function Contagem({
   )
 }
 
-function Revisao({
-  importacaoId,
-  onVerPagina,
-}: {
-  importacaoId: Id<"importacoes">
-  onVerPagina: (alvo: AlvoPainel) => void
-}) {
+function Revisao({ importacaoId }: { importacaoId: Id<"importacoes"> }) {
   const [pagina, setPagina] = useState(0)
   const [busca, setBusca] = useState("")
   const [familia, setFamilia] = useState("")
@@ -148,11 +123,12 @@ function Revisao({
   const [soAlterados, setSoAlterados] = useState(false)
   const [soPorRever, setSoPorRever] = useState(false)
   const [soSemImagens, setSoSemImagens] = useState(false)
+  const [soFotosARever, setSoFotosARever] = useState(false)
   const termo = useDebounced(busca, 300).trim()
 
   useEffect(() => {
     setPagina(0)
-  }, [termo, familia, soAvisos, soAlterados, soPorRever, soSemImagens])
+  }, [termo, familia, soAvisos, soAlterados, soPorRever, soSemImagens, soFotosARever])
 
   const resultado = useQuery(api.importacoes.obter, {
     importacaoId,
@@ -164,6 +140,7 @@ function Revisao({
     soAlterados: soAlterados || undefined,
     soPorRever: soPorRever || undefined,
     soSemImagens: soSemImagens || undefined,
+    soFotosARever: soFotosARever || undefined,
   })
 
   useEffect(() => {
@@ -189,7 +166,8 @@ function Revisao({
     soAvisos ||
     soAlterados ||
     soPorRever ||
-    soSemImagens
+    soSemImagens ||
+    soFotosARever
 
   return (
     <>
@@ -233,6 +211,7 @@ function Revisao({
           <Contagem rotulo="Alterados" valor={run.numAlterados} />
           <Contagem rotulo="Iguais" valor={run.numIguais} />
           <Contagem rotulo="Sem imagens" valor={resultado.gruposSemImagens} />
+          <Contagem rotulo="Fotos a rever" valor={resultado.gruposFotosARever} />
           {run.numDescontinuados !== undefined && (
             <Contagem rotulo="Descontinuados" valor={run.numDescontinuados} />
           )}
@@ -283,6 +262,12 @@ function Revisao({
           >
             Só sem imagens
           </Toggle>
+          <Toggle
+            ativo={soFotosARever}
+            onClick={() => setSoFotosARever((v) => !v)}
+          >
+            Só fotos a rever
+          </Toggle>
         </div>
       </div>
 
@@ -303,7 +288,6 @@ function Revisao({
                 importacaoId={importacaoId}
                 resumo={g}
                 podeRever={podeRever}
-                onVerPagina={onVerPagina}
               />
             ))}
           </ul>
@@ -371,11 +355,8 @@ function BarraDecisao({
             >
               Rejeitar
             </Button>
-            <Button
-              disabled={gruposPorRever > 0}
-              onClick={() => setDialogo("aprovar")}
-            >
-              Aprovar
+            <Button onClick={() => setDialogo("aprovar")}>
+              {gruposPorRever > 0 ? "Aprovar mesmo assim" : "Aprovar"}
             </Button>
           </div>
         </>
@@ -443,7 +424,7 @@ function BarraDecisao({
   return (
     <>
       <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           {conteudo}
           {erro && <p className="w-full text-sm text-destructive">{erro}</p>}
         </div>
@@ -452,11 +433,14 @@ function BarraDecisao({
       {dialogo === "aprovar" && (
         <ConfirmDialog
           titulo="Aprovar importação"
-          descricao={`Promove ${run.numSkus} SKUs para o catálogo e marca como descontinuadas as referências de ${rotuloMarca(run.marca)} ausentes desta tabela.`}
-          confirmarLabel="Aprovar"
+          {...textoAprovacao(
+            run.numSkus,
+            rotuloMarca(run.marca),
+            gruposPorRever
+          )}
           variante="default"
           onConfirmar={async () => {
-            await aprovar({ importacaoId: run._id })
+            await aprovar({ importacaoId: run._id, forcar: gruposPorRever > 0 })
             setDialogo(null)
           }}
           onCancelar={() => setDialogo(null)}

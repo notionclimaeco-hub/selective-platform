@@ -91,6 +91,8 @@ describe("resumirGrupos", () => {
       revisto: false,
       precisaRevisao: true,
       temImagens: false,
+      fotosARever: false,
+      escolhaAgente: false,
     });
     expect(resumos[0]?.precisaRevisao).toBe(false);
     expect(resumos[2]?.precisaRevisao).toBe(false);
@@ -226,9 +228,36 @@ describe("soSemImagens", () => {
       revisto: false,
       precisaRevisao: false,
       temImagens,
+      fotosARever: !temImagens,
+      escolhaAgente: false,
     });
     expect(
       filtrarPorCriterios([r("a", true), r("b", false)], { soSemImagens: true }).map(
+        (x) => x.grupoModelo,
+      ),
+    ).toEqual(["b"]);
+  });
+
+  it("soFotosARever keeps only groups whose photos all carry a warning", () => {
+    const r = (g: string, fotosARever: boolean): ResumoGrupo => ({
+      grupoModelo: g,
+      nomeGrupo: g,
+      marca: "m",
+      familia: "f",
+      componente: "conjunto",
+      numSkus: 1,
+      numAvisos: 0,
+      numNovos: 1,
+      numAlterados: 0,
+      numIguais: 0,
+      revisto: false,
+      precisaRevisao: false,
+      temImagens: true,
+      fotosARever,
+      escolhaAgente: false,
+    });
+    expect(
+      filtrarPorCriterios([r("a", false), r("b", true)], { soFotosARever: true }).map(
         (x) => x.grupoModelo,
       ),
     ).toEqual(["b"]);

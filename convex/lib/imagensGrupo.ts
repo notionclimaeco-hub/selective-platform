@@ -1,6 +1,11 @@
 // Pure helpers over a group's image decision (no Convex imports).
 import type { Id } from "../_generated/dataModel";
 
+// `imagensGrupo.atualizadoPor` of a decision the agent saved from its photo
+// picks (scripts/imagens/escolhas.mjs). A staff save replaces it; the agent
+// never overwrites a decision whose author is anyone else.
+export const AGENTE = "agente";
+
 export type DecisaoImagens = {
   imagens: Array<Id<"_storage">>;
   porRef?: Array<{ ref: string; imagens: Array<Id<"_storage">> }>;

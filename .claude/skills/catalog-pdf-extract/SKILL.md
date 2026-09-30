@@ -158,15 +158,17 @@ avisos `erro:` (salvo `--forcar`); SKUs rejeitados ficam listados e a run em
 ## 6. Revisão e aprovação
 
 Na app de admin, `/importacoes/{id}`: cada grupo com aviso ou preço alterado
-tem de ser aberto (`marcarGrupoRevisto`) antes de aprovar. O agente entrega o
+deve ser aberto (`marcarGrupoRevisto`); com grupos por rever o botão passa a
+"Aprovar mesmo assim" (`aprovarImportacao` com `forcar`). O agente entrega o
 link e o resumo (contagens por família, tipos de aviso e a justificação de
 cada um). A aprovação é do staff. O passo de imagens (## 7) corre ANTES de entregar o
 link da revisão.
 
 ## 7. Imagens
 
-Correr a skill `catalog-brand-images` antes de entregar o link da revisão: a
-página mostra as candidatas por grupo e o staff escolhe lá.
+Correr a skill `catalog-brand-images` antes de entregar o link da revisão:
+junta as candidatas e grava a escolha do agente por grupo (recortes, capa
+primeiro), que conta na aprovação; o staff só muda o que quiser.
 
 ## QA final (obrigatório no PR da marca)
 
@@ -199,4 +201,10 @@ corre a cadeia inteira na tabela Hisense 2026 quando o PDF e o
   fora dela); a mesma ref `HC25YC0U` tem preço de conjunto (p14) e de UI multi
   (p20) — fica o primeiro com aviso; tabelas VRF inteiras "sob consulta"
   (`pvpCents: 0` + aviso); "Kit de conexão UTA" traz kW/CV e fica em
-  acessórios salvo decisão no mapa.
+  acessórios (o registo de acessórios aceita `frio-kw`/`calor-kw`/`cv`/
+  `refrigerante`/`alimentacao`); "Unidades interiores 100% ar novo" (AVA-*)
+  são UI VRF com kW → `ar-condicionado/vrf/uta/unidade-interior`; monoblocos
+  (Hi-Therma II M, R32 Monobloco) e chillers imprimem "UE" mas o `agrupar.py`
+  fá-los `conjunto` (a UE é o produto); `(U.I.)` na coluna da tubagem não é
+  categoria; p20 "Multi-Inverter Max Comfort" são UI (refs sem `G`, iguais às
+  do conjunto p14 → aviso de preços diferentes, genuíno).
