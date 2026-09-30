@@ -60,6 +60,12 @@ function deslug(valor: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
+function palavra(valor: string): string {
+  return /^[a-z][a-z0-9-]*$/.test(valor)
+    ? (ROTULOS_VALOR[valor] ?? deslug(valor))
+    : valor
+}
+
 /**
  * A stored value as the shop shows it, without its unit (the label carries
  * it): "2.5" → "2,5", "monofasica" → "Monofásica", "600x570x300" →
@@ -67,7 +73,9 @@ function deslug(valor: string): string {
  */
 export function formatarValor(chave: string, valor: string): string {
   const def = definicaoChave(chave)
-  if (def === undefined) return valor.replace(/-/g, " ")
+  // Pre-registry keys: lower-case slugs ("nao", "castanho-escuro") read as
+  // words, anything else as stored.
+  if (def === undefined) return palavra(valor)
   switch (def.tipo) {
     case "numero":
       return numeroOuTexto(valor)
@@ -79,7 +87,7 @@ export function formatarValor(chave: string, valor: string): string {
         return valor.split("x").map(numeroOuTexto).join(" × ")
       }
       // Lower-case slugs ("comando") read as words; refs and codes as stored.
-      return /^[a-z][a-z0-9-]*$/.test(valor) ? deslug(valor) : valor
+      return palavra(valor)
   }
 }
 

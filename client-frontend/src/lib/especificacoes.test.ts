@@ -81,6 +81,8 @@ describe("labels and values", () => {
     expect(formatarValor("compativel-com", "MSZ-AP, MSZ-LN")).toBe(
       "MSZ-AP, MSZ-LN"
     )
-    expect(formatarValor("modo", "so-frio")).toBe("so frio")
+    expect(formatarValor("modo", "so-frio")).toBe("So frio")
+    expect(formatarValor("humidificacao", "nao")).toBe("Não")
+    expect(formatarValor("dimensoes-mm", "630x315x315")).toBe("630x315x315")
   })
 })

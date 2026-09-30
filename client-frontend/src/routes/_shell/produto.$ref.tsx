@@ -12,10 +12,10 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { FunctionReturnType } from "convex/server"
-import { ArrowLeft, ChevronRight, FileText } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronRight, FileText } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
-import { atributosComuns } from "@convex/lib/especificacoes"
+import { ordenarChaves } from "@convex/lib/especificacoes"
 import { heroSpecs } from "@convex/lib/specRegistry"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/produto/markdown"
@@ -29,12 +29,7 @@ import { useOrcamento } from "@/components/orcamento/orcamento-store"
 import type { ItemOrcamento } from "@/components/orcamento/orcamento-store"
 import { ControloQuantidade } from "@/components/produto/controlo-quantidade"
 import { eurExato, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
-import {
-  formatarValor,
-  rotuloChave,
-  rotuloCurto,
-  unidadeDe,
-} from "@/lib/especificacoes"
+import { formatarValor, rotuloCurto, unidadeDe } from "@/lib/especificacoes"
 import { cn } from "@/lib/utils"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 
@@ -120,9 +115,6 @@ function ProdutoFamilia({
   )
 }
 
-// Spec chips under the title stay short; the full list sits further down.
-const MAX_CHIPS = 4
-
 function ProdutoLayout({
   base,
   ativo,
@@ -143,23 +135,6 @@ function ProdutoLayout({
   ])
   const revendaAtivo = overlay?.get(ativo.ref)
 
-  // Shared attributes describe the product (chips + spec list); the keys that
-  // vary across the group become the model picker's columns. Both follow the
-  // registry order of the familia, hero specs first.
-  const especificacoes = atributosComuns(
-    temVariantes ? variantes : [ativo],
-    base.familia
-  )
-  // The selected model's hero specs lead the page; the chips under them
-  // carry the next shared specs.
-  const hero = heroSpecs(base.familia)
-  const destaques = hero.flatMap((chave) => {
-    const valor = ativo.atributos.find((a) => a.chave === chave)?.valor
-    return valor === undefined ? [] : [{ chave, valor }]
-  })
-  const chips = especificacoes
-    .filter((a) => !hero.includes(a.chave))
-    .slice(0, MAX_CHIPS)
   const orcamento = useOrcamentoDaVisita()
   const [titulo, tituloVisivel] = useVisivel<HTMLHeadingElement>()
 
@@ -192,7 +167,7 @@ function ProdutoLayout({
       <BarraVoltar
         familia={base.familia}
         nome={base.nomeGrupo}
-        tituloVisivel={tituloVisivel}
+        emCima={tituloVisivel}
       />
 
       {/*
@@ -223,8 +198,10 @@ function ProdutoLayout({
             >
               {base.nomeGrupo}
             </h1>
-            {destaques.length > 0 && <Destaques atributos={destaques} />}
-            {chips.length > 0 && <SpecChips atributos={chips} />}
+            <Especificacoes
+              familia={base.familia}
+              atributos={ativo.atributos}
+            />
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-y py-4">
@@ -292,13 +269,6 @@ function ProdutoLayout({
             </div>
           </section>
         )}
-
-        {especificacoes.length > chips.length && (
-          <section className="min-w-0">
-            <h2 className="text-sm font-semibold">Especificações</h2>
-            <ListaEspecificacoes atributos={especificacoes} />
-          </section>
-        )}
       </div>
 
       <AvisoOrcamento
@@ -333,19 +303,21 @@ function useVisivel<T extends Element>() {
 
 /**
  * Back button + where we are. Sticks under the shell's top bar below `lg`
- * so going back is one tap from anywhere in the model list; once the title
- * has scrolled away the breadcrumb gives way to the product name. Back
- * returns through history (the catalog comes back with its filters and
- * scroll); a visitor who landed here directly goes to the family instead.
+ * so going back is one tap from anywhere in the model list; it reads the
+ * same all the way down, and only gains a bottom border once the page has
+ * scrolled under it. Back returns through history (the catalog comes back
+ * with its filters and scroll); a visitor who landed here directly goes to
+ * the family instead.
  */
 function BarraVoltar({
   familia,
   nome,
-  tituloVisivel,
+  emCima,
 }: {
   familia: string
   nome: string
-  tituloVisivel: boolean
+  /** The title is still on screen: no border under the bar yet. */
+  emCima: boolean
 }) {
   const router = useRouter()
   const podeVoltar = useCanGoBack()
@@ -354,7 +326,7 @@ function BarraVoltar({
     <div
       className={cn(
         "sticky top-[var(--barra-topo)] z-30 -mx-4 flex h-12 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur transition-colors supports-[backdrop-filter]:bg-background/85 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-transparent lg:bg-transparent lg:px-0 lg:backdrop-blur-none",
-        tituloVisivel && "border-transparent"
+        emCima && "border-transparent"
       )}
     >
       {podeVoltar ? (
@@ -377,35 +349,27 @@ function BarraVoltar({
         </Link>
       )}
 
-      {tituloVisivel ? (
-        <nav
-          aria-label="Localização"
-          className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+      <nav
+        aria-label="Localização"
+        className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <Link
+          to="/produtos"
+          className="shrink-0 transition-colors hover:text-foreground"
         >
-          <Link
-            to="/produtos"
-            className="shrink-0 transition-colors hover:text-foreground"
-          >
-            Catálogo
-          </Link>
-          <ChevronRight className="size-3.5 shrink-0" />
-          <Link
-            to="/produtos"
-            search={{ familia }}
-            className="shrink-0 transition-colors hover:text-foreground"
-          >
-            {rotuloFamilia(familia)}
-          </Link>
-          <ChevronRight className="hidden size-3.5 shrink-0 sm:block" />
-          <span className="hidden truncate text-foreground sm:block">
-            {nome}
-          </span>
-        </nav>
-      ) : (
-        <p className="min-w-0 animate-in truncate text-sm font-semibold duration-150 fade-in">
-          {nome}
-        </p>
-      )}
+          Catálogo
+        </Link>
+        <ChevronRight className="size-3.5 shrink-0" />
+        <Link
+          to="/produtos"
+          search={{ familia }}
+          className="shrink-0 transition-colors hover:text-foreground"
+        >
+          {rotuloFamilia(familia)}
+        </Link>
+        <ChevronRight className="hidden size-3.5 shrink-0 sm:block" />
+        <span className="hidden truncate text-foreground sm:block">{nome}</span>
+      </nav>
     </div>
   )
 }
@@ -452,77 +416,113 @@ function PrecoAtivo({
   )
 }
 
+// Rows shown before "Ver todas"; hero specs sit above them as tiles.
+const LINHAS_VISIVEIS = 4
+
 /**
- * The selected model's hero specs, right under the title: the figures an
- * installer checks first (capacity, litres, area), value over label.
+ * The selected model's specifications in one card under the title: its hero
+ * specs as tiles across the top (the figures an installer checks first:
+ * capacity, litres, area), then every other attribute as label / value rows
+ * in registry order, the first few open and the rest behind "Ver todas".
  */
-function Destaques({ atributos }: { atributos: Array<Atributo> }) {
+function Especificacoes({
+  familia,
+  atributos,
+}: {
+  familia: string
+  atributos: Array<Atributo>
+}) {
+  const [abertas, setAbertas] = useState(false)
+  const hero = heroSpecs(familia)
+  const porChave = new Map(atributos.map((a) => [a.chave, a.valor]))
+  const ordem = ordenarChaves(
+    familia,
+    atributos.map((a) => a.chave)
+  )
+  const destaques = ordem.filter((c) => hero.includes(c))
+  const linhas = ordem.filter((c) => !hero.includes(c))
+  if (ordem.length === 0) return null
+  const visiveis = abertas ? linhas : linhas.slice(0, LINHAS_VISIVEIS)
+  const escondidas = linhas.length - LINHAS_VISIVEIS
+
   return (
-    <dl
-      className={cn(
-        "mt-1 grid divide-x rounded-xl border",
-        // Registry familias have at most three hero specs.
-        ["grid-cols-1", "grid-cols-2", "grid-cols-3"][atributos.length - 1]
+    <div className="mt-1 overflow-hidden rounded-xl border">
+      {destaques.length > 0 && (
+        <dl
+          className={cn(
+            "grid divide-x",
+            linhas.length > 0 && "border-b",
+            // Registry familias have at most three hero specs.
+            ["grid-cols-1", "grid-cols-2", "grid-cols-3"][destaques.length - 1]
+          )}
+        >
+          {destaques.map((chave) => {
+            const unidade = unidadeDe(chave)
+            return (
+              <div
+                key={chave}
+                className="flex min-w-0 flex-col-reverse justify-end gap-0.5 px-3 py-2.5"
+              >
+                <dt className="text-xs leading-snug text-muted-foreground">
+                  {rotuloCurto(chave)}
+                </dt>
+                <dd className="truncate text-[15px] font-semibold tabular-nums">
+                  {formatarValor(chave, porChave.get(chave) ?? "")}
+                  {unidade && (
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
+                      {unidade}
+                    </span>
+                  )}
+                </dd>
+              </div>
+            )
+          })}
+        </dl>
       )}
-    >
-      {atributos.map((a) => {
-        const unidade = unidadeDe(a.chave)
-        return (
-          <div
-            key={a.chave}
-            className="flex min-w-0 flex-col-reverse justify-end gap-0.5 px-3 py-2.5"
-          >
-            <dt className="text-xs leading-snug text-muted-foreground">
-              {rotuloCurto(a.chave)}
-            </dt>
-            <dd className="truncate text-[15px] font-semibold tabular-nums">
-              {formatarValor(a.chave, a.valor)}
-              {unidade && (
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {unidade}
-                </span>
-              )}
-            </dd>
-          </div>
-        )
-      })}
-    </dl>
-  )
-}
 
-// Short spec chips under the hero specs: label (with unit) / value pills.
-function SpecChips({ atributos }: { atributos: Array<Atributo> }) {
-  return (
-    <dl className="flex flex-wrap gap-1.5">
-      {atributos.map((a) => (
-        <div
-          key={a.chave}
-          className="flex items-baseline gap-1.5 rounded-full border px-3 py-1 text-[13px]"
-        >
-          <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
-          <dd className="font-medium">{formatarValor(a.chave, a.valor)}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
+      {linhas.length > 0 && (
+        <dl className="divide-y text-sm">
+          {visiveis.map((chave) => {
+            const unidade = unidadeDe(chave)
+            return (
+              <div
+                key={chave}
+                className="flex items-baseline justify-between gap-4 px-3 py-2"
+              >
+                <dt className="shrink-0 text-muted-foreground">
+                  {rotuloCurto(chave)}
+                </dt>
+                <dd className="min-w-0 text-right font-medium tabular-nums">
+                  {formatarValor(chave, porChave.get(chave) ?? "")}
+                  {unidade && (
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      {unidade}
+                    </span>
+                  )}
+                </dd>
+              </div>
+            )
+          })}
+        </dl>
+      )}
 
-// Every shared attribute, label left / value right.
-function ListaEspecificacoes({ atributos }: { atributos: Array<Atributo> }) {
-  return (
-    <dl className="mt-2.5 divide-y rounded-xl border text-sm">
-      {atributos.map((a) => (
-        <div
-          key={a.chave}
-          className="flex items-baseline justify-between gap-4 px-3.5 py-2.5"
+      {escondidas > 0 && (
+        <button
+          type="button"
+          onClick={() => setAbertas((v) => !v)}
+          aria-expanded={abertas}
+          className="flex w-full items-center justify-center gap-1 border-t px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-secondary/60"
         >
-          <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
-          <dd className="text-right font-medium">
-            {formatarValor(a.chave, a.valor)}
-          </dd>
-        </div>
-      ))}
-    </dl>
+          {abertas ? "Ver menos" : `Ver todas (${linhas.length})`}
+          <ChevronDown
+            className={cn(
+              "size-3.5 transition-transform",
+              abertas && "rotate-180"
+            )}
+          />
+        </button>
+      )}
+    </div>
   )
 }
 

@@ -162,7 +162,7 @@ export function VariantTable({
                       return (
                         <div key={chave} className="flex gap-1">
                           <dt>{rotuloChave(chave)}</dt>
-                          <dd className="font-medium text-foreground">
+                          <dd className="font-medium whitespace-nowrap text-foreground">
                             {valor !== undefined
                               ? formatarValor(chave, valor)
                               : "—"}
