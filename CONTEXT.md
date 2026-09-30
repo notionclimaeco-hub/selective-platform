@@ -73,7 +73,7 @@ An end customer's ask for a quotation from Climaeco. Handled outside the platfor
 _Avoid_: RFQ, quote, public order
 
 **Installer order**:
-A purchase request placed by an approved installer company at reseller prices. It has one pró-forma, one payment, and collection at Climaeco's warehouse.
+A purchase request placed by an approved installer company at reseller prices. It has one payment, one fatura-recibo, and collection at Climaeco's warehouse. There is no pró-forma: once every remaining line is stock-confirmed, the order page itself is what the installer pays.
 _Avoid_: Quote request, customer order
 
 **Installer-order line**:
@@ -84,9 +84,9 @@ _Avoid_: Item, order item, product row
 The lines of one marca on an installer order, grouped so the office can request stock and purchase from that supplier. Not a separate status; lines of one marca may reach the warehouse on different days.
 _Avoid_: Sub-order, split order, shipment
 
-**Guia de transporte**:
-The supplier's transport-document identifier for goods moving to Climaeco's warehouse.
-_Avoid_: Tracking number, delivery note, CMR
+**Guia do fornecedor**:
+The supplier's transport-document identifier for goods moving to Climaeco's warehouse. The office records it per line (Notion *Registar guia*, `registarGuia`), which moves quantity from por enviar to em trânsito.
+_Avoid_: Guia de transporte (that is ours, at levantamento), tracking number, delivery note, CMR
 
 **Levantamento**:
 Collection of paid goods by the installer at Climaeco's warehouse.
@@ -98,25 +98,25 @@ _Avoid_: Live price, current price
 
 ## Documents and payment
 
-**Pró-forma**:
-The Moloni fatura pró-forma issued when every remaining installer-order line is stock-confirmed. It is not a fiscal invoice and is the basis of the payment link.
-_Avoid_: Quote, estimate, orçamento, proforma
-
 **Payment link**:
-A token URL on Climaeco's site where the installer pays the pró-forma by bank transfer, valid for seven calendar days.
+A token URL on Climaeco's site where the installer pays the installer order by bank transfer, valid for seven calendar days.
 _Avoid_: Checkout, hosted checkout, Revolut link
 
-**Fatura**:
-The certified Moloni invoice issued after payment is confirmed.
-_Avoid_: Invoice, bill
-
-**Recibo**:
-The Moloni receipt issued after payment is confirmed.
-_Avoid_: Receipt, payment confirmation
+**Fatura-recibo**:
+The single certified InvoiceXpress document (invoice and receipt in one) issued when payment is confirmed.
+_Avoid_: Invoice, receipt, fatura and recibo as two documents, pró-forma
 
 **Nota de crédito**:
-The Moloni credit note issued when paid quantity on an installer-order line is refunded.
+The InvoiceXpress credit note issued when paid quantity on an installer-order line is refunded.
 _Avoid_: Credit note, refund document
+
+**Guia de transporte**:
+Climaeco's InvoiceXpress transport document issued when the installer collects the goods at levantamento.
+_Avoid_: Guia do fornecedor (the supplier's, inbound), delivery note, CMR
+
+**Pró-forma**:
+Not used. The installer order page is the quote the installer pays; no pró-forma document is issued.
+_Avoid_: Quote, estimate, orçamento, proforma
 
 ## Catalog import
 

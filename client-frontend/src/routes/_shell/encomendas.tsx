@@ -1,34 +1,24 @@
-import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Authenticated, usePaginatedQuery } from "convex/react"
-import { PackageOpen } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
+import type { FiltroEncomenda } from "@convex/lib/encomendaEstados"
+import { Chip } from "@/components/catalogo/filter-chips"
 import { Aviso, CabecalhoPagina, Pagina } from "@/components/shell/pagina"
 import { ListaEncomendas } from "@/components/encomendas/lista-encomendas"
 import { Button } from "@/components/ui/button"
 import { useEmpresaActiva } from "@/lib/empresa-activa"
+import { FILTROS_LISTA, lerFiltroEncomendas } from "@/lib/encomendas"
 
 export const Route = createFileRoute("/_shell/encomendas")({
+  validateSearch: lerFiltroEncomendas,
   component: EncomendasPage,
 })
 
 function EncomendasPage() {
   return (
     <Pagina>
-      <CabecalhoPagina
-        titulo="Encomendas"
-        descricao="Acompanhe cada encomenda desde a receção até ao levantamento no armazém."
-        acoes={
-          <Button
-            render={<Link to="/produtos" />}
-            nativeButton={false}
-            variant="outline"
-          >
-            Ver catálogo
-          </Button>
-        }
-      />
+      <CabecalhoPagina titulo="Encomendas" />
       <Authenticated>
         <Lista />
       </Authenticated>
@@ -37,41 +27,28 @@ function EncomendasPage() {
 }
 
 function Lista() {
+  const { filtro } = Route.useSearch()
   const { vista, orgActiva, activacaoFalhou } = useEmpresaActiva()
-  const [agora] = useState(() => Date.now())
   const aprovada =
     vista?.kind === "empresa" && vista.empresa.estadoAprovacao === "aprovada"
   // `minhas` needs the org in the JWT; wait for the active org to match.
   const { results, status, loadMore } = usePaginatedQuery(
     api.encomendas.minhas,
-    aprovada && orgActiva ? {} : "skip",
+    aprovada && orgActiva ? (filtro ? { filtro } : {}) : "skip",
     { initialNumItems: 20 }
   )
 
   if (vista === undefined) return <Esqueleto />
-  if (vista?.kind === "empresa" && aprovada && !orgActiva) {
-    return activacaoFalhou ? (
-      <Aviso titulo="Empresa não activa nesta sessão">
-        Não foi possível activar a organização da empresa. Use o seletor de
-        organização no topo da página e tente de novo.
-      </Aviso>
-    ) : (
-      <Esqueleto />
-    )
-  }
   if (vista?.kind !== "empresa") {
     return (
       <Aviso
-        titulo="Ainda sem empresa"
+        titulo="Sem empresa"
         accao={
           <Button render={<Link to="/registo" />} nativeButton={false}>
             Registar empresa
           </Button>
         }
-      >
-        Complete o registo da empresa para submeter encomendas. A aprovação é
-        feita pela nossa equipa comercial.
-      </Aviso>
+      />
     )
   }
   if (!aprovada) {
@@ -84,62 +61,97 @@ function Lista() {
             nativeButton={false}
             variant="outline"
           >
-            Ver estado do pedido
+            Ver estado
           </Button>
         }
-      >
-        As encomendas ficam disponíveis depois da aprovação comercial. Até lá o
-        catálogo mostra o PVP.
-      </Aviso>
+      />
     )
   }
-  if (status === "LoadingFirstPage") return <Esqueleto />
-  if (results.length === 0) return <SemEncomendas />
+  if (!orgActiva) {
+    return activacaoFalhou ? (
+      <Aviso titulo="Empresa não activa nesta sessão">
+        Escolha a empresa no seletor de organização e tente de novo.
+      </Aviso>
+    ) : (
+      <Esqueleto />
+    )
+  }
 
   return (
     <>
-      <ListaEncomendas encomendas={results} agora={agora} />
-      {status === "CanLoadMore" && (
-        <Button
-          variant="outline"
-          className="self-center"
-          onClick={() => loadMore(20)}
-        >
-          Mostrar encomendas mais antigas
-        </Button>
+      <Filtros filtro={filtro} />
+      {status === "LoadingFirstPage" ? (
+        <Esqueleto />
+      ) : results.length === 0 ? (
+        <SemEncomendas filtrada={filtro !== undefined} />
+      ) : (
+        <>
+          <ListaEncomendas encomendas={results} />
+          {status !== "Exhausted" && (
+            <Button
+              variant="outline"
+              className="self-center"
+              disabled={status === "LoadingMore"}
+              onClick={() => loadMore(20)}
+            >
+              Ver mais
+            </Button>
+          )}
+        </>
       )}
     </>
   )
 }
 
-function SemEncomendas() {
+/** One scrolling chip row on phones; the chip lives in `?filtro=`. */
+function Filtros({ filtro }: { filtro: FiltroEncomenda | undefined }) {
+  const navigate = Route.useNavigate()
+  const escolher = (valor: FiltroEncomenda | undefined) =>
+    void navigate({ search: valor ? { filtro: valor } : {}, replace: true })
+
   return (
-    <section className="flex flex-col items-center gap-4 rounded-xl border border-dashed bg-card px-6 py-14 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-primary">
-        <PackageOpen className="size-6" />
-      </span>
-      <div>
-        <h2 className="font-semibold">Ainda não há encomendas</h2>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Adicione equipamentos à lista de orçamento no catálogo e submeta a
-          encomenda a partir daí. Os preços de revenda ficam congelados ao
-          submeter.
-        </p>
-      </div>
-      <Button render={<Link to="/produtos" />} nativeButton={false}>
-        Explorar o catálogo
-      </Button>
-    </section>
+    <div
+      role="group"
+      aria-label="Filtrar por estado"
+      className="-mx-4 -mt-2 flex [scrollbar-width:none] gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
+    >
+      <Chip ativo={filtro === undefined} onClick={() => escolher(undefined)}>
+        Todas
+      </Chip>
+      {FILTROS_LISTA.map((f) => (
+        <Chip
+          key={f.valor}
+          ativo={f.valor === filtro}
+          onClick={() => escolher(f.valor === filtro ? undefined : f.valor)}
+        >
+          {f.rotulo}
+        </Chip>
+      ))}
+    </div>
+  )
+}
+
+function SemEncomendas({ filtrada }: { filtrada: boolean }) {
+  if (filtrada) return <Aviso>Nenhuma encomenda neste estado.</Aviso>
+  return (
+    <Aviso
+      titulo="Ainda sem encomendas"
+      accao={
+        <Button render={<Link to="/produtos" />} nativeButton={false}>
+          Ver catálogo
+        </Button>
+      }
+    />
   )
 }
 
 function Esqueleto() {
   return (
-    <div className="flex flex-col gap-3" aria-busy>
+    <div className="flex flex-col gap-2.5" aria-busy>
       {Array.from({ length: 3 }, (_, i) => (
         <div
           key={i}
-          className="h-[4.5rem] animate-pulse rounded-xl border bg-secondary/60"
+          className="h-20 animate-pulse rounded-xl border bg-secondary/60 md:h-14"
         />
       ))}
     </div>

@@ -1,5 +1,3 @@
-import { Link } from "@tanstack/react-router"
-
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,23 +13,52 @@ import {
 } from "@/components/ui/sheet"
 import { useTelemovel } from "@/lib/telemovel"
 
-const TITULO = "Entre para encomendar"
-const TEXTO =
-  "A lista fica guardada. Depois de aprovada, a sua empresa vê os preços de revenda e encomenda aqui."
+const TEXTO = "Os preços congelados perdem-se. Não é possível desfazer."
 
 /**
- * The sign-in prompt when a signed-out visitor submits the quote list: a
- * bottom sheet on phones, a dialog from `md`. Both ways in return to
- * `/orcamento`, where the list is still waiting (localStorage).
+ * Cancel confirmation: a bottom sheet on phones, a dialog from `md`, like the
+ * sign-in prompt on the Orçamento page.
  */
-export function PedidoEntrada({
+export function CancelarEncomenda({
+  numero,
   aberto,
   onAbertoChange,
+  onConfirmar,
+  aCancelar,
+  erro,
 }: {
+  numero: number
   aberto: boolean
   onAbertoChange: (aberto: boolean) => void
+  onConfirmar: () => void
+  aCancelar: boolean
+  erro: string | null
 }) {
   const telemovel = useTelemovel()
+  const titulo = `Cancelar ENC-${numero}?`
+  const accoes = (
+    <div className="mt-5 flex flex-col gap-2">
+      <Button
+        variant="destructive"
+        size="lg"
+        className="h-11"
+        disabled={aCancelar}
+        onClick={onConfirmar}
+      >
+        {aCancelar ? "A cancelar…" : "Cancelar encomenda"}
+      </Button>
+      <Button
+        variant="outline"
+        size="lg"
+        className="h-11"
+        disabled={aCancelar}
+        onClick={() => onAbertoChange(false)}
+      >
+        Manter
+      </Button>
+      {erro && <p className="text-sm text-destructive">{erro}</p>}
+    </div>
+  )
 
   if (telemovel) {
     return (
@@ -46,10 +73,10 @@ export function PedidoEntrada({
             className="mx-auto mb-4 h-1 w-9 rounded-full bg-muted-foreground/25"
           />
           <SheetTitle className="text-lg font-semibold tracking-tight">
-            {TITULO}
+            {titulo}
           </SheetTitle>
           <SheetDescription className="mt-1.5">{TEXTO}</SheetDescription>
-          <Accoes />
+          {accoes}
         </SheetContent>
       </Sheet>
     )
@@ -59,35 +86,11 @@ export function PedidoEntrada({
     <Dialog open={aberto} onOpenChange={onAbertoChange}>
       <DialogContent className="gap-0 rounded-2xl p-6 sm:max-w-sm">
         <DialogTitle className="text-lg font-semibold tracking-tight">
-          {TITULO}
+          {titulo}
         </DialogTitle>
         <DialogDescription className="mt-1.5 pr-6">{TEXTO}</DialogDescription>
-        <Accoes />
+        {accoes}
       </DialogContent>
     </Dialog>
-  )
-}
-
-function Accoes() {
-  return (
-    <div className="mt-5 flex flex-col gap-2">
-      <Button
-        render={<Link to="/entrar" search={{ return: "/orcamento" }} />}
-        nativeButton={false}
-        size="lg"
-        className="h-11"
-      >
-        Entrar
-      </Button>
-      <Button
-        render={<Link to="/registo" search={{ return: "/orcamento" }} />}
-        nativeButton={false}
-        variant="outline"
-        size="lg"
-        className="h-11"
-      >
-        Registar empresa
-      </Button>
-    </div>
   )
 }

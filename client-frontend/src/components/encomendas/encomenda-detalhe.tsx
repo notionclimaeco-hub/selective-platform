@@ -1,20 +1,25 @@
 import { useState } from "react"
 import { Link } from "@tanstack/react-router"
 import type { FunctionReturnType } from "convex/server"
-import { Mail } from "lucide-react"
 
 import type { api } from "@convex/_generated/api"
+import {
+  EMAIL_GERAL,
+  MAPS_ARMAZEM,
+  MORADA_ARMAZEM,
+} from "@/components/shell/nav"
 import { CabecalhoPagina } from "@/components/shell/pagina"
 import { Button } from "@/components/ui/button"
-import { eurExato } from "@/lib/catalogo"
 import {
-  ESTADO_ENCOMENDA_TEXTO,
   MOTIVO_CANCELAMENTO_LABELS,
+  formatarData,
   formatarDataEncomenda,
   passosEncomenda,
   podeCancelarEncomenda,
   totaisEncomenda,
 } from "@/lib/encomendas"
+import { CancelarEncomenda } from "./cancelar-encomenda"
+import { Cartao, Valores } from "./cartao"
 import { CartaoPagamentoRecebido, CartaoPagarAgora } from "./cartao-pagamento"
 import { EstadoBadge } from "./estado-badge"
 import { LinhaDoTempo } from "./linha-do-tempo"
@@ -25,9 +30,9 @@ export type EncomendaDetalheVista = NonNullable<
 >
 
 /**
- * Order page body. Reads top-down as "where is it, what do I have to do,
- * what is in it": timeline → action card → lines, with the summary and the
- * cancel action in a side column on wide screens.
+ * Order page body. The header carries the one thing to do (Pagar, and
+ * Cancelar while allowed); below it the timeline, payment and lines, with the
+ * order's details in a side column on wide screens.
  */
 export function EncomendaDetalhe({
   encomenda,
@@ -38,175 +43,124 @@ export function EncomendaDetalhe({
 }: {
   encomenda: EncomendaDetalheVista
   agora: number
-  onCancelar: () => void
+  onCancelar: () => Promise<boolean>
   aCancelar: boolean
   erro: string | null
 }) {
+  const [confirmar, setConfirmar] = useState(false)
   const passos = passosEncomenda(encomenda)
   const { total } = totaisEncomenda(encomenda)
   const cancelada = encomenda.estado === "cancelada"
+  const podeCancelar = podeCancelarEncomenda(encomenda.estado)
+  const token = encomenda.pagamentoToken
+  const assunto = encodeURIComponent(`Encomenda ENC-${encomenda.numero}`)
 
   return (
     <>
       <CabecalhoPagina
         voltar={{ to: "/encomendas", label: "Encomendas" }}
         titulo={
-          <span className="flex flex-wrap items-center gap-3">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             ENC-{encomenda.numero}
             <EstadoBadge estado={encomenda.estado} tamanho="md" />
           </span>
         }
-        descricao={`Submetida em ${formatarDataEncomenda(encomenda.placedAt)}`}
+        descricao={formatarDataEncomenda(encomenda.placedAt)}
+        acoes={
+          (podeCancelar || token) && (
+            <>
+              {podeCancelar && (
+                <Button variant="outline" onClick={() => setConfirmar(true)}>
+                  Cancelar
+                </Button>
+              )}
+              {token && (
+                <Button
+                  render={<Link to="/pagamento/$token" params={{ token }} />}
+                  nativeButton={false}
+                >
+                  Pagar
+                </Button>
+              )}
+            </>
+          )
+        }
       />
 
-      <section className="rounded-xl border bg-card p-5 sm:p-6">
-        <LinhaDoTempo passos={passos} />
-        <p className="mt-5 border-t pt-4 text-sm text-muted-foreground">
-          {cancelada && encomenda.cancelReason
-            ? MOTIVO_CANCELAMENTO_LABELS[encomenda.cancelReason]
-            : ESTADO_ENCOMENDA_TEXTO[encomenda.estado]}
-        </p>
-      </section>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6">
+        <div className="flex min-w-0 flex-col gap-4 lg:gap-6">
+          <section className="rounded-xl border bg-card px-5 py-4 sm:py-5">
+            <LinhaDoTempo passos={passos} />
+          </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="flex min-w-0 flex-col gap-6">
-          {encomenda.estado === "aguardando_pagamento" &&
-            encomenda.pagamentoToken && (
-              <CartaoPagarAgora
-                token={encomenda.pagamentoToken}
-                totalCents={total}
-                expiraEm={encomenda.paymentExpiresAt}
-                agora={agora}
-              />
-            )}
+          {token && (
+            <CartaoPagarAgora
+              token={token}
+              totalCents={total}
+              expiraEm={encomenda.paymentExpiresAt}
+              agora={agora}
+            />
+          )}
           {encomenda.paidAt && !cancelada && (
-            <CartaoPagamentoRecebido paidAt={encomenda.paidAt} />
+            <CartaoPagamentoRecebido
+              paidAt={encomenda.paidAt}
+              totalCents={total}
+            />
           )}
 
           <LinhasEncomenda linhas={encomenda.linhas} totais={encomenda} />
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
-          <section className="rounded-xl border bg-card p-5">
-            <h2 className="text-sm font-semibold">Resumo</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <Item rotulo="Total c/IVA" valor={eurExato.format(total / 100)} />
-              <Item
-                rotulo="Referências"
-                valor={String(
-                  encomenda.linhas.filter((l) => l.estadoLinha !== "retirada")
-                    .length
-                )}
-              />
-              <Item rotulo="Preços" valor="Congelados ao submeter" />
-              <Item rotulo="Levantamento" valor="Armazém Clima Eco" />
-            </dl>
-          </section>
-
-          <section className="rounded-xl border bg-card p-5">
-            <h2 className="text-sm font-semibold">
-              {cancelada
-                ? "Dúvidas sobre esta encomenda?"
-                : "Precisa de alterar algo?"}
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {cancelada
-                ? "Fale com o escritório — podemos voltar a lançar a encomenda com preços actualizados."
-                : "Alterações às quantidades ou às referências fazem-se com o escritório."}
-            </p>
-            <a
-              href={`mailto:geral@climaeco.pt?subject=${encodeURIComponent(`Encomenda ENC-${encomenda.numero}`)}`}
-              className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              <Mail className="size-4" /> geral@climaeco.pt
-            </a>
-          </section>
-
-          {podeCancelarEncomenda(encomenda.estado) && (
-            <Cancelar
-              onCancelar={onCancelar}
-              aCancelar={aCancelar}
-              erro={erro}
-            />
-          )}
-
-          {cancelada && (
-            <Button
-              render={<Link to="/produtos" />}
-              nativeButton={false}
-              variant="outline"
-            >
-              Voltar ao catálogo
-            </Button>
-          )}
-        </aside>
+        <Cartao titulo="Detalhes" className="lg:sticky lg:top-8">
+          <Valores
+            itens={[
+              { label: "Submetida", valor: formatarData(encomenda.placedAt) },
+              cancelada &&
+                encomenda.cancelReason !== undefined && {
+                  label: "Cancelada",
+                  valor: MOTIVO_CANCELAMENTO_LABELS[encomenda.cancelReason],
+                },
+              {
+                label: "Levantamento",
+                valor: (
+                  <a
+                    href={MAPS_ARMAZEM}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {MORADA_ARMAZEM.rua}, {MORADA_ARMAZEM.localidade}
+                  </a>
+                ),
+              },
+              {
+                label: "Contacto",
+                valor: (
+                  <a
+                    href={`mailto:${EMAIL_GERAL}?subject=${assunto}`}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {EMAIL_GERAL}
+                  </a>
+                ),
+              },
+            ]}
+          />
+        </Cartao>
       </div>
+
+      {podeCancelar && (
+        <CancelarEncomenda
+          numero={encomenda.numero}
+          aberto={confirmar}
+          onAbertoChange={setConfirmar}
+          onConfirmar={() =>
+            void onCancelar().then((ok) => ok && setConfirmar(false))
+          }
+          aCancelar={aCancelar}
+          erro={erro}
+        />
+      )}
     </>
-  )
-}
-
-function Item({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{rotulo}</dt>
-      <dd className="text-right font-medium tabular-nums">{valor}</dd>
-    </div>
-  )
-}
-
-/** Two-step cancel: the destructive button turns into an inline confirmation. */
-function Cancelar({
-  onCancelar,
-  aCancelar,
-  erro,
-}: {
-  onCancelar: () => void
-  aCancelar: boolean
-  erro: string | null
-}) {
-  const [confirmar, setConfirmar] = useState(false)
-
-  if (!confirmar) {
-    return (
-      <div>
-        <button
-          type="button"
-          onClick={() => setConfirmar(true)}
-          className="text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-destructive hover:underline"
-        >
-          Cancelar encomenda
-        </button>
-        {erro && <p className="mt-2 text-sm text-destructive">{erro}</p>}
-      </div>
-    )
-  }
-
-  return (
-    <section className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-      <h2 className="text-sm font-semibold">Cancelar esta encomenda?</h2>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        Os preços congelados perdem-se e terá de submeter uma nova encomenda a
-        partir do catálogo. Esta acção não pode ser desfeita.
-      </p>
-      <div className="mt-4 flex gap-2">
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={aCancelar}
-          onClick={onCancelar}
-        >
-          {aCancelar ? "A cancelar…" : "Sim, cancelar"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={aCancelar}
-          onClick={() => setConfirmar(false)}
-        >
-          Manter
-        </Button>
-      </div>
-      {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
-    </section>
   )
 }

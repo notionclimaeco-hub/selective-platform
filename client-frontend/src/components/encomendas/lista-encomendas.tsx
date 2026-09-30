@@ -1,158 +1,155 @@
 import { Link } from "@tanstack/react-router"
 import type { FunctionReturnType } from "convex/server"
-import { ArrowRight, ChevronRight, Landmark } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
 import type { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { eurExato } from "@/lib/catalogo"
-import {
-  encomendaEmCurso,
-  formatarData,
-  passosEncomenda,
-  prazoRelativo,
-  totaisEncomenda,
-} from "@/lib/encomendas"
+import { formatarData, totaisEncomenda } from "@/lib/encomendas"
+import { cn } from "@/lib/utils"
 import { EstadoBadge } from "./estado-badge"
-import { PontosProgresso } from "./linha-do-tempo"
 
 export type EncomendaResumo = FunctionReturnType<
   typeof api.encomendas.minhas
 >["page"][number]
 
 /**
- * Orders list: what needs the installer's action first, then everything in
- * progress, then history. Rows are one link each (no nested buttons); the
- * pay button lives in the "acção necessária" block above the list.
+ * Orders list: one card per order on phones, one table from `md`. Each row
+ * is a single stretched link to the order; the Pagar button sits above it
+ * (`relative z-10`) so the two never nest.
  */
 export function ListaEncomendas({
   encomendas,
-  agora,
 }: {
   encomendas: Array<EncomendaResumo>
-  agora: number
 }) {
-  const aPagar = encomendas.filter(
-    (e) => e.estado === "aguardando_pagamento" && e.pagamentoToken
-  )
-  const emCurso = encomendas.filter((e) => encomendaEmCurso(e.estado))
-  const historico = encomendas.filter((e) => !encomendaEmCurso(e.estado))
-
   return (
     <>
-      {aPagar.length > 0 && (
-        <section
-          aria-labelledby="accao-necessaria"
-          className="rounded-xl border border-orange-200 bg-orange-50/60 p-5"
-        >
-          <h2
-            id="accao-necessaria"
-            className="flex items-center gap-2 text-sm font-semibold text-orange-900"
-          >
-            <Landmark className="size-4" />
-            {aPagar.length === 1
-              ? "1 encomenda à espera do seu pagamento"
-              : `${aPagar.length} encomendas à espera do seu pagamento`}
-          </h2>
-          <ul className="mt-3 flex flex-col gap-2">
-            {aPagar.map((e) => (
-              <li
-                key={e._id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200/70 bg-white px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">ENC-{e.numero}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {eurExato.format(totaisEncomenda(e).total / 100)} c/IVA
-                    {e.paymentExpiresAt &&
-                      ` · ${prazoRelativo(e.paymentExpiresAt, agora)}`}
-                  </p>
-                </div>
-                <Button
-                  render={
-                    <Link
-                      to="/pagamento/$token"
-                      params={{ token: e.pagamentoToken! }}
-                    />
-                  }
-                  nativeButton={false}
-                  size="sm"
-                >
-                  Pagar agora
-                  <ArrowRight data-icon="inline-end" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <ul className="flex flex-col gap-2.5 md:hidden">
+        {encomendas.map((e) => (
+          <CartaoEncomenda key={e._id} encomenda={e} />
+        ))}
+      </ul>
 
-      {emCurso.length > 0 && <Grupo titulo="Em curso" encomendas={emCurso} />}
-      {historico.length > 0 && (
-        <Grupo titulo="Histórico" encomendas={historico} />
-      )}
+      <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+        <div
+          aria-hidden
+          className={cn(
+            COLUNAS,
+            "border-b bg-secondary/40 py-2.5 text-xs font-medium text-muted-foreground"
+          )}
+        >
+          <span>Encomenda</span>
+          <span>Data</span>
+          <span>Estado</span>
+          <span className="text-right">Referências</span>
+          <span className="text-right">Total c/IVA</span>
+          <span />
+        </div>
+        <ul className="divide-y">
+          {encomendas.map((e) => (
+            <LinhaEncomenda key={e._id} encomenda={e} />
+          ))}
+        </ul>
+      </div>
     </>
   )
 }
 
-function Grupo({
-  titulo,
-  encomendas,
-}: {
-  titulo: string
-  encomendas: Array<EncomendaResumo>
-}) {
+// Fixed columns so badges, counts and totals line up down the table.
+const COLUNAS =
+  "grid grid-cols-[7rem_8rem_minmax(0,1fr)_6rem_8rem_7.5rem] items-center gap-4 px-5"
+
+function CartaoEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-        {titulo}
-        <span className="ml-2 font-normal tracking-normal normal-case">
-          {encomendas.length}
+    <li className="relative rounded-xl border bg-card transition-colors hover:border-foreground/20">
+      <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
+        <div className="min-w-0">
+          <Link
+            to="/encomendas/$id"
+            params={{ id: e._id }}
+            className="font-semibold outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-3 focus-visible:after:ring-ring/25"
+          >
+            ENC-{e.numero}
+          </Link>
+          <p className="text-xs text-muted-foreground">
+            {formatarData(e.placedAt)}
+          </p>
+        </div>
+        <EstadoBadge estado={e.estado} />
+      </div>
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-2 pb-3.5 text-sm">
+        <span className="text-muted-foreground">{referencias(e.nLinhas)}</span>
+        <span className="font-semibold tabular-nums">
+          {eurExato.format(totaisEncomenda(e).total / 100)}
         </span>
-      </h2>
-      <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-        {encomendas.map((e) => (
-          <li key={e._id}>
-            <LinhaEncomenda encomenda={e} />
-          </li>
-        ))}
-      </ul>
-    </section>
+      </div>
+      {e.pagamentoToken && (
+        <div className="px-4 pb-4">
+          <BotaoPagar token={e.pagamentoToken} className="h-10 w-full" />
+        </div>
+      )}
+    </li>
   )
 }
 
 function LinhaEncomenda({ encomenda: e }: { encomenda: EncomendaResumo }) {
-  const passos = passosEncomenda(e)
-  const { total } = totaisEncomenda(e)
-
   return (
-    <Link
-      to="/encomendas/$id"
-      params={{ id: e._id }}
-      className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-secondary/40 sm:grid-cols-[6.5rem_minmax(0,1fr)_10.5rem_6.5rem_1rem] sm:px-5"
+    <li
+      className={cn(
+        COLUNAS,
+        "group relative min-h-14 py-2.5 text-sm transition-colors hover:bg-secondary/40"
+      )}
     >
-      <div className="col-start-1 row-start-1 sm:col-auto sm:row-auto">
-        <p className="font-semibold">ENC-{e.numero}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatarData(e.placedAt)}
-        </p>
-      </div>
-
-      <div className="col-span-2 flex items-center gap-3 sm:col-span-1">
-        <PontosProgresso passos={passos} />
-        <span className="text-sm text-muted-foreground">
-          {e.nLinhas} {e.nLinhas === 1 ? "referência" : "referências"}
-        </span>
-      </div>
-
-      {/* Fixed-width columns so badges and totals line up down the list. */}
-      <div className="col-start-2 row-start-1 flex justify-end sm:col-start-3 sm:row-auto sm:justify-start">
+      <Link
+        to="/encomendas/$id"
+        params={{ id: e._id }}
+        className="font-semibold outline-none after:absolute after:inset-0 focus-visible:after:ring-3 focus-visible:after:ring-ring/25 focus-visible:after:ring-inset"
+      >
+        ENC-{e.numero}
+      </Link>
+      <span className="text-muted-foreground">{formatarData(e.placedAt)}</span>
+      <span>
         <EstadoBadge estado={e.estado} />
-      </div>
-      <span className="hidden text-right text-sm font-medium tabular-nums sm:block">
-        {eurExato.format(total / 100)}
       </span>
-
-      <ChevronRight className="hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
-    </Link>
+      <span className="text-right text-muted-foreground tabular-nums">
+        {e.nLinhas}
+      </span>
+      <span className="text-right font-medium tabular-nums">
+        {eurExato.format(totaisEncomenda(e).total / 100)}
+      </span>
+      <span className="flex justify-end">
+        {e.pagamentoToken ? (
+          <BotaoPagar token={e.pagamentoToken} size="sm" />
+        ) : (
+          <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        )}
+      </span>
+    </li>
   )
+}
+
+function BotaoPagar({
+  token,
+  size,
+  className,
+}: {
+  token: string
+  size?: "sm"
+  className?: string
+}) {
+  return (
+    <Button
+      render={<Link to="/pagamento/$token" params={{ token }} />}
+      nativeButton={false}
+      size={size}
+      className={cn("relative z-10", className)}
+    >
+      Pagar
+    </Button>
+  )
+}
+
+function referencias(n: number): string {
+  return `${n} ${n === 1 ? "referência" : "referências"}`
 }
