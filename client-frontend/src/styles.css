@@ -165,6 +165,43 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Chrome offsets
+ * Pages that stick things to the viewport (the catalog's search band, the
+ * product page's buy bar) read how much of it the shell already covers:
+ *  - `--barra-topo`: sticky top bar (both shells on phones; marketing always).
+ *  - `--barra-fundo`: fixed bottom chrome under the page (app tab bar on phones).
+ *  - `--folga-fundo`: the safe-area inset a bottom bar must pad itself, when
+ *    nothing below it already does.
+ *  - `--altura-aviso`: room the product page's floating "Ver orçamento"
+ *    pill takes above that chrome (pill + gap).
+ * Toasts follow from these.
+ * ------------------------------------------------------------------------- */
+:root {
+  --barra-topo: 3.5rem;
+  --barra-fundo: 0px;
+  --folga-fundo: env(safe-area-inset-bottom);
+  --altura-aviso: 5rem;
+  --toast-fundo: 0px;
+}
+@media (width < 48rem) {
+  :root:has([data-shell="app"]) {
+    --barra-fundo: calc(4rem + 1px + env(safe-area-inset-bottom));
+    --folga-fundo: 0px;
+    --toast-fundo: var(--barra-fundo);
+  }
+}
+@media (width >= 48rem) {
+  :root:has([data-shell="app"]) {
+    --barra-topo: 0px;
+  }
+}
+:root:has([data-aviso-orcamento]) {
+  --toast-fundo: calc(
+    var(--barra-fundo) + var(--folga-fundo) + var(--altura-aviso)
+  );
+}
+
 /* Horizontal chip rows on phones scroll without showing a scrollbar. */
 .sem-scrollbar {
   scrollbar-width: none;

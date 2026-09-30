@@ -33,7 +33,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-svh md:flex-row">
+      {/* `data-shell` sets the chrome offsets pages read (styles.css). */}
+      <div data-shell="app" className="flex min-h-svh md:flex-row">
         <Sidebar activo={activo} />
         <div className="flex min-w-0 flex-1 flex-col">
           <BarraMovel />

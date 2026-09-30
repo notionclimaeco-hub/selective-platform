@@ -11,8 +11,10 @@ export function Toaster(props: ToasterProps) {
     <Sonner
       position="bottom-center"
       duration={6000}
-      offset={16}
-      mobileOffset={16}
+      // Clear the phone's fixed bottom chrome (tab bar, buy bar); see
+      // `--toast-fundo` in styles.css.
+      offset={{ bottom: "calc(var(--toast-fundo) + 16px)" }}
+      mobileOffset={{ bottom: "calc(var(--toast-fundo) + 16px)" }}
       style={
         {
           "--normal-bg": "var(--popover)",

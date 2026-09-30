@@ -117,34 +117,75 @@ function RadioDot({ ativo }: { ativo: boolean }) {
 }
 
 /**
+ * A variant's price for this audience. Anonymous visitors (and members not yet
+ * approved) see PVP only; approved members see their reseller price with the
+ * PVP struck through beside it. Never a discount or a percentage.
+ */
+export function PrecoVariante({
+  pvpCents,
+  revendaCents,
+}: {
+  pvpCents: number
+  revendaCents?: number
+}) {
+  if (revendaCents === undefined) {
+    return (
+      <div className="text-right tabular-nums">
+        <p className="text-sm font-semibold whitespace-nowrap">
+          {eurExato.format(pvpCents / 100)}
+        </p>
+        <p className="text-[11px] whitespace-nowrap text-muted-foreground">
+          PVP s/IVA
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="text-right tabular-nums">
+      <p className="text-sm font-semibold whitespace-nowrap text-primary">
+        {eurExato.format(revendaCents / 100)}
+      </p>
+      <p className="text-[11px] whitespace-nowrap text-muted-foreground">
+        Revenda s/IVA
+      </p>
+      {revendaCents < pvpCents && (
+        <p className="text-[11px] whitespace-nowrap text-muted-foreground">
+          PVP <s>{eurExato.format(pvpCents / 100)}</s>
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
  * The product page's model picker: one row per SKU, one column per attribute
  * key that varies within the group, plus price. Clicking a row selects that
  * variant (price, gallery and CTA update).
  *
- * On narrow screens we render stacked cards (no horizontal page scroll);
- * from `md` up we keep the comparison table.
+ * Phones get stacked rows (no horizontal page scroll); from `md` up it is a
+ * comparison table. Approved members get a Revenda column and a struck PVP.
+ * `accao` renders each model's own control (the add-to-quote pill) at the
+ * end of its row; clicks on it never select the row.
  */
 export function VariantTable({
   variantes,
   selectedRef,
   onSelect,
   precosRevenda,
+  accao,
 }: {
   variantes: Array<Variante>
   selectedRef: string
   onSelect: (ref: string) => void
   precosRevenda?: Map<string, number> | null
+  accao?: (variante: Variante) => React.ReactNode
 }) {
   const chaves = chavesVariaveis(variantes)
-  const rotuloPreco = precosRevenda ? "Revenda s/IVA" : "PVP s/IVA"
-
-  function centsDe(v: Variante): number {
-    return precosRevenda?.get(v.ref) ?? v.pvpCents
-  }
+  const revenda = precosRevenda != null
 
   return (
     <>
-      {/* Mobile: stacked selectable cards — long refs wrap, no page overflow. */}
+      {/* Phones: stacked selectable rows — long refs wrap. */}
       <div
         className="flex flex-col gap-2 md:hidden"
         role="radiogroup"
@@ -153,31 +194,35 @@ export function VariantTable({
         {variantes.map((v) => {
           const ativo = v.ref === selectedRef
           return (
-            <button
+            <div
               key={v.ref}
-              type="button"
               role="radio"
               aria-checked={ativo}
+              tabIndex={0}
               onClick={() => onSelect(v.ref)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onSelect(v.ref)
+                }
+              }}
               className={cn(
-                "flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors",
+                "flex w-full cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/25",
                 ativo
-                  ? "border-primary/40 bg-primary/5"
-                  : "bg-card hover:bg-secondary/40"
+                  ? "border-primary bg-primary/5"
+                  : "bg-card hover:border-foreground/25"
               )}
             >
-              <RadioDot ativo={ativo} />
+              <span className="pt-0.5">
+                <RadioDot ativo={ativo} />
+              </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm leading-snug font-medium break-all">
-                    {v.ref}
-                  </p>
-                  <p className="shrink-0 text-sm font-semibold text-primary">
-                    {eurExato.format(centsDe(v) / 100)}
-                  </p>
-                </div>
+                <p className="text-sm leading-snug font-medium break-all">
+                  {v.ref}
+                </p>
                 {chaves.length > 0 && (
-                  <dl className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <dl className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     {chaves.map((chave) => {
                       const valor = valorDe(v, chave)
                       return (
@@ -192,36 +237,47 @@ export function VariantTable({
                   </dl>
                 )}
               </div>
-            </button>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <PrecoVariante
+                  pvpCents={v.pvpCents}
+                  revendaCents={precosRevenda?.get(v.ref)}
+                />
+                {accao && <SemSelecionar>{accao(v)}</SemSelecionar>}
+              </div>
+            </div>
           )
         })}
       </div>
 
-      {/* Desktop / tablet: comparison table */}
+      {/* Tablet / desktop: comparison table */}
       <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
-        <table className="w-full min-w-max text-sm">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b bg-secondary/40 text-left">
-              <th className="w-9 px-3 py-2.5" aria-label="Selecionado" />
-              <th className="px-2.5 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Ref.
-              </th>
+            <tr className="border-b text-left text-xs text-muted-foreground">
+              <th className="w-9 py-2.5 pl-3.5" aria-label="Selecionado" />
+              <th className="px-2.5 py-2.5 font-medium">Ref.</th>
               {chaves.map((chave) => (
-                <th
-                  key={chave}
-                  className="px-2.5 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                >
+                <th key={chave} className="px-2.5 py-2.5 font-medium">
                   {rotuloChave(chave)}
                 </th>
               ))}
-              <th className="px-3 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {rotuloPreco}
+              <th className="px-2.5 py-2.5 text-right font-medium whitespace-nowrap">
+                PVP s/IVA
               </th>
+              {revenda && (
+                <th className="py-2.5 pr-3.5 pl-2.5 text-right font-medium whitespace-nowrap text-primary">
+                  Revenda s/IVA
+                </th>
+              )}
+              {accao && (
+                <th className="w-px py-2.5 pr-3" aria-label="Orçamento" />
+              )}
             </tr>
           </thead>
           <tbody role="radiogroup" aria-label="Modelos disponíveis">
             {variantes.map((v) => {
               const ativo = v.ref === selectedRef
+              const revendaCents = precosRevenda?.get(v.ref)
               return (
                 <tr
                   key={v.ref}
@@ -230,19 +286,20 @@ export function VariantTable({
                   tabIndex={0}
                   onClick={() => onSelect(v.ref)}
                   onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault()
                       onSelect(v.ref)
                     }
                   }}
                   className={cn(
-                    "cursor-pointer border-b transition-colors last:border-b-0",
+                    "cursor-pointer border-b tabular-nums transition-colors outline-none last:border-b-0",
                     ativo
                       ? "bg-primary/5"
-                      : "hover:bg-secondary/40 focus-visible:bg-secondary/40"
+                      : "hover:bg-secondary/60 focus-visible:bg-secondary/60"
                   )}
                 >
-                  <td className="px-3 py-2.5">
+                  <td className="py-2.5 pl-3.5">
                     <RadioDot ativo={ativo} />
                   </td>
                   <td className="px-2.5 py-2.5 font-medium whitespace-nowrap">
@@ -262,9 +319,32 @@ export function VariantTable({
                       </td>
                     )
                   })}
-                  <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap text-primary">
-                    {eurExato.format(centsDe(v) / 100)}
-                  </td>
+                  {revenda ? (
+                    <>
+                      <td className="px-2.5 py-2.5 text-right whitespace-nowrap text-muted-foreground">
+                        {revendaCents !== undefined &&
+                        revendaCents < v.pvpCents ? (
+                          <s>{eurExato.format(v.pvpCents / 100)}</s>
+                        ) : (
+                          eurExato.format(v.pvpCents / 100)
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3.5 pl-2.5 text-right font-semibold whitespace-nowrap text-primary">
+                        {revendaCents !== undefined
+                          ? eurExato.format(revendaCents / 100)
+                          : "—"}
+                      </td>
+                    </>
+                  ) : (
+                    <td className="py-2.5 pr-3.5 pl-2.5 text-right font-semibold whitespace-nowrap">
+                      {eurExato.format(v.pvpCents / 100)}
+                    </td>
+                  )}
+                  {accao && (
+                    <td className="py-1.5 pr-3 text-right">
+                      <SemSelecionar>{accao(v)}</SemSelecionar>
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -272,5 +352,18 @@ export function VariantTable({
         </table>
       </div>
     </>
+  )
+}
+
+/** Keeps clicks on a row's own control from also selecting the row. */
+function SemSelecionar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="inline-flex"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>
   )
 }

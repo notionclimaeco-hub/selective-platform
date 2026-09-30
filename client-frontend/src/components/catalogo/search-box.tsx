@@ -98,9 +98,9 @@ export function SearchBox({
             else input.current?.blur()
           }
         }}
-        placeholder="Pesquisar por nome, referência ou gama…"
+        placeholder="Pesquisar nome, referência ou gama"
         aria-label="Pesquisar no catálogo"
-        className="h-11 w-full rounded-xl border border-input bg-background pr-10 pl-10 text-[15px] shadow-xs transition-[border-color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 sm:text-sm [&::-webkit-search-cancel-button]:hidden"
+        className="h-11 w-full rounded-xl border border-input bg-background pr-10 pl-10 text-base transition-[border-color,box-shadow] outline-none placeholder:text-muted-foreground hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 sm:text-sm [&::-webkit-search-cancel-button]:hidden"
       />
       {texto === "" ? (
         <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border bg-secondary px-1.5 py-0.5 font-sans text-[11px] font-medium text-muted-foreground sm:block">

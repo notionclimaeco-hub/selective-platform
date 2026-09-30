@@ -9,8 +9,8 @@ export type Opcao = {
 const numero = new Intl.NumberFormat("pt-PT")
 
 /**
- * Single-choice chip row. Scrolls sideways on a phone (thumb-friendly, no
- * modal) and wraps on wider screens. The first chip is always "all".
+ * Single-choice chip row with a leading "all" chip and a label column. Wraps;
+ * used from `sm` up (phones get one scrolling row plus the Filtros sheet).
  */
 export function FilterChips({
   rotulo,
@@ -29,16 +29,13 @@ export function FilterChips({
 
   return (
     <div className="flex min-w-0 items-start gap-3">
-      <span className="hidden w-16 shrink-0 pt-2 text-xs font-medium text-muted-foreground sm:block">
+      <span className="w-14 shrink-0 pt-1.5 text-xs font-medium text-muted-foreground">
         {rotulo}
       </span>
-      {/* `min-w-0` is what lets this row scroll instead of stretching the
-          whole page sideways on a phone (a flex child defaults to
-          min-width:auto = its content width). */}
       <div
         role="group"
         aria-label={rotulo}
-        className="sem-scrollbar -mx-4 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-4 pb-0.5 sm:mx-0 sm:flex-wrap sm:px-0"
+        className="flex min-w-0 flex-1 flex-wrap gap-1.5"
       >
         <Chip
           ativo={escolhida === undefined}
@@ -64,14 +61,15 @@ export function FilterChips({
   )
 }
 
-function Chip({
+/** A toggle pill; tapping the lit one clears it. */
+export function Chip({
   ativo,
   contagem,
   onClick,
   children,
 }: {
   ativo: boolean
-  contagem: number
+  contagem?: number
   onClick: () => void
   children: React.ReactNode
 }) {
@@ -84,18 +82,20 @@ function Chip({
         "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25",
         ativo
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-accent hover:text-accent-foreground"
+          : "bg-background text-foreground hover:border-foreground/25"
       )}
     >
       {children}
-      <span
-        className={cn(
-          "text-[11px] tabular-nums",
-          ativo ? "text-primary-foreground/75" : "text-muted-foreground"
-        )}
-      >
-        {numero.format(contagem)}
-      </span>
+      {contagem !== undefined && (
+        <span
+          className={cn(
+            "text-[11px] tabular-nums",
+            ativo ? "text-primary-foreground/75" : "text-muted-foreground"
+          )}
+        >
+          {numero.format(contagem)}
+        </span>
+      )}
     </button>
   )
 }

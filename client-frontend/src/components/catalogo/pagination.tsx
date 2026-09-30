@@ -27,7 +27,10 @@ export function paginasVisiveis(
   return paginas
 }
 
-/** 0-based `pagina`; numbered on wide screens, prev/next + "2 / 44" on phones. */
+/**
+ * 0-based `pagina`; numbered pages from `sm` up. Phones use `VerMais`
+ * instead, so this bar is hidden there.
+ */
 export function Pagination({
   pagina,
   numPaginas,
@@ -42,7 +45,7 @@ export function Pagination({
   return (
     <nav
       aria-label="Paginação"
-      className="mt-8 flex items-center justify-between gap-3 border-t pt-5 sm:mt-10 sm:pt-6"
+      className="mt-10 hidden items-center justify-between gap-3 border-t pt-6 sm:flex"
     >
       <Button
         variant="outline"
@@ -51,15 +54,10 @@ export function Pagination({
         aria-label="Página anterior"
       >
         <ChevronLeft data-icon="inline-start" />
-        <span className="hidden sm:inline">Anterior</span>
+        Anterior
       </Button>
 
-      <p className="text-sm text-muted-foreground tabular-nums sm:hidden">
-        <span className="font-semibold text-primary">{pagina + 1}</span> /{" "}
-        {numPaginas}
-      </p>
-
-      <div className="hidden items-center gap-1 sm:flex">
+      <div className="flex items-center gap-1">
         {paginasVisiveis(pagina, numPaginas).map((p, i) =>
           p === null ? (
             <span
@@ -94,9 +92,48 @@ export function Pagination({
         onClick={() => onPagina(pagina + 1)}
         aria-label="Página seguinte"
       >
-        <span className="hidden sm:inline">Seguinte</span>
+        Seguinte
         <ChevronRight data-icon="inline-end" />
       </Button>
     </nav>
+  )
+}
+
+const numero = new Intl.NumberFormat("pt-PT")
+
+/**
+ * Phones: the grid grows instead of paging. Shows how many of the results are
+ * on screen and a "Ver mais" button while there are more.
+ */
+export function VerMais({
+  mostrados,
+  total,
+  aCarregar,
+  onMais,
+}: {
+  mostrados: number
+  total: number
+  aCarregar: boolean
+  onMais: () => void
+}) {
+  return (
+    // Out of scroll anchoring: new cards land above this block, and the
+    // reader should stay where they were, not ride the button down.
+    <div className="mt-6 flex flex-col items-center gap-3 [overflow-anchor:none] sm:hidden">
+      <p className="text-xs text-muted-foreground tabular-nums">
+        {numero.format(mostrados)} de {numero.format(total)}
+      </p>
+      {mostrados < total && (
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-11 w-full"
+          disabled={aCarregar}
+          onClick={onMais}
+        >
+          {aCarregar ? "A carregar…" : "Ver mais"}
+        </Button>
+      )}
+    </div>
   )
 }

@@ -1,5 +1,10 @@
-import { useState } from "react"
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { useEffect, useRef, useState } from "react"
+import {
+  createFileRoute,
+  Link,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router"
 import { convexQuery } from "@convex-dev/react-query"
 import {
   keepPreviousData,
@@ -7,7 +12,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { FunctionReturnType } from "convex/server"
-import { ArrowLeft, Check, ChevronRight, Download, Plus } from "lucide-react"
+import { ArrowLeft, ChevronRight, FileText } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import { Button } from "@/components/ui/button"
@@ -21,9 +26,11 @@ import {
   rotuloVariante,
 } from "@/components/produto/variant-table"
 import type { Atributo, Variante } from "@/components/produto/variant-table"
-import { QuantityStepper } from "@/components/orcamento/quantity-stepper"
 import { useOrcamento } from "@/components/orcamento/orcamento-store"
+import type { ItemOrcamento } from "@/components/orcamento/orcamento-store"
+import { ControloQuantidade } from "@/components/produto/controlo-quantidade"
 import { eurExato, rotuloFamilia, rotuloMarca } from "@/lib/catalogo"
+import { cn } from "@/lib/utils"
 import { useMapaPrecosPorRef } from "@/lib/precos-revenda"
 
 export const Route = createFileRoute("/_shell/produto/$ref")({
@@ -31,6 +38,8 @@ export const Route = createFileRoute("/_shell/produto/$ref")({
 })
 
 type Detalhe = NonNullable<FunctionReturnType<typeof api.produtos.obterPorRef>>
+/** A model of the group, with its own photos when it has any. */
+type VarianteGrupo = Variante & { imagensUrls?: Array<string> }
 
 function ProdutoPage() {
   const { ref } = Route.useParams()
@@ -43,7 +52,9 @@ function ProdutoPage() {
       {base === null ? (
         <ProdutoNaoEncontrado />
       ) : (
-        <ProdutoConteudo base={base} routeRef={ref} />
+        // Keyed by ref: moving to another product starts a fresh visit (no
+        // "Ver orçamento" callout until something is added there).
+        <ProdutoConteudo key={ref} base={base} routeRef={ref} />
       )}
     </>
   )
@@ -104,6 +115,9 @@ function ProdutoFamilia({
   )
 }
 
+// Spec chips under the title stay short; the full list sits further down.
+const MAX_CHIPS = 4
+
 function ProdutoLayout({
   base,
   ativo,
@@ -113,7 +127,7 @@ function ProdutoLayout({
 }: {
   base: Detalhe
   ativo: Detalhe
-  variantes?: Array<Variante>
+  variantes?: Array<VarianteGrupo>
   selectedRef?: string
   onSelect?: (ref: string) => void
 }) {
@@ -124,241 +138,463 @@ function ProdutoLayout({
   ])
   const revendaAtivo = overlay?.get(ativo.ref)
 
-  // Shared attributes render as spec chips in the buy box; the keys that vary
-  // across the group become columns of the variant table below.
+  // Shared attributes describe the product (chips + spec list); the keys that
+  // vary across the group become the model picker's columns.
   const especificacoes = temVariantes
     ? atributosComuns(variantes)
     : ativo.atributos
-  const varianteAtiva = variantes?.find((v) => v.ref === ativo.ref)
-  const varianteLabel =
-    temVariantes && varianteAtiva
-      ? rotuloVariante(varianteAtiva, variantes)
-      : ""
+  const orcamento = useOrcamentoDaVisita()
+  const [titulo, tituloVisivel] = useVisivel<HTMLHeadingElement>()
+
+  // A group's model as a quote-list line: the page title plus the values that
+  // tell it apart from its siblings, priced at PVP (reseller prices are
+  // never stored client-side).
+  function itemDe(v: VarianteGrupo): ItemNovo {
+    return {
+      ref: v.ref,
+      nome: base.nomeGrupo,
+      marca: base.marca,
+      familia: base.familia,
+      variante: rotuloVariante(v, variantes ?? []) || undefined,
+      pvpCents: v.pvpCents,
+      capaUrl: v.imagensUrls?.at(0) ?? ativo.imagensUrls.at(0) ?? null,
+      capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
+    }
+  }
+  const porRef = new Map((variantes ?? []).map((v) => [v.ref, v]))
 
   return (
-    <>
-      <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6">
-        <Breadcrumb familia={base.familia} nome={base.nomeGrupo} />
-      </div>
+    <div
+      className={cn(
+        "mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 lg:pt-4",
+        // Room for the floating "Ver orçamento" pill under the last row.
+        orcamento.mostrarAviso &&
+          "pb-[calc(var(--altura-aviso)+var(--folga-fundo)+1rem)]"
+      )}
+    >
+      <BarraVoltar
+        familia={base.familia}
+        nome={base.nomeGrupo}
+        tituloVisivel={tituloVisivel}
+      />
 
       {/*
-        Mobile: gallery → buy → description (`contents` lets order work).
-        Desktop: sticky left column (gallery + description), buy on the right.
+        One grid, read in source order on phones. Desktop: gallery | buy box,
+        then the model picker across the full width (it can have many
+        columns), then description | specifications.
       */}
-      <div className="mx-auto grid max-w-6xl items-start gap-x-12 gap-y-8 px-4 py-8 pb-12 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:py-10">
-        <div className="contents lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-6 lg:self-start">
-          <div className="order-1 min-w-0">
-            <ProductGallery
-              familia={base.familia}
-              imagens={ativo.imagensUrls}
-              pdfCapaUrl={ativo.fichasCatalogo[0]?.url ?? null}
-            />
-          </div>
-          {ativo.descricao && (
-            <div className="order-3 min-w-0">
-              <p className="text-sm font-medium text-muted-foreground">
-                Descrição
-              </p>
-              <div className="mt-2.5">
-                <Markdown>{ativo.descricao}</Markdown>
-              </div>
-            </div>
-          )}
+      <div className="mt-2 grid items-start gap-x-12 gap-y-8 lg:mt-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className="min-w-0">
+          <ProductGallery
+            familia={base.familia}
+            imagens={ativo.imagensUrls}
+            pdfCapaUrl={ativo.fichasCatalogo[0]?.url ?? null}
+          />
         </div>
 
-        <div className="order-2 flex min-w-0 flex-col gap-5 sm:gap-6">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-primary">
-                {rotuloMarca(base.marca)}
-                {base.gama ? ` · ${base.gama}` : ""}
-              </p>
-              {/* Page title is nomeGrupo (no capacity); capacity lives in the
-                  variant table / SKU `nome` used by the quote list. */}
-              <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl">
-                {base.nomeGrupo}
-              </h1>
-            </div>
-            {ativo.fichasCatalogo.length > 0 && (
-              <FichasCatalogo fichas={ativo.fichasCatalogo} />
+        <div className="flex min-w-0 flex-col gap-6 lg:pt-2">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">
+              {rotuloMarca(base.marca)}
+              {base.gama ? ` · ${base.gama}` : ""}
+            </p>
+            {/* Page title is nomeGrupo (no capacity); capacity lives in the
+                variant rows / SKU `nome` used by the quote list. */}
+            <h1
+              ref={titulo}
+              className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
+            >
+              {base.nomeGrupo}
+            </h1>
+            {especificacoes.length > 0 && (
+              <SpecChips atributos={especificacoes.slice(0, MAX_CHIPS)} />
             )}
           </div>
 
-          <div className="border-y py-3.5 sm:py-4">
-            {revendaAtivo !== undefined ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-2xl font-semibold text-primary sm:text-3xl">
-                  {eurExato.format(revendaAtivo / 100)}
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
-                    revenda s/IVA
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-y py-4">
+            <PrecoAtivo pvpCents={ativo.pvpCents} revendaCents={revendaAtivo} />
+            <div className="flex flex-wrap items-center gap-2">
+              {temVariantes && (
+                <span className="text-sm text-muted-foreground">
+                  Ref.{" "}
+                  <span className="font-medium text-foreground">
+                    {ativo.ref}
                   </span>
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  PVP {eurExato.format(ativo.pvpCents / 100)} s/IVA
-                </span>
-              </div>
-            ) : (
-              <span className="text-2xl font-semibold text-primary sm:text-3xl">
-                {eurExato.format(ativo.pvpCents / 100)}
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  s/IVA
-                </span>
-              </span>
-            )}
+              )}
+              {ativo.fichasCatalogo.length > 0 && (
+                <FichasCatalogo fichas={ativo.fichasCatalogo} />
+              )}
+              {!temVariantes &&
+                orcamento.controlo({
+                  ref: ativo.ref,
+                  nome: ativo.nome,
+                  marca: ativo.marca,
+                  familia: ativo.familia,
+                  pvpCents: ativo.pvpCents,
+                  capaUrl: ativo.imagensUrls[0] ?? null,
+                  capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
+                })}
+            </div>
           </div>
-
-          {temVariantes && selectedRef && onSelect && (
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-muted-foreground">
-                Escolha o modelo
-              </p>
-              <div className="mt-2.5">
-                <VariantTable
-                  variantes={variantes}
-                  selectedRef={selectedRef}
-                  onSelect={onSelect}
-                  precosRevenda={overlay}
-                />
-              </div>
-            </div>
-          )}
-
-          {especificacoes.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Especificações
-              </p>
-              <div className="mt-2.5">
-                <SpecChips atributos={especificacoes} />
-              </div>
-            </div>
-          )}
-
-          <QuoteCta ativo={ativo} varianteLabel={varianteLabel} />
         </div>
+
+        {temVariantes && selectedRef && onSelect && (
+          <section className="min-w-0 lg:col-span-2">
+            <h2 className="text-sm font-semibold">
+              Modelos{" "}
+              <span className="font-normal text-muted-foreground tabular-nums">
+                {variantes.length}
+              </span>
+            </h2>
+            <div className="mt-2.5">
+              <VariantTable
+                variantes={variantes}
+                selectedRef={selectedRef}
+                onSelect={onSelect}
+                precosRevenda={overlay}
+                accao={(v) => {
+                  const variante = porRef.get(v.ref)
+                  if (!variante) return null
+                  return orcamento.controlo(itemDe(variante), () =>
+                    onSelect(v.ref)
+                  )
+                }}
+              />
+            </div>
+          </section>
+        )}
+
+        {ativo.descricao && (
+          <section className="min-w-0">
+            <h2 className="text-sm font-semibold">Descrição</h2>
+            <div className="mt-2.5">
+              <Recolhivel>
+                <Markdown>{ativo.descricao}</Markdown>
+              </Recolhivel>
+            </div>
+          </section>
+        )}
+
+        {especificacoes.length > MAX_CHIPS && (
+          <section className="min-w-0">
+            <h2 className="text-sm font-semibold">Especificações</h2>
+            <ListaEspecificacoes atributos={especificacoes} />
+          </section>
+        )}
       </div>
-    </>
+
+      <AvisoOrcamento
+        aberto={orcamento.mostrarAviso}
+        totalItens={orcamento.totalItens}
+      />
+    </div>
   )
 }
 
-function Breadcrumb({ familia, nome }: { familia: string; nome: string }) {
+/**
+ * True while the element is on screen (below the shell's top bar). Starts
+ * true so SSR and the first paint show the breadcrumb.
+ */
+function useVisivel<T extends Element>() {
+  const ref = useRef<T>(null)
+  const [visivel, setVisivel] = useState(true)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observador = new IntersectionObserver(
+      (entradas) => setVisivel(entradas.some((e) => e.isIntersecting)),
+      // The sticky bars cover the top ~7rem; count the title as gone once
+      // it slides under them.
+      { rootMargin: "-112px 0px 0px 0px" }
+    )
+    observador.observe(el)
+    return () => observador.disconnect()
+  }, [])
+  return [ref, visivel] as const
+}
+
+/**
+ * Back button + where we are. Sticks under the shell's top bar below `lg`
+ * so going back is one tap from anywhere in the model list; once the title
+ * has scrolled away the breadcrumb gives way to the product name. Back
+ * returns through history (the catalog comes back with its filters and
+ * scroll); a visitor who landed here directly goes to the family instead.
+ */
+function BarraVoltar({
+  familia,
+  nome,
+  tituloVisivel,
+}: {
+  familia: string
+  nome: string
+  tituloVisivel: boolean
+}) {
+  const router = useRouter()
+  const podeVoltar = useCanGoBack()
+
   return (
-    <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-      <Link to="/" className="transition-colors hover:text-foreground">
-        Início
-      </Link>
-      <ChevronRight className="size-3.5" />
-      <Link
-        to="/produtos"
-        search={{ familia: familia }}
-        className="transition-colors hover:text-foreground"
-      >
-        {rotuloFamilia(familia)}
-      </Link>
-      <ChevronRight className="size-3.5" />
-      <span className="line-clamp-1 text-foreground">{nome}</span>
-    </nav>
+    <div
+      className={cn(
+        "sticky top-[var(--barra-topo)] z-30 -mx-4 flex h-12 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur transition-colors supports-[backdrop-filter]:bg-background/85 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-transparent lg:bg-transparent lg:px-0 lg:backdrop-blur-none",
+        tituloVisivel && "border-transparent"
+      )}
+    >
+      {podeVoltar ? (
+        <button
+          type="button"
+          onClick={() => router.history.back()}
+          aria-label="Voltar"
+          className={BOTAO_VOLTAR}
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+      ) : (
+        <Link
+          to="/produtos"
+          search={{ familia }}
+          aria-label="Voltar ao catálogo"
+          className={BOTAO_VOLTAR}
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+      )}
+
+      {tituloVisivel ? (
+        <nav
+          aria-label="Localização"
+          className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+        >
+          <Link
+            to="/produtos"
+            className="shrink-0 transition-colors hover:text-foreground"
+          >
+            Catálogo
+          </Link>
+          <ChevronRight className="size-3.5 shrink-0" />
+          <Link
+            to="/produtos"
+            search={{ familia }}
+            className="shrink-0 transition-colors hover:text-foreground"
+          >
+            {rotuloFamilia(familia)}
+          </Link>
+          <ChevronRight className="hidden size-3.5 shrink-0 sm:block" />
+          <span className="hidden truncate text-foreground sm:block">
+            {nome}
+          </span>
+        </nav>
+      ) : (
+        <p className="min-w-0 animate-in truncate text-sm font-semibold duration-150 fade-in">
+          {nome}
+        </p>
+      )}
+    </div>
   )
 }
 
-// Spec chips are fully attribute-driven: whatever keys the product carries
-// (that don't vary within its group) render as compact label/value pills.
+const BOTAO_VOLTAR =
+  "flex size-9 shrink-0 items-center justify-center rounded-full border bg-background text-foreground transition-colors outline-none hover:border-foreground/25 focus-visible:ring-3 focus-visible:ring-ring/25"
+
+/**
+ * The selected model's price. PVP for everyone; approved members see their
+ * reseller price first and, when it is lower, the PVP struck through under
+ * it.
+ */
+function PrecoAtivo({
+  pvpCents,
+  revendaCents,
+}: {
+  pvpCents: number
+  revendaCents: number | undefined
+}) {
+  if (revendaCents === undefined) {
+    return (
+      <p className="flex items-baseline gap-1.5 tabular-nums">
+        <span className="text-3xl font-semibold tracking-tight">
+          {eurExato.format(pvpCents / 100)}
+        </span>
+        <span className="text-sm text-muted-foreground">PVP s/IVA</span>
+      </p>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-0.5 tabular-nums">
+      <p className="flex items-baseline gap-1.5">
+        <span className="text-3xl font-semibold tracking-tight text-primary">
+          {eurExato.format(revendaCents / 100)}
+        </span>
+        <span className="text-sm text-muted-foreground">Revenda s/IVA</span>
+      </p>
+      {revendaCents < pvpCents && (
+        <p className="text-sm text-muted-foreground">
+          PVP <s>{eurExato.format(pvpCents / 100)}</s>
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Short spec chips under the title: label/value pills.
 function SpecChips({ atributos }: { atributos: Array<Atributo> }) {
   return (
-    <dl className="flex flex-wrap gap-2">
+    <dl className="mt-1 flex flex-wrap gap-1.5">
       {atributos.map((a) => (
         <div
           key={a.chave}
-          className="flex items-baseline gap-1.5 rounded-full border bg-card px-3.5 py-1.5 text-sm"
+          className="flex items-baseline gap-1.5 rounded-full border px-3 py-1 text-[13px]"
         >
-          <dt className="text-xs text-muted-foreground">
-            {rotuloChave(a.chave)}
-          </dt>
-          <dd className="font-semibold">{rotuloValor(a.valor)}</dd>
+          <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
+          <dd className="font-medium">{rotuloValor(a.valor)}</dd>
         </div>
       ))}
     </dl>
   )
 }
 
-function QuoteCta({
-  ativo,
-  varianteLabel,
-}: {
-  ativo: Detalhe
-  varianteLabel: string
-}) {
-  const { adicionar, abrir, obter } = useOrcamento()
-  const [quantidade, setQuantidade] = useState(1)
-  const jaNaLista = obter(ativo.ref)
+// Every shared attribute, label left / value right.
+function ListaEspecificacoes({ atributos }: { atributos: Array<Atributo> }) {
+  return (
+    <dl className="mt-2.5 divide-y rounded-xl border text-sm">
+      {atributos.map((a) => (
+        <div
+          key={a.chave}
+          className="flex items-baseline justify-between gap-4 px-3.5 py-2.5"
+        >
+          <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
+          <dd className="text-right font-medium">{rotuloValor(a.valor)}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
 
-  function handleAdicionar() {
-    adicionar(
-      {
-        ref: ativo.ref,
-        nome: ativo.nome,
-        marca: ativo.marca,
-        familia: ativo.familia,
-        variante: varianteLabel || undefined,
-        pvpCents: ativo.pvpCents,
-        capaUrl: ativo.imagensUrls[0] ?? null,
-        capaPdfUrl: ativo.fichasCatalogo[0]?.url ?? null,
-      },
-      quantidade
-    )
-    setQuantidade(1)
-    abrir()
-  }
+/**
+ * Clamps its content on phones behind a "Ver mais" toggle; shows everything
+ * from `lg` up. The toggle only appears when the content actually overflows.
+ */
+function Recolhivel({ children }: { children: React.ReactNode }) {
+  const [aberto, setAberto] = useState(false)
+  const [transborda, setTransborda] = useState(false)
+  const caixa = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = caixa.current
+    if (!el || aberto) return
+    const medir = () => setTransborda(el.scrollHeight > el.clientHeight + 1)
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(el)
+    return () => observador.disconnect()
+  }, [aberto])
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <QuantityStepper
-          value={quantidade}
-          onChange={setQuantidade}
-          className="w-full sm:w-auto"
-        />
-        {/*
-          Taller tap target on phones; regular lg height on sm+. `flex-1`
-          only applies on sm+ — in the mobile column layout it would collapse
-          the button's height instead of stretching its width.
-        */}
-        <Button
-          size="lg"
-          onClick={handleAdicionar}
-          className="h-12 px-6 sm:h-10 sm:flex-1"
-        >
-          {jaNaLista ? (
-            <>
-              <Check data-icon="inline-start" />
-              Adicionar mais ao orçamento
-            </>
-          ) : (
-            <>
-              <Plus data-icon="inline-start" />
-              Adicionar ao orçamento
-            </>
-          )}
-        </Button>
+    <div>
+      <div
+        ref={caixa}
+        className={cn(
+          "relative",
+          !aberto &&
+            "max-h-36 overflow-hidden lg:max-h-none lg:overflow-visible"
+        )}
+      >
+        {children}
+        {!aberto && transborda && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background lg:hidden" />
+        )}
       </div>
-      {jaNaLista ? (
-        <p className="text-sm text-muted-foreground">
-          Já tem {jaNaLista.quantidade}{" "}
-          {jaNaLista.quantidade === 1 ? "unidade" : "unidades"} na lista.{" "}
-          <button
-            type="button"
-            onClick={abrir}
-            className="font-medium text-primary underline underline-offset-4"
-          >
-            Ver lista de orçamento
-          </button>
-        </p>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Junte vários equipamentos e peça um orçamento único à nossa equipa
-          comercial.
-        </p>
+      {transborda && (
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          aria-expanded={aberto}
+          className="mt-2 text-sm font-medium text-primary lg:hidden"
+        >
+          {aberto ? "Ver menos" : "Ver mais"}
+        </button>
       )}
+    </div>
+  )
+}
+
+type ItemNovo = Omit<ItemOrcamento, "quantidade">
+
+/**
+ * The quote list as this product page uses it: one `ControloQuantidade` per
+ * model, writing straight to the list, and whether to show the
+ * "Ver orçamento" callout. The callout belongs to this visit: it appears
+ * after the first add here and is gone when the visitor comes back to the
+ * page (they came back to add more, not to leave).
+ */
+function useOrcamentoDaVisita() {
+  const { adicionar, definirQuantidade, remover, obter, totalItens } =
+    useOrcamento()
+  const [adicionouNestaVisita, setAdicionouNestaVisita] = useState(false)
+
+  function controlo(item: ItemNovo, aoAdicionar?: () => void) {
+    return (
+      <ControloQuantidade
+        quantidade={obter(item.ref)?.quantidade ?? 0}
+        rotulo={item.ref}
+        onAdicionar={() => {
+          adicionar(item, 1)
+          setAdicionouNestaVisita(true)
+          aoAdicionar?.()
+        }}
+        onDefinir={(quantidade) => definirQuantidade(item.ref, quantidade)}
+        onRemover={() => remover(item.ref)}
+      />
+    )
+  }
+
+  return {
+    controlo,
+    totalItens,
+    mostrarAviso: adicionouNestaVisita && totalItens > 0,
+  }
+}
+
+/**
+ * Floating "Ver orçamento · N" pill, bottom centre, above the phone tab bar.
+ * It rises in when opened and sinks out when closed (list emptied): it stays
+ * mounted, showing the last count, until the exit animation ends. Reduced
+ * motion skips both. `data-aviso-orcamento` lifts toasts over it
+ * (styles.css).
+ */
+function AvisoOrcamento({
+  aberto,
+  totalItens,
+}: {
+  aberto: boolean
+  totalItens: number
+}) {
+  const [montado, setMontado] = useState(aberto)
+  const [contagem, setContagem] = useState(totalItens)
+  // Adjust during render (not in an effect) so the opening frame is already
+  // mounted and the count never flashes "· 0" on the way out.
+  if (aberto && !montado) setMontado(true)
+  if (totalItens > 0 && totalItens !== contagem) setContagem(totalItens)
+
+  if (!montado) return null
+
+  return (
+    <div
+      data-aviso-orcamento
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--barra-fundo)+var(--folga-fundo)+1rem)] z-30 flex justify-center px-4"
+    >
+      <Link
+        to="/orcamento"
+        data-state={aberto ? "open" : "closed"}
+        inert={!aberto}
+        onAnimationEnd={() => {
+          if (!aberto) setMontado(false)
+        }}
+        className="pointer-events-auto inline-flex h-12 max-w-full items-center gap-2.5 rounded-full bg-foreground pr-5 pl-4 text-[15px] font-medium text-background shadow-lg duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fill-mode-forwards data-[state=closed]:fade-out data-[state=closed]:slide-out-to-bottom-4 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:slide-in-from-bottom-4 motion-reduce:animate-none data-[state=closed]:motion-reduce:hidden"
+      >
+        <FileText className="size-4.5 shrink-0" />
+        <span className="truncate">Ver orçamento</span>
+        <span className="tabular-nums opacity-70">· {contagem}</span>
+      </Link>
     </div>
   )
 }
@@ -366,20 +602,20 @@ function QuoteCta({
 function FichasCatalogo({ fichas }: { fichas: Detalhe["fichasCatalogo"] }) {
   const varias = fichas.length > 1
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       {fichas.map((ficha, i) => (
         <a
           key={ficha.pagina}
           href={ficha.url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-secondary/50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[13px] font-medium transition-colors hover:border-foreground/25"
         >
-          <Download className="size-3.5 text-primary" />
-          {varias ? `Ficha PDF ${i + 1}` : "Ficha do catálogo (PDF)"}
+          <FileText className="size-3.5 text-muted-foreground" />
+          {varias ? `Ficha ${i + 1}` : "Ficha PDF"}
         </a>
       ))}
-    </div>
+    </>
   )
 }
 

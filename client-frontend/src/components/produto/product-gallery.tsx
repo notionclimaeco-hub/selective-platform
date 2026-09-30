@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils"
 import { iconeFamilia, rotuloFamilia } from "@/lib/catalogo"
@@ -6,6 +6,9 @@ import { iconeFamilia, rotuloFamilia } from "@/lib/catalogo"
 // Product gallery. Prefers resolved photo URLs; when none exist, embeds the
 // first catalog PDF page (same fallback as the catalog cards); otherwise shows
 // a family placeholder.
+//
+// Photos sit in one scroll-snap strip: phones swipe it and follow the dots,
+// wide screens click the thumbnails (which scroll the same strip).
 export function ProductGallery({
   familia,
   imagens = [],
@@ -16,11 +19,14 @@ export function ProductGallery({
   pdfCapaUrl?: string | null
 }) {
   const [ativa, setAtiva] = useState(0)
+  const faixa = useRef<HTMLDivElement>(null)
+  const chave = imagens.join("|")
 
-  // Reset selection when the image set changes (e.g. switching variants).
+  // Back to the first photo when the image set changes (switching variants).
   useEffect(() => {
     setAtiva(0)
-  }, [imagens.join("|")])
+    faixa.current?.scrollTo({ left: 0 })
+  }, [chave])
 
   if (imagens.length === 0) {
     if (pdfCapaUrl) {
@@ -31,35 +37,80 @@ export function ProductGallery({
 
   const indice = Math.min(ativa, imagens.length - 1)
 
+  function irPara(i: number) {
+    const el = faixa.current
+    if (!el) return
+    el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" })
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-xl border bg-muted">
-        <img
-          src={imagens[indice]}
-          alt={rotuloFamilia(familia)}
-          className="size-full object-contain"
-        />
-        <span className="absolute top-4 left-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur">
-          {rotuloFamilia(familia)}
-        </span>
+      <div className="relative">
+        <div
+          ref={faixa}
+          onScroll={(e) => {
+            const el = e.currentTarget
+            setAtiva(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))
+          }}
+          className="sem-scrollbar flex aspect-4/3 snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-2xl border bg-secondary/60"
+        >
+          {imagens.map((url, i) => (
+            <div
+              key={url}
+              className="flex size-full shrink-0 snap-center items-center justify-center p-6 sm:p-10"
+            >
+              <img
+                src={url}
+                alt={`${rotuloFamilia(familia)}, imagem ${i + 1} de ${imagens.length}`}
+                loading={i === 0 ? "eager" : "lazy"}
+                draggable={false}
+                className="max-h-full max-w-full object-contain mix-blend-multiply"
+              />
+            </div>
+          ))}
+        </div>
+
+        {imagens.length > 1 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5 lg:hidden"
+          >
+            {imagens.map((url, i) => (
+              <span
+                key={url}
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  i === indice
+                    ? "w-4 bg-foreground/70"
+                    : "w-1.5 bg-foreground/20"
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {imagens.length > 1 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden flex-wrap gap-2 lg:flex">
           {imagens.map((url, i) => (
             <button
               key={url}
               type="button"
-              onClick={() => setAtiva(i)}
+              onClick={() => irPara(i)}
               aria-label={`Ver imagem ${i + 1}`}
+              aria-current={i === indice}
               className={cn(
-                "size-16 shrink-0 overflow-hidden rounded-xl border bg-card transition-all",
+                "size-16 shrink-0 overflow-hidden rounded-xl border bg-secondary/60 p-1.5 transition-colors",
                 i === indice
-                  ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                  : "opacity-70 hover:opacity-100"
+                  ? "border-foreground/50"
+                  : "hover:border-foreground/25"
               )}
             >
-              <img src={url} alt="" className="size-full object-cover" />
+              <img
+                src={url}
+                alt=""
+                className="size-full object-contain mix-blend-multiply"
+              />
             </button>
           ))}
         </div>
@@ -70,35 +121,21 @@ export function ProductGallery({
 
 function GaleriaPdf({ familia, url }: { familia: string; url: string }) {
   return (
-    <div className="relative aspect-4/3 overflow-hidden rounded-3xl border bg-white">
+    <div className="relative aspect-4/3 overflow-hidden rounded-2xl border bg-white">
       <iframe
         src={`${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
         title={`Ficha do catálogo: ${rotuloFamilia(familia)}`}
         className="absolute inset-0 size-full border-0"
       />
-      <span className="pointer-events-none absolute top-4 left-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur">
-        {rotuloFamilia(familia)}
-      </span>
     </div>
   )
 }
 
 function GaleriaPlaceholder({ familia }: { familia: string }) {
   const Icon = iconeFamilia(familia)
-
   return (
-    <div className="relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-xl border bg-muted">
-      {/* Soft decorative glows echoing the hero section. */}
-      <div className="absolute -top-20 -left-20 size-64 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute -right-16 -bottom-24 size-72 rounded-full bg-brand/25 blur-3xl" />
-
-      <div className="relative flex size-36 items-center justify-center rounded-full bg-background/70 shadow-sm ring-1 ring-primary/15 backdrop-blur-sm">
-        <Icon className="size-16 text-primary/70" strokeWidth={1.25} />
-      </div>
-
-      <span className="absolute top-4 left-4 rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur">
-        {rotuloFamilia(familia)}
-      </span>
+    <div className="flex aspect-4/3 items-center justify-center rounded-2xl border bg-secondary/60 text-muted-foreground/60">
+      <Icon className="size-16" strokeWidth={1.25} />
     </div>
   )
 }
