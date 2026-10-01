@@ -11,7 +11,6 @@ import {
   linhasRestantes,
   MAX_LINHAS_ENCOMENDA,
 } from "./lib/encomendaEstados";
-import { agendarRender } from "./notion/agendar";
 import { EVENTOS_WEBHOOK, type EventoRevolut } from "./revolut/regras";
 
 /**
@@ -31,10 +30,6 @@ async function linhasDe(
     .query("installerOrderLines")
     .withIndex("by_encomendaId", (q) => q.eq("encomendaId", encomendaId))
     .take(MAX_LINHAS_ENCOMENDA);
-}
-
-function dataCurta(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
 }
 
 // --- payment page (public, token is the credential) ---------------------------
@@ -140,11 +135,6 @@ export const registarPedido = internalMutation({
       paymentRequestedAt: args.agora,
       paymentExpiresAt: args.expiraEm,
     });
-    await agendarRender(
-      ctx,
-      encomenda._id,
-      `Pagamento pedido — ${(args.totalPagamentoCents / 100).toFixed(2)} € c/IVA, link válido até ${dataCurta(args.expiraEm)}`,
-    );
     return null;
   },
 });
@@ -176,7 +166,6 @@ export const voltarAEditar = internalMutation({
       paymentRequestedAt: undefined,
       paymentExpiresAt: undefined,
     });
-    await agendarRender(ctx, encomenda._id, "Voltou a edição — pedido de pagamento anulado");
     return null;
   },
 });
@@ -241,20 +230,14 @@ async function aplicar(
     case "ORDER_COMPLETED": {
       if (encomenda.estado !== "aguardando_pagamento") {
         // Paid after a cancel / void-to-edit race: money arrived, keep the
-        // header, flag it loudly for the office (manual refund, #12 exceção).
+        // header; the office refunds by hand (Reembolso exceção, #85).
         await ctx.db.patch(encomenda._id, { paidAt: agora });
-        await agendarRender(
-          ctx,
-          encomenda._id,
-          `ATENÇÃO: pagamento Revolut recebido com a encomenda em estado ${encomenda.estado} — reembolso manual necessário`,
-        );
         return "pagamento_inesperado";
       }
       await ctx.db.patch(encomenda._id, { estado: "paga", paidAt: agora });
       for (const linha of linhasRestantes(await linhasDe(ctx, encomenda._id))) {
         await ctx.db.patch(linha._id, bucketsIniciais(linha.qty));
       }
-      await agendarRender(ctx, encomenda._id, "Pagamento recebido (Revolut) — encomendar aos fornecedores");
       return "paga";
     }
     case "ORDER_FAILED":
@@ -268,22 +251,10 @@ async function aplicar(
         cancelledAt: agora,
         cancelledBy: "revolut",
       });
-      await agendarRender(
-        ctx,
-        encomenda._id,
-        expirou
-          ? "Pagamento expirado (7 dias) — encomenda cancelada"
-          : "Ordem Revolut cancelada fora da plataforma — encomenda cancelada",
-      );
       return expirou ? "expirada" : "cancelada";
     }
     case "ORDER_PAYMENT_DECLINED":
     case "ORDER_PAYMENT_FAILED": {
-      await agendarRender(
-        ctx,
-        encomenda._id,
-        `Tentativa de pagamento sem sucesso (${evento === "ORDER_PAYMENT_DECLINED" ? "recusada" : "falhou"}) — o instalador pode tentar de novo`,
-      );
       return "tentativa_falhada";
     }
     case "ORDER_AUTHORISED":

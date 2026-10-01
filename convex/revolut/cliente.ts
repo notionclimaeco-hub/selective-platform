@@ -47,7 +47,7 @@ export function clienteRevolut(segredo: string, host = HOST_PADRAO): RevolutRequ
   };
 }
 
-/** Null when payments are not configured (renders and desk keep working). */
+/** Null when payments are not configured (the rest of the order flow keeps working). */
 export function clienteRevolutDoAmbiente(): RevolutRequest | null {
   const segredo = process.env.REVOLUT_SECRET_KEY;
   if (!segredo) return null;

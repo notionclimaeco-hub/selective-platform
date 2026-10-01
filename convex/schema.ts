@@ -57,13 +57,6 @@ export const motivoCancelamentoValidator = v.union(
 
 // Installer-order line state before pay. After `paga`, progress lives in the
 // qty buckets on the line — there is no post-pay status enum (#5).
-export const notionBaseValidator = v.union(
-  v.literal("encomendas"),
-  v.literal("linhas"),
-  v.literal("excecoes"),
-  v.literal("modelos"),
-);
-
 export const estadoLinhaValidator = v.union(
   v.literal("por_confirmar"),
   v.literal("confirmada"),
@@ -478,8 +471,8 @@ export default defineSchema({
     valor: v.number(),
   }).index("by_chave", ["chave"]),
 
-  // Installer order header (#5). Convex is the source of truth; Notion (#12),
-  // InvoiceXpress (#14) and Revolut (#8) attach to this record in later slices.
+  // Installer order header (#5). Convex is the source of truth; InvoiceXpress
+  // (#14) and Revolut (#8) attach to this record.
   installerOrders: defineTable({
     empresaId: v.id("installerCompanies"),
     clerkOrgId: v.string(),
@@ -512,16 +505,10 @@ export default defineSchema({
     // the single pickup (Registar levantamento) that closes the order.
     prontaAt: v.optional(v.number()),
     levantadaAt: v.optional(v.number()),
-    // Notion desk ticket (#12). Set by the first successful render; the
-    // office never needs it. `notionErro` is the last failed render reason.
-    notionPageId: v.optional(v.string()),
-    notionSyncAt: v.optional(v.number()),
-    notionErro: v.optional(v.string()),
   })
     .index("by_empresaId", ["empresaId"])
     .index("by_estado", ["estado"])
     .index("by_numero", ["numero"])
-    .index("by_notionPageId", ["notionPageId"])
     .index("by_pagamentoToken", ["pagamentoToken"])
     .index("by_revolutOrderId", ["revolutOrderId"]),
 
@@ -559,18 +546,7 @@ export default defineSchema({
       v.array(v.object({ numero: v.string(), qty: v.number(), em: v.number() })),
     ),
     reembolsadoAt: v.optional(v.number()),
-    // Row in db-linhas-selectivedistribui (#12).
-    notionPageId: v.optional(v.string()),
   })
     .index("by_encomendaId", ["encomendaId"])
-    .index("by_encomenda_and_ref", ["encomendaId", "ref"])
-    .index("by_notionPageId", ["notionPageId"]),
-
-  // The four office databases created by `notion/setup.ts` inside the
-  // `back-end` Notion page (#10, #12). One row per database.
-  notionBases: defineTable({
-    chave: notionBaseValidator,
-    databaseId: v.string(),
-    dataSourceId: v.string(),
-  }).index("by_chave", ["chave"]),
+    .index("by_encomenda_and_ref", ["encomendaId", "ref"]),
 });

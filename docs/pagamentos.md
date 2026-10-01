@@ -8,16 +8,16 @@ moves the order to `paga`; the widget's `onSuccess` never does.
 
 ## Flow
 
-1. Office sets **Ação → `Pedir pagamento`** on a ticket at `Pronta a cobrar`
-   (every remaining line `confirmada`). `revolut/fluxo.ts::pedirPagamento`
+1. Office runs **`Pedir pagamento`** once every remaining line is
+   `confirmada` (Admin app, #87; until then the CLI command under
+   Testing). `revolut/fluxo.ts::pedirPagamento`
    creates the Revolut order (`amount` = total s/IVA + IVA, `EUR`,
    `expire_pending_after: PT168H`, `merchant_order_data.reference: ENC-n`)
    and the header moves to `aguardando_pagamento` with `pagamentoToken`,
    `revolutOrderId`, `revolutToken`, `totalPagamentoCents`,
-   `paymentExpiresAt`. Notion mirrors `Link pagamento` and logs the request.
-   If the header cannot move (lines changed meanwhile) the Revolut order is
+   `paymentExpiresAt`. If the header cannot move (lines changed meanwhile) the Revolut order is
    cancelled again.
-2. Installer opens the link (client area CTA or the mirrored link), clicks
+2. Installer opens the link (client area CTA), clicks
    **Pagar com o meu banco**. The page loads `@revolut/checkout`, calls
    `RevolutCheckout.payments({ publicToken, mode, locale: "pt" })` and mounts
    **only** `payByBank({ createOrder: () => ({ publicId: revolutToken }),
@@ -29,16 +29,15 @@ moves the order to `paga`; the widget's `onSuccess` never does.
    `pagamentos.aplicarEvento` (idempotent per order × event, audited in
    `pagamentoEventos`):
    - `ORDER_COMPLETED` → `paga`, `paidAt`, qty buckets initialised on the
-     remaining lines, Registo "Pagamento recebido". (Fatura-recibo emission
-     hooks here — #14, next slice.)
+     remaining lines. (Fatura-recibo emission hooks here — #90.)
    - `ORDER_FAILED` (7-day expiry) → `cancelada` / `payment_expired`.
    - `ORDER_CANCELLED` (cancelled outside the platform) → `cancelada` / `office`.
-   - `ORDER_PAYMENT_DECLINED` / `ORDER_PAYMENT_FAILED` → Registo only; the
+   - `ORDER_PAYMENT_DECLINED` / `ORDER_PAYMENT_FAILED` → audited only; the
      installer retries on the same Revolut order.
    - `ORDER_COMPLETED` on an order no longer `aguardando_pagamento` (paid
-     during a cancel / void-to-edit race) → `paidAt` set, header unchanged,
-     Registo `ATENÇÃO … reembolso manual necessário`. Pay by Bank has no API
-     refunds.
+     during a cancel / void-to-edit race) → `paidAt` set, header unchanged;
+     the office refunds by hand (Reembolso exceção, #85). Pay by Bank has no
+     API refunds.
 4. **`Voltar a editar`** cancels the Revolut order first; if Revolut says it
    is already `completed`, the payment is applied instead and the action is
    refused. Installer / office **`Cancelar`** while awaiting payment
@@ -59,7 +58,7 @@ Convex deployment (`npx convex env set …`):
 | `REVOLUT_SECRET_KEY` | Merchant API secret key (`sk_…`). Development uses the developer's own Revolut Business merchant account — Pay by Bank has no sandbox. |
 | `REVOLUT_WEBHOOK_SECRET` | `signing_secret` returned when the webhook is created (below). |
 | `REVOLUT_API_HOST` | Optional. Default `https://merchant.revolut.com`; `https://sandbox-merchant.revolut.com` for card-only CI runs. |
-| `CLIENT_APP_URL` | Public origin of client-frontend, used for the mirrored `Link pagamento` (e.g. `http://localhost:3000` in dev). |
+| `CLIENT_APP_URL` | Public origin of client-frontend; the payment page URL is sent to Revolut as the order's `url` (skipped for `localhost`). |
 
 client-frontend (`.env`): `VITE_REVOLUT_PUBLIC_KEY` (`pk_…`, must match the
 secret key's environment) and optional `VITE_REVOLUT_MODE=sandbox`
@@ -90,7 +89,7 @@ deployment `accurate-grouse-482` is registered (webhook
 
 - Rules and webhook effects: `npx vitest run convex` (`revolut/regras.test.ts`,
   `pagamentos.test.ts`).
-- Real flow on dev: confirm every line of a ticket, set `Pedir pagamento`,
+- Real flow on dev: confirm every line of an order, run `Pedir pagamento`,
   open the link from the client area, pay a small amount with a real bank
   (Pay by Bank is production-only). `npx convex run
   revolut/fluxo:pedirPagamentoAction '{"encomendaId":"…"}'` does the same

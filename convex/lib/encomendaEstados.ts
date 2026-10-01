@@ -208,7 +208,7 @@ export function registarFalha(b: QtyBuckets, q: number): QtyBuckets {
   };
 }
 
-/** Qtd movimento left empty on the desk means everything the source bucket holds. */
+/** No qty given means everything the source bucket holds. */
 export function qtyMovimento(pedida: number | null, disponivel: number): number {
   if (pedida !== null) return pedida;
   if (disponivel < 1) throw new Error("Invalid qty move: nothing available");
