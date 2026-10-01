@@ -14,8 +14,8 @@ import {
 } from "./regras";
 
 /**
- * Revolut side of the payment flow. Plain async helpers so the Notion desk
- * (`notion/entrada.ts`) can call them inside its own action; thin
+ * Revolut side of the payment flow. Plain async helpers so an office
+ * action (staff order API, #84) can call them inside its own action; thin
  * `internalAction` wrappers for the scheduler, the cron and the CLI.
  */
 

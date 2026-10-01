@@ -22,7 +22,7 @@ _Avoid_: Approved user, pro user
 
 **Admin app**:
 The staff-only application where Climaeco staff approve installer companies, set tiers, manage the catalog and its imports, and run installer orders and their documents.
-_Avoid_: Back-office, desk, office desk, Notion
+_Avoid_: Back-office, desk, office desk
 
 **Suspended installer company**:
 An installer company that staff has frozen: members keep sign-in, but reseller prices and new installer orders are blocked and unpaid orders are cancelled.

@@ -36,14 +36,12 @@ import {
   type MotivoCancelamento,
   type QtyBuckets,
 } from "./lib/encomendaEstados";
-import { agendarRender } from "./notion/agendar";
 import { internal } from "./_generated/api";
 
 /**
  * Installer orders (#5). Public functions serve members of an approved
- * installer company and queue a Notion desk render (#12). Office actions are
- * `internalMutation`s driven by `notion/entrada.ts`, which renders itself
- * with the right log entry — so they do not queue a render here.
+ * installer company. Office actions are `internalMutation`s until the staff
+ * order API wraps them for the Admin app (#84).
  */
 
 const CONTADOR = "encomendas";
@@ -338,7 +336,6 @@ export const submeter = mutation({
       });
     }
 
-    await agendarRender(ctx, encomendaId, "Encomenda submetida pelo instalador");
     return { encomendaId, numero };
   },
 });
@@ -359,7 +356,6 @@ export const cancelar = mutation({
       "installer",
       installer.identity.subject,
     );
-    await agendarRender(ctx, cancelada._id, "Cancelada pelo instalador");
     return await vistaCliente(ctx, cancelada);
   },
 });
@@ -426,7 +422,7 @@ export const obter = query({
   },
 });
 
-// --- office (internal until the Notion desk lands, #12) -----------------------
+// --- office (internal until the staff order API, #84) ------------------------
 
 export const pedirStock = internalMutation({
   args: { encomendaId: v.id("installerOrders") },
@@ -577,7 +573,7 @@ export const adicionarLinha = internalMutation({
 
 // --- office, after payment (#78) ------------------------------------------------
 
-/** One qty move on a line, with what the desk needs for its log and exceção. */
+/** One qty move on a line, with what the event log and exceção need (#84, #85). */
 const movimentoValidator = v.object({
   ref: v.string(),
   nome: v.string(),
@@ -685,7 +681,7 @@ export const registarRececaoLinha = internalMutation({
     await moverQty(ctx, args.linhaId, args.qty, "qtyEmTransito", registarRecepcao),
 });
 
-/** Falhar qtd: por enviar → falhada. The desk opens a Reembolso exceção. */
+/** Falhar qtd: por enviar → falhada. The office refunds it (Reembolso exceção, #85). */
 export const falharQtyLinha = internalMutation({
   args: { linhaId: v.id("installerOrderLines"), qty: v.optional(v.number()) },
   returns: movimentoValidator,

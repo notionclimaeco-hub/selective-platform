@@ -478,8 +478,8 @@ export default defineSchema({
     valor: v.number(),
   }).index("by_chave", ["chave"]),
 
-  // Installer order header (#5). Convex is the source of truth; Notion (#12),
-  // InvoiceXpress (#14) and Revolut (#8) attach to this record in later slices.
+  // Installer order header (#5). Convex is the source of truth; InvoiceXpress
+  // (#14) and Revolut (#8) attach to this record.
   installerOrders: defineTable({
     empresaId: v.id("installerCompanies"),
     clerkOrgId: v.string(),
@@ -512,8 +512,8 @@ export default defineSchema({
     // the single pickup (Registar levantamento) that closes the order.
     prontaAt: v.optional(v.number()),
     levantadaAt: v.optional(v.number()),
-    // Notion desk ticket (#12). Set by the first successful render; the
-    // office never needs it. `notionErro` is the last failed render reason.
+    // Deprecated (#83): the Notion desk is gone. Cleared by
+    // `migrations:limparNotion`, then removed.
     notionPageId: v.optional(v.string()),
     notionSyncAt: v.optional(v.number()),
     notionErro: v.optional(v.string()),
@@ -559,15 +559,14 @@ export default defineSchema({
       v.array(v.object({ numero: v.string(), qty: v.number(), em: v.number() })),
     ),
     reembolsadoAt: v.optional(v.number()),
-    // Row in db-linhas-selectivedistribui (#12).
+    // Deprecated (#83): cleared by `migrations:limparNotion`, then removed.
     notionPageId: v.optional(v.string()),
   })
     .index("by_encomendaId", ["encomendaId"])
     .index("by_encomenda_and_ref", ["encomendaId", "ref"])
     .index("by_notionPageId", ["notionPageId"]),
 
-  // The four office databases created by `notion/setup.ts` inside the
-  // `back-end` Notion page (#10, #12). One row per database.
+  // Deprecated (#83): emptied by `migrations:limparNotion`, then removed.
   notionBases: defineTable({
     chave: notionBaseValidator,
     databaseId: v.string(),

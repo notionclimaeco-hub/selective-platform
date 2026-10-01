@@ -335,3 +335,44 @@ export const limparImagensOrfas = internalMutation({
     };
   },
 });
+
+/**
+ * Notion desk removal (#83): clear the Notion fields on installer orders and
+ * lines and empty `notionBases`, so the narrow schema can drop them. Dev
+ * holds a few dozen orders, so one pass. Idempotent.
+ */
+export const limparNotion = internalMutation({
+  args: {},
+  returns: v.object({
+    encomendas: v.number(),
+    linhas: v.number(),
+    bases: v.number(),
+  }),
+  handler: async (ctx) => {
+    let encomendas = 0;
+    for (const doc of await ctx.db.query("installerOrders").collect()) {
+      if (
+        doc.notionPageId === undefined &&
+        doc.notionSyncAt === undefined &&
+        doc.notionErro === undefined
+      ) {
+        continue;
+      }
+      await ctx.db.patch(doc._id, {
+        notionPageId: undefined,
+        notionSyncAt: undefined,
+        notionErro: undefined,
+      });
+      encomendas++;
+    }
+    let linhas = 0;
+    for (const doc of await ctx.db.query("installerOrderLines").collect()) {
+      if (doc.notionPageId === undefined) continue;
+      await ctx.db.patch(doc._id, { notionPageId: undefined });
+      linhas++;
+    }
+    const bases = await ctx.db.query("notionBases").collect();
+    for (const doc of bases) await ctx.db.delete(doc._id);
+    return { encomendas, linhas, bases: bases.length };
+  },
+});
