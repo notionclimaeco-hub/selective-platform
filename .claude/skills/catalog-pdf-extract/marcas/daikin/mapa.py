@@ -183,13 +183,15 @@ SECCOES = [
                        "gama": "", "derivar": ["caudal-m3h", "zonas", "controlo", "orientacao"]}],
         posicoes={"104": 70}),
     sec("ducobox-acessorios-1", "Ducobox — acessórios (esquerda)", 104, ACESS, "acessorio", refNumerica=True,
-        posicoes={"104": 432}, regiao={"x0": 30, "x1": 300}, descricao="esquerda"),
+        posicoes={"104": 432}, regiao={"x0": 30, "x1": 300}, descricao="esquerda", dyLista=14),
     sec("ducobox-acessorios-2", "Ducobox — acessórios (direita)", 104, ACESS, "acessorio", refNumerica=True,
-        posicoes={"104": 432}, regiao={"x0": 300, "x1": 600}, descricao="esquerda"),
+        posicoes={"104": 432}, regiao={"x0": 300, "x1": 600}, descricao="esquerda", dyLista=14),
+    # 00004995 (acoplamento multizona) "Disponível brevemente": sem preço (o catálogo
+    # anterior deu-lhe os 20 € do acoplamento D200 ao lado).
     sec("ducoflex-1", "Ducoflex (esquerda)", 105, ACESS, "acessorio", refNumerica=True, descricao="esquerda",
-        regiao={"x0": 30, "x1": 298}),
+        regiao={"x0": 30, "x1": 298}, dyLista=14, ignorarRefs="^00004995$"),
     sec("ducoflex-2", "Ducoflex (direita)", 105, ACESS, "acessorio", refNumerica=True, descricao="esquerda",
-        regiao={"x0": 298, "x1": 600}),
+        regiao={"x0": 298, "x1": 600}, ignorarRefs="^00004995$"),
     sec("vam", "Ventilação com recuperação de energia", 106, VMC, "conjunto", "comercial", None,
         "recuperador-de-calor", regras=["ventilacao"], precoPorBaixo={"dy": 25},
         prefixarRefs=[[r"\d{3,4}(FC9|J8)", "VAM"]], especificacoes="transpostas"),
@@ -202,7 +204,7 @@ SECCOES = [
         regras=["ventilacao"], precoPorBaixo={"dy": 15}, especificacoes="transpostas"),
     # p112: lista à esquerda (ref, descrição por baixo, preço à direita) e grelha por modelo de VAM/VKM.
     sec("opcoes-ventilacao", "Opções - Ventilação", 112, ACESS, "acessorio", descricao="linha",
-        precoPorBaixo={"dy": 14}, colunasPreco=[{"rx": "^(BRC|DCS|DGE|DMS|DCM|EKMBDXB)", "x": [170, 210], "dy": 12}]),
+        precoPorBaixo={"dy": 22}, colunasPreco=[{"rx": "^(BRC|DCS|DGE|DMS|DCM|EKMBDXB)", "x": [170, 210], "dy": 12}]),
     # --- Unidades de tratamento de ar (p114-121) -----------------------------------------------
     sec("uta-compact-r", "UTA Compact R", 114, VMC, "conjunto", "comercial", None, "uta", regras=["ventilacao"],
         posicoes={"114": 700}),
@@ -216,7 +218,7 @@ SECCOES = [
     # linha, com o tamanho tirado da ref.
     *[sec(f"uta-opcoes-{pg}", f"Opcionais {uta}", pg, ACESS, "acessorio", descricao="linha", regras=["ventilacao"],
           precoPorBaixo={"dy": 24}, ignorarRefs="^(ERA\\d|EKEXVA|EKEACB)", prefixoDescricao=uta,
-          tamanhoDaRef=r"^A[RTL][A-Z](\d{2})") for pg, uta in (
+          tamanhoDaRef=r"^A[RTL][A-Z](0[1-9]|1\d)") for pg, uta in (
         (115, "UTA Compact R"), (117, "UTA Compact T"), (119, "UTA Compact L"), (120, "UTA Modular R"),
         (121, "UTA Modular P"))],
     ignorar("uta-especificacoes", "UTA — especificações", [114, 116, 118], posicoes={"114": 0, "116": 0, "118": 0}),

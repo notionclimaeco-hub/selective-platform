@@ -72,7 +72,25 @@ ventilação `zonas`, `controlo`, `orientacao`, `tamanho`; ventiloconvectores
 - Astropure 2000: os dois modelos só diferem nos opcionais (UV, ecrã, filtro de carvão).
 - VRV 5 (p30): preços sob consulta, sem linhas.
 
-## Por resolver
+## Acessórios do catálogo anterior (revistos um a um na tabela)
 
-- Uns 10 acessórios do catálogo anterior que o leitor não apanha (Duco 00004636/37,
-  00007012/13; BRYMA100, EKPLEN200 na grelha da p112; E4V2N05OV3WA, EDPD7; EKFCD80).
+- Reais e recuperados: Duco 00004636/37 (sensor de CO2 sem comando, 320 €), 00007012/13
+  (DucoVent Design quadrado redondo, 105 €), BRYMA100 e EKPLEN200 (grelha da p112),
+  E4V2N05OV3WA (FWP, 255 €), EDPD7 (40 €).
+- Erros do catálogo anterior, ficam de fora: EKFCD80 é peça do kit `SB.EKWC/EKFCD80` (os
+  475 € são do kit); KHRQ22M20T só aparece numa nota da p25 (a ref com preço é
+  KHRQ22M20TA, p46); RZAG71 vem de uma nota; 00004995 (acoplamento multizona) está
+  "Disponível brevemente" (o catálogo deu-lhe os 20 € do acoplamento D200 ao lado).
+- Os outros são a mesma peça com a ref impressa por inteiro (`SB.EK200PCV/FIL260`,
+  `SB.EKECBUA3V/2A`, `SB.EKHLE200CV3/26`, `K-KDU572KVE`, `ATD04UDSBR`).
+
+## Nomes dos acessórios (`nomes.py`)
+
+Muitas listas imprimem a descrição partida pelo bloco de refs ou só um rótulo de linha
+("Temperatura", "Registo mistura —"): os títulos foram escritos a partir das linhas do PDF,
+com a gama a que servem ("… (Energy Sky)", "… para FWQ-AT/FWE-F"). Séries vendidas por
+tamanho ou cor num produto (`MESMO_GRUPO`, `MESMO_GRUPO_COR`); o tamanho é o que a tabela
+imprime (coluna da grelha VAM, tamanho de UTA, gama de ventiloconvector). As baterias de
+reaquecimento e os registos externos da UTA Compact R são os da Compact L de outro tamanho
+(ALD03HWUA = R 01 = L 03, mesmo preço): um produto "UTA Compact R e L" com os dois. Sondas,
+comandos e atuadores comuns às três Compact ficam "UTA Compact: …".

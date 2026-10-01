@@ -59,6 +59,11 @@ def _palavras(page, y_ini: float, y_fim: float, seccao: dict) -> list[list]:
         if len(t) > 2 and (y1 - y0) > 1.6 * (x1 - x0):                  # texto na vertical
             continue
         t = t.replace("ﬁ", "fi").replace("ﬂ", "fl")
+        meio = len(t) // 2
+        if len(t) >= 10 and len(t) % 2 == 0 and t[:meio] == t[meio:] and re.search(r"\d", t):
+            xm = (x0 + x1) / 2                       # "BRYMA100BRYMA100" (p112): duas células coladas
+            out.append([x0, y0, xm, y1, t[:meio]])
+            x0, t = xm, t[meio:]
         m = NOTA_COLADA_RX.match(t)                    # "BRC073(1)" → "BRC073"
         if m:
             x1 = x0 + (x1 - x0) * len(m.group(1)) / len(t)
@@ -107,7 +112,8 @@ def _juntar(palavras: list[list]) -> list[list]:
                 or (re.fullmatch(r"\d{1,3}\.", out[-1][4]) and re.match(r"^\d{3}", w[4]))
                 or (re.fullmatch(r"\d{1,3}", out[-1][4]) and re.fullmatch(r"\d{3}€", w[4]) and w[0] - out[-1][2] < 4)
                 or (out[-1][4].endswith("/") and re.match(r"^[\dA-]", w[4])
-                    and re.match(r"^[\d,.]+/$|^A\+*/$|^[A-Z0-9]", out[-1][4]))):
+                    and re.match(r"^[\d,.]+/$|^A\+*/$|^[A-Z0-9]", out[-1][4]))
+                or (out[-1][4].endswith("/") and e_ref(out[-1][4]) and e_ref(w[4]))):   # "EDPD7/ EDPD9"
             a = out.pop()
             out.append([a[0], a[1], w[2], a[3], a[4] + w[4]])
         else:
@@ -380,7 +386,7 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
             continue
         dmin = min(d for d, _ in cands)
         for d, r in cands:
-            if d <= 11 and d - dmin < 1.5:
+            if d <= seccao.get("dyLista", 11) and d - dmin < 1.5:
                 atual = preco_de.get(id(r))
                 if atual is None or d < atual[0]:
                     preco_de[id(r)] = [d, p]
@@ -393,6 +399,13 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
                and abs(_yc(q) - _yc(r)) <= 20 and len(q[4]) == len(r[4]) and q[4][:-2] == r[4][:-2]]
         if viz:
             preco_de[id(r)] = preco_de[id(min(viz, key=lambda q: abs(_yc(q) - _yc(r))))]
+            continue
+        # "E4V2N05OV3WA /" por cima de "E4V2N08OV3WA … 255 €" (p138, p141): a barra liga-as.
+        barra = any(abs(_yc(b) - _yc(r)) < 3 and 0 <= b[0] - r[2] < 12 and b[4] == "/" for b in ws)
+        baixo = [q for q in refs if id(q) in preco_de and tipo(q) is None and mesma_coluna(q, r)
+                 and 0 < _yc(q) - _yc(r) <= 12]
+        if barra and baixo:
+            preco_de[id(r)] = preco_de[id(min(baixo, key=lambda q: _yc(q)))]
     # Equipamento: cada ref leva o preço mais próximo da sua célula — refs empilhadas
     # ("SB.FTXA20DP/DY/DG/DC/DL") partilham a linha de preço do meio —, salvo se uma
     # ref de outro tipo na mesma coluna está mais perto dele (ficha: a UI por baixo
@@ -473,6 +486,7 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
                 x_min = min(q[0] for q in refs if abs(_yc(q) - _yc(r)) <= 25) - 5
                 rot = [o for o in outras if o[2] <= x_min and -6 <= _yc(o) - _yc(r) <= 14]
                 desc = _texto_por_colunas(rot) if rot else ""
+                desc = re.sub(r"^[|\s]+|(\s*[—–-])+\s*$", "", desc)   # "| Transdutor de pressão —"
                 if seccao.get("prefixoDescricao"):          # "UTA Compact R: G4 - ISO Coarse 55%"
                     desc = f"{seccao['prefixoDescricao']}: {desc}" if desc else seccao["prefixoDescricao"]
                 for ref in expandir_ref(r[4].rstrip("./")):
@@ -497,7 +511,8 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
                            key=lambda q: abs(_yc(q) - _yc(o)))
                 if dono is r and abs(_yc(r) - _yc(o)) <= 14:
                     desc_ws.append(o)
-            desc = _texto_por_colunas(desc_ws)
+            # Marcas de novidade e separadores de coluna não são descrição.
+            desc = re.sub(r"^(?:\|\s*|NOVO\s+|NOVIDADE\s+)+|\s+(?:NOVO|NOVIDADE)$", "", _texto_por_colunas(desc_ws))
             regra = next((d for d in seccao.get("porDescricao") or [] if re.search(d["rx"], desc)), None)
             if regra is not None:                        # equipamento numa lista (DucoBox, p104)
                 campos = {"descricao": desc, **_derivar_descricao(desc, regra)}

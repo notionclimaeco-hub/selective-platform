@@ -172,6 +172,17 @@ def _nomes_limpos(run: dict) -> None:
     """Travessões das descrições impressas ("Bateria DX – direita") no título: hífen.
     Um grupo partilha o segmento (o mesmo comando aparece em páginas domésticas e
     comerciais): fica o do primeiro SKU."""
+    # Variantes juntadas (cores, tamanhos) que o agrupar classificou umas como comando e
+    # outras como acessório: o grupo é comando se alguma o é.
+    grupos: dict[str, list[dict]] = {}
+    for s in run["skus"]:
+        grupos.setdefault(s["grupoModelo"], []).append(s)
+    for g, membros in grupos.items():
+        comps = {m["componente"] for m in membros}
+        if comps == {"comando", "acessorio"}:
+            novo = re.sub(r"-acessorio$", "-comando", g)
+            for m in membros:
+                m["componente"], m["grupoModelo"] = "comando", novo
     segmento: dict[str, str | None] = {}
     for s in run["skus"]:
         for k in ("nomeGrupo", "nome"):
@@ -188,7 +199,7 @@ def _nomes_limpos(run: dict) -> None:
 # fica partida pelas linhas do bloco): uma página de produto por série, com o tamanho.
 #   (ref, chave da série, título de recurso, atributo do tamanho)
 SERIES_ACESSORIOS = (
-    (re.compile(r"^EKEXVA(\d+)$"), lambda m: "EKEXVA", "Kit de válvula de expansão para UTA EKEXVA", "tamanho"),
+    (re.compile(r"^EKEXVA(\d+)$"), lambda m: "EKEXVA", "Kit de válvula de expansão para UTA", "tamanho"),
     (re.compile(r"^ECOLLECTRM([VX])(\d+)A$"), lambda m: f"ECOLLECTRM{m.group(1)}",
      None, "tamanho"),
     (re.compile(r"^EKM(\d\d)([A-Z0-9]+)$"), lambda m: f"EKM-{m.group(2)}", None, "tamanho"),
@@ -212,7 +223,10 @@ def _series_de_acessorios(run: dict) -> None:
             m = rx.match(s["ref"])
             if m:
                 tamanho = next(g for g in m.groups() if g and g.isdigit())
-                grupos.setdefault(chave(m), []).append((s, str(int(tamanho))))
+                tamanho = str(int(tamanho))
+                if chave(m).startswith("ECOLLECTRM"):       # ECOLLECTRMV4A: coletor de 4 saídas
+                    tamanho += " saídas"
+                grupos.setdefault(chave(m), []).append((s, tamanho))
                 break
     for chave, membros in grupos.items():
         if len(membros) < 2:
@@ -225,9 +239,73 @@ def _series_de_acessorios(run: dict) -> None:
             titulo = max(boas, key=len) if boas else f"Acessório {chave}"
         grupo = "daikin-" + re.sub(r"[^a-z0-9]+", "-", chave.lower()).strip("-") + "-acessorio"
         for s, tamanho in membros:
-            s["grupoModelo"], s["nomeGrupo"], s["nome"] = grupo, titulo, f"{titulo} {tamanho}"
+            s["grupoModelo"], s["nomeGrupo"], s["nome"] = grupo, titulo, _com_tamanho(titulo, tamanho)
             s["atributos"] = [a for a in s["atributos"] if a["chave"] != "tamanho"] + [
                 {"chave": "tamanho", "valor": tamanho}]
+
+
+def _com_tamanho(nome: str, tam: str) -> str:
+    """Título da variante: "… (tamanho 3)" para tamanhos de UTA/rooftop/ventiloconvector
+    ("3", "A", "04-10", "R 1 / L 3"); "Filtro … para VAM" + "VAM 650" → "Filtro … para VAM
+    650"; medidas a seguir ("… 15 m", "… D160"); o resto entre parênteses ("… (chão)")."""
+    if re.fullmatch(r"\d+|[A-Z]|\d\d-\d\d(, .*)?|[RL] \d( / [RL] \d)?", tam):
+        return f"{nome} (tamanho {tam})"
+    primeira = tam.split()[0]
+    if nome.endswith(" " + primeira):
+        return nome[: -len(primeira)] + tam
+    if re.match(r"^(\d|D\d)", tam):
+        return f"{nome} {tam}"
+    return f"{nome} ({tam})"
+
+
+def _nomes(run: dict) -> None:
+    """Nomes de `nomes.py` (escritos a partir das linhas do PDF) para os acessórios cuja
+    descrição impressa não dá título; séries por tamanho num só produto. Títulos que
+    ficam iguais em grupos diferentes levam a ref (como o `agrupar.py`)."""
+    from importlib.util import module_from_spec, spec_from_file_location
+    from pathlib import Path
+    spec = spec_from_file_location("daikin_nomes", Path(__file__).with_name("nomes.py"))
+    nomes = module_from_spec(spec)
+    spec.loader.exec_module(nomes)
+    por_ref = {s["ref"]: s for s in run["skus"]}
+    for atributo, series in (("tamanho", nomes.MESMO_GRUPO), ("cor", nomes.MESMO_GRUPO_COR)):
+        for chave, valores in series.items():
+            grupo = "daikin-" + re.sub(r"[^a-z0-9]+", "-", chave.lower()).strip("-") + "-acessorio"
+            for ref, valor in valores.items():
+                s = por_ref.get(ref)
+                if s is not None:
+                    s["grupoModelo"] = grupo
+                    s["atributos"] = [a for a in s["atributos"] if a["chave"] != atributo] + [
+                        {"chave": atributo, "valor": valor}]
+    grupos: dict[str, list[dict]] = {}
+    for s in run["skus"]:
+        grupos.setdefault(s["grupoModelo"], []).append(s)
+    for membros in grupos.values():
+        nome = next((nomes.NOMES[m["ref"]] for m in membros if m["ref"] in nomes.NOMES), None)
+        for m in membros:
+            if nome is not None:
+                m["nomeGrupo"] = m["nome"] = nome
+                if not re.match(r"^[A-ZÁÉÍÓÚ]", m.get("descricao") or "x"):
+                    m["descricao"] = nome              # a descrição impressa era um pedaço de frase
+            # Rótulos de margem colados à descrição ("UNIDADE ATRAVÉS (TEMPERATURA EXTERIOR) Sonda…").
+            m["descricao"] = re.sub(r"^(?:\(?[A-ZÁÉÍÓÚÇÃÕÂÊ]{3,}\)?\s+){2,}(?=[A-Z][a-zà-ú])", "",
+                                    m.get("descricao") or "") or m.get("descricao")
+            tam = {a["chave"]: a["valor"] for a in m["atributos"]}.get("tamanho")   # a cor fica na coluna
+            if tam and len(membros) > 1 and m["nome"] in (m["nomeGrupo"], f'{m["nomeGrupo"]} {tam}'):
+                m["nome"] = _com_tamanho(m["nomeGrupo"], tam)
+    por_titulo: dict[str, set[str]] = {}
+    for g, membros in grupos.items():
+        por_titulo.setdefault(membros[0]["nomeGrupo"], set()).add(g)
+    for titulo, gs in por_titulo.items():
+        if len(gs) < 2:
+            continue
+        for g in gs:
+            codigo = min(m["ref"] for m in grupos[g])
+            if codigo in titulo:
+                continue
+            for m in grupos[g]:
+                m["nome"] = m["nome"].replace(titulo, f"{titulo} {codigo}", 1)
+                m["nomeGrupo"] = f"{titulo} {codigo}"
 
 
 def corrigir(run: dict, doc) -> None:
@@ -237,4 +315,5 @@ def corrigir(run: dict, doc) -> None:
     _caudal_uta(run, doc)
     _cores_dos_acessorios(run)
     _series_de_acessorios(run)
+    _nomes(run)
     _nomes_limpos(run)

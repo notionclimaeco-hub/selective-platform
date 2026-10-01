@@ -13,6 +13,7 @@ from conftest import linha, pagina_a4
 
 series = parte_da_marca("daikin", "series")
 leitor = parte_da_marca("daikin", "extrair")
+pos = parte_da_marca("daikin", "pos")
 
 
 def sec(**extra):
@@ -116,6 +117,19 @@ def test_matriz_altherma_preco_por_baixo_da_ref(doc):
 
 
 # --- agrupar: classificação por linha ----------------------------------------------------
+
+@pytest.mark.parametrize("nome, tam, titulo", [
+    ("UTA Compact R: Telhado", "3", "UTA Compact R: Telhado (tamanho 3)"),
+    ("Filtro rooftop ISO ePM1 50% (F7)", "A", "Filtro rooftop ISO ePM1 50% (F7) (tamanho A)"),
+    ("Kit válvula 2 vias ON/OFF 230 V para FWE-F", "04-12", "Kit válvula 2 vias ON/OFF 230 V para FWE-F (tamanho 04-12)"),
+    ("Filtro ePM10 70% (M6) para VAM", "VAM 650", "Filtro ePM10 70% (M6) para VAM 650"),
+    ("Vaso de expansão solar", "25 L", "Vaso de expansão solar 25 L"),
+    ("Tubo de proteção corrugado", "16/21 mm", "Tubo de proteção corrugado 16/21 mm"),
+    ("DucoFlex caixa de distribuição 12x63 D180", "teto", "DucoFlex caixa de distribuição 12x63 D180 (teto)"),
+])
+def test_titulo_da_variante_por_tamanho(nome, tam, titulo):
+    assert pos._com_tamanho(nome, tam) == titulo
+
 
 def test_agrupar_usa_a_classificacao_da_linha():
     mapa = {"seccoes": [sec(id="p36", segmento="comercial", tipoUnidade="cassete-4-vias")]}
