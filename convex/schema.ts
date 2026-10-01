@@ -57,13 +57,6 @@ export const motivoCancelamentoValidator = v.union(
 
 // Installer-order line state before pay. After `paga`, progress lives in the
 // qty buckets on the line — there is no post-pay status enum (#5).
-export const notionBaseValidator = v.union(
-  v.literal("encomendas"),
-  v.literal("linhas"),
-  v.literal("excecoes"),
-  v.literal("modelos"),
-);
-
 export const estadoLinhaValidator = v.union(
   v.literal("por_confirmar"),
   v.literal("confirmada"),
@@ -512,16 +505,10 @@ export default defineSchema({
     // the single pickup (Registar levantamento) that closes the order.
     prontaAt: v.optional(v.number()),
     levantadaAt: v.optional(v.number()),
-    // Deprecated (#83): the Notion desk is gone. Cleared by
-    // `migrations:limparNotion`, then removed.
-    notionPageId: v.optional(v.string()),
-    notionSyncAt: v.optional(v.number()),
-    notionErro: v.optional(v.string()),
   })
     .index("by_empresaId", ["empresaId"])
     .index("by_estado", ["estado"])
     .index("by_numero", ["numero"])
-    .index("by_notionPageId", ["notionPageId"])
     .index("by_pagamentoToken", ["pagamentoToken"])
     .index("by_revolutOrderId", ["revolutOrderId"]),
 
@@ -559,17 +546,7 @@ export default defineSchema({
       v.array(v.object({ numero: v.string(), qty: v.number(), em: v.number() })),
     ),
     reembolsadoAt: v.optional(v.number()),
-    // Deprecated (#83): cleared by `migrations:limparNotion`, then removed.
-    notionPageId: v.optional(v.string()),
   })
     .index("by_encomendaId", ["encomendaId"])
-    .index("by_encomenda_and_ref", ["encomendaId", "ref"])
-    .index("by_notionPageId", ["notionPageId"]),
-
-  // Deprecated (#83): emptied by `migrations:limparNotion`, then removed.
-  notionBases: defineTable({
-    chave: notionBaseValidator,
-    databaseId: v.string(),
-    dataSourceId: v.string(),
-  }).index("by_chave", ["chave"]),
+    .index("by_encomenda_and_ref", ["encomendaId", "ref"]),
 });
