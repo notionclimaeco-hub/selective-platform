@@ -40,6 +40,10 @@
   da linha "N.º de código" (`pos.py`).
 - Caudal das UTA Compact pela tabela de características; conjuntos VAM com sensor
   CO2 herdam o caudal da unidade.
+- Acessórios que só diferem na cor (painéis BYCQ140EW/EB, comandos Madoka
+  BRC1H52W7/K7/S7) ficam num grupo com `cor`; séries vendidas por tamanho e impressas
+  num bloco com uma só descrição (EKEXVA, coletores RMV/RMX, opcionais HPC EKM10/15/20,
+  caixas EIWRX, opcionais das UTA) ficam num grupo com `tamanho`.
 
 ## Diferenças para o catálogo anterior (a tabela confirma o valor novo)
 
@@ -51,9 +55,24 @@
 - Refs impressas por inteiro: `SB.EK200PCV/FIL260`, `SB.EKHLE200CV3/26`,
   `SB.EKECBUA3V/2A` (o catálogo cortava a parte depois da barra).
 
+## Registo (acrescentado neste ticket)
+
+`cor` madeira-clara, madeira-escura, castanho, azul (Stylish D); bombas de calor
+`classe-kw` (as UI hydrobox/integradas não têm kW próprios: `calor-kw` deixou de ser
+obrigatório nelas); AQS `coletores` (`deposito-l` só obrigatório no depósito);
+ventilação `zonas`, `controlo`, `orientacao`, `tamanho`; ventiloconvectores
+`valvula-3-vias`; acessórios `tamanho`.
+
+## Avisos que ficam (genuínos)
+
+- Classe energética em falta: Sky Air 12,5/14 kW (a tabela imprime "–"), conjuntos
+  Altherma (só o desenho da etiqueta), rooftops.
+- kW em falta: UI só para multi (CTXA15, CTXM15A, FTXM60R/71R, CVXM20B, CTXF) e UE
+  Multi+ MWXM (p53 não os imprime); `SB.FHA71_FW_AZV` (p38: sem kW e a UE é ARXM71A).
+- Astropure 2000: os dois modelos só diferem nos opcionais (UV, ecrã, filtro de carvão).
+- VRV 5 (p30): preços sob consulta, sem linhas.
+
 ## Por resolver
 
-- Stylish D: cores fora do vocabulário do registo (madeira clara/escura, castanho,
-  azul) — acrescentar ao registo.
-- `SB.FHA71_FW_AZV` (p38): a linha não imprime kW e a UE é ARXM71A.
-- VRV 5 (p30): preços sob consulta, sem linhas.
+- Uns 10 acessórios do catálogo anterior que o leitor não apanha (Duco 00004636/37,
+  00007012/13; BRYMA100, EKPLEN200 na grelha da p112; E4V2N05OV3WA, EDPD7; EKFCD80).
