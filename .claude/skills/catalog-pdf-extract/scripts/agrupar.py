@@ -71,8 +71,12 @@ def _seccao(mapa: dict, sid: str) -> dict:
 def _seccao_linha(mapa: dict, l: dict) -> dict:
     """Secção da linha com o `porRef` do mapa aplicado: numa tabela que mistura
     produtos ("UE + depósito", "UE + módulo hidráulico") o prefixo da ref dá
-    familia/componente/tipoUnidade/gama próprios."""
+    familia/componente/tipoUnidade/gama próprios. Uma linha lida por uma parte
+    da marca pode trazer a sua `classificacao` (Daikin: a mesma ref repete-se
+    por muitas páginas e é classificada pela ref), que ganha à secção."""
     s = _seccao(mapa, l["seccao"])
+    if l.get("classificacao"):
+        return {**s, **l["classificacao"], "componenteFixo": True}
     for regra in s.get("porRef") or []:
         if l["ref"].upper().startswith(regra["prefixo"].upper()):
             fixo = {"componenteFixo": True} if "componente" in regra else {}
