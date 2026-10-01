@@ -21,6 +21,7 @@ import {
   MODELO_PADRAO_ASSUNTO,
   MODELO_PADRAO_CORPO,
   NOME_BASE,
+  opcoesEmFalta,
   type NotionBase,
 } from "./esquema";
 import { prop } from "./propriedades";
@@ -29,7 +30,8 @@ import { baseValidator } from "./dados";
 /**
  * Creates (or upgrades) the four desk databases inside the `back-end` page.
  * Idempotent: finds existing databases by title or by stored id, adds any
- * property missing from the current schema, never deletes anything.
+ * property or select option missing from the current schema, never deletes
+ * anything.
  *
  *   npx convex run notion/setup:configurar
  *
@@ -64,18 +66,24 @@ async function acrescentarPropriedadesEmFalta(
   esquema: Esquema,
 ): Promise<Array<string>> {
   const atual = await notion("GET", `/data_sources/${dataSourceId}`);
-  const existentes = new Set(
-    Object.keys((atual.properties as Record<string, unknown>) ?? {}),
-  );
+  const propriedades = (atual.properties as Record<string, unknown>) ?? {};
+  const existentes = new Set(Object.keys(propriedades));
   const emFalta: Esquema = {};
   for (const [nome, definicao] of Object.entries(esquema)) {
     if (!existentes.has(nome) && !("title" in definicao)) {
       emFalta[nome] = definicao;
     }
   }
-  const nomes = Object.keys(emFalta);
+  // New Estado / Ação values on selects that already exist.
+  const opcoes = opcoesEmFalta(propriedades, esquema);
+  const nomes = [
+    ...Object.keys(emFalta),
+    ...Object.keys(opcoes).map((nome) => `${nome} (opções)`),
+  ];
   if (nomes.length > 0) {
-    await notion("PATCH", `/data_sources/${dataSourceId}`, { properties: emFalta });
+    await notion("PATCH", `/data_sources/${dataSourceId}`, {
+      properties: { ...emFalta, ...opcoes },
+    });
   }
   return nomes;
 }

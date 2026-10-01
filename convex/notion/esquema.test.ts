@@ -6,16 +6,20 @@ import {
   baseDoParent,
   corpoInicial,
   ENC,
+  EXC,
+  esquemaEncomendas,
   espelhoEncomenda,
   espelhoLinha,
   ESTADO_DESK,
   estadoDesk,
+  excecaoReembolso,
   interpretarEncomenda,
   interpretarLinha,
   interpretarNovaLinha,
   LIN,
   limparEntradasLinha,
   MODELO_PADRAO_CORPO,
+  opcoesEmFalta,
   preencherModelo,
   blocosDoCorpo,
   tabelaEmail,
@@ -84,6 +88,14 @@ describe("estadoDesk", () => {
       ),
     ).toBe(ESTADO_DESK.canceladaSemLinhas);
   });
+
+  it("maps the post-pay states (#78)", () => {
+    expect(estadoDesk(encomenda({ estado: "paga" }), [])).toBe("Paga — em curso");
+    expect(estadoDesk(encomenda({ estado: "pronta_a_levantar" }), [])).toBe(
+      "Pronta a levantar",
+    );
+    expect(estadoDesk(encomenda({ estado: "concluida" }), [])).toBe("Concluída");
+  });
 });
 
 describe("mirrors", () => {
@@ -110,6 +122,22 @@ describe("mirrors", () => {
     expect(props[LIN.custo]).toEqual({ number: 70.5 });
     expect(props[LIN.porEnviar]).toEqual({ number: null });
     expect(props[LIN.estado]).toEqual(select("Por confirmar"));
+    expect(props[LIN.guias]).toEqual({ rich_text: [] });
+  });
+
+  it("lists the supplier guias recorded on the line", () => {
+    const props = espelhoLinha(
+      linha({
+        guiasFornecedor: [
+          { numero: "GT 118", qty: 1, em: 1 },
+          { numero: "GT 119", qty: 2, em: 2 },
+        ],
+      }),
+      "page-enc",
+    );
+    expect(props[LIN.guias]).toEqual({
+      rich_text: [{ type: "text", text: { content: "GT 118 × 1 · GT 119 × 2" } }],
+    });
   });
 
   it("clears inputs and writes the error text", () => {
@@ -241,10 +269,41 @@ describe("interpretation of office input", () => {
         [LIN.custo]: number(-1),
       }),
     ).toThrow(/negativo/);
-    expect(interpretarLinha({ [LIN.acao]: select(ACAO_LINHA.registarGuia) })).toEqual({
-      tipo: "nao_disponivel",
-      acao: "Registar guia",
+  });
+
+  it("line: guia needs its number; qty movimento empty = everything available", () => {
+    expect(
+      interpretarLinha({
+        [LIN.acao]: select(ACAO_LINHA.registarGuia),
+        [LIN.guia]: text(" GT 2026/118 "),
+        [LIN.qtyMovimento]: number(2),
+      }),
+    ).toEqual({ tipo: "registar_guia", guia: "GT 2026/118", qty: 2 });
+    expect(() =>
+      interpretarLinha({ [LIN.acao]: select(ACAO_LINHA.registarGuia) }),
+    ).toThrow(/Guia nº/);
+    expect(interpretarLinha({ [LIN.acao]: select(ACAO_LINHA.rececao) })).toEqual({
+      tipo: "rececao",
+      qty: undefined,
     });
+    expect(
+      interpretarLinha({
+        [LIN.acao]: select(ACAO_LINHA.falhar),
+        [LIN.qtyMovimento]: number(1),
+      }),
+    ).toEqual({ tipo: "falhar", qty: 1 });
+    expect(() =>
+      interpretarLinha({
+        [LIN.acao]: select(ACAO_LINHA.falhar),
+        [LIN.qtyMovimento]: number(1.5),
+      }),
+    ).toThrow(/Qtd movimento/);
+  });
+
+  it("header: Registar levantamento", () => {
+    expect(
+      interpretarEncomenda({ [ENC.acao]: select(ACAO_ENCOMENDA.registarLevantamento) }),
+    ).toEqual({ tipo: "registar_levantamento" });
   });
 
   it("new row: needs exactly one order, a ref and a qty", () => {
@@ -264,6 +323,68 @@ describe("interpretation of office input", () => {
         [LIN.encomenda]: relation(["p"]),
       }),
     ).toThrow(/Ref/);
+  });
+});
+
+describe("Reembolso exceção (#78)", () => {
+  it("links ticket and line and states the amount to refund with VAT", () => {
+    const props = excecaoReembolso(
+      { ref: "HS-001", nome: "Split 9k", qty: 2, precoRevendaCents: 9000, ivaPercent: 23, numero: 7 },
+      "page-enc",
+      "page-lin",
+    );
+    expect(props[EXC.tipo]).toEqual(select("Reembolso"));
+    expect(props[EXC.encomenda]).toEqual({ relation: [{ id: "page-enc" }] });
+    expect(props[EXC.linha]).toEqual({ relation: [{ id: "page-lin" }] });
+    expect(props[EXC.resolvida]).toEqual({ checkbox: false });
+    expect(props[EXC.titulo]).toEqual({
+      title: [{ type: "text", text: { content: "Reembolso ENC-7 — HS-001 × 2" } }],
+    });
+    expect(props[EXC.descricao]).toEqual({
+      rich_text: [
+        {
+          type: "text",
+          text: {
+            content:
+              "Fornecedor falhou 2 × HS-001 (Split 9k). Reembolsar 221.40 € c/IVA (180.00 € s/IVA + IVA 23%) e emitir nota de crédito.",
+          },
+        },
+      ],
+    });
+  });
+});
+
+describe("select options on existing databases", () => {
+  it("adds missing options, keeping every existing one by id", () => {
+    const atual = {
+      [ENC.estado]: {
+        type: "select",
+        select: {
+          options: [
+            { id: "a", name: ESTADO_DESK.paga, color: "green" },
+            { id: "b", name: "Manual do escritório", color: "gray" },
+          ],
+        },
+      },
+    };
+    const esquema = {
+      [ENC.estado]: esquemaEncomendas()[ENC.estado] as Record<string, unknown>,
+      [ENC.marcas]: { multi_select: { options: [] } },
+    };
+    const patch = opcoesEmFalta(atual, esquema);
+    const opcoes = (patch[ENC.estado] as { select: { options: Array<Record<string, string>> } })
+      .select.options;
+    expect(opcoes.slice(0, 2)).toEqual([{ id: "a" }, { id: "b" }]);
+    expect(opcoes.map((o) => o.name)).toContain(ESTADO_DESK.prontaALevantar);
+    expect(opcoes.map((o) => o.name)).not.toContain(ESTADO_DESK.paga);
+    expect(patch).not.toHaveProperty(ENC.marcas);
+    // Nothing missing → nothing to patch.
+    expect(
+      opcoesEmFalta(
+        { X: { select: { options: [{ id: "a", name: "Só" }] } } },
+        { X: { select: { options: [{ name: "Só" }] } } },
+      ),
+    ).toEqual({});
   });
 });
 

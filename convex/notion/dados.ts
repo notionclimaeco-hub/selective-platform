@@ -175,6 +175,7 @@ export const encomendasAbertas = internalQuery({
       "aguardando_stock",
       "aguardando_pagamento",
       "paga",
+      "pronta_a_levantar",
     ] as const) {
       const docs = await ctx.db
         .query("installerOrders")

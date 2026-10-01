@@ -66,6 +66,7 @@ export const LIN = {
   novaQty: "Nova qtd",
   guia: "Guia nº",
   qtyMovimento: "Qtd movimento",
+  guias: "Guias do fornecedor",
   erro: "Erro",
 } as const;
 
@@ -94,6 +95,7 @@ export const ACAO_ENCOMENDA = {
   pedirPagamento: "Pedir pagamento",
   voltarAEditar: "Voltar a editar",
   cancelar: "Cancelar",
+  registarLevantamento: "Registar levantamento",
 } as const;
 
 export const ACAO_LINHA = {
@@ -111,6 +113,7 @@ export const ESTADO_DESK = {
   prontaACobrar: "Pronta a cobrar",
   aAguardarPagamento: "A aguardar pagamento",
   paga: "Paga — em curso",
+  prontaALevantar: "Pronta a levantar",
   concluida: "Concluída",
   canceladaInstalador: "Cancelada (instalador)",
   canceladaEscritorio: "Cancelada (escritório)",
@@ -166,6 +169,7 @@ export function esquemaEncomendas(): Esquema {
           { name: ESTADO_DESK.prontaACobrar, color: COR.azul },
           { name: ESTADO_DESK.aAguardarPagamento, color: COR.roxo },
           { name: ESTADO_DESK.paga, color: COR.verde },
+          { name: ESTADO_DESK.prontaALevantar, color: COR.azul },
           { name: ESTADO_DESK.concluida, color: COR.cinza },
           { name: ESTADO_DESK.canceladaInstalador, color: COR.vermelho },
           { name: ESTADO_DESK.canceladaEscritorio, color: COR.vermelho },
@@ -185,6 +189,35 @@ export function esquemaEncomendas(): Esquema {
     [ENC.motivo]: { rich_text: {} },
     [ENC.erro]: { rich_text: {} },
   };
+}
+
+type OpcaoSelect = { id?: unknown; name?: unknown };
+
+/**
+ * Select options the schema wants but an existing database lacks (new Estado
+ * or Ação values). Notion replaces the option list on update, so every
+ * existing option is kept by id and the missing ones are appended.
+ */
+export function opcoesEmFalta(
+  atuais: Record<string, unknown>,
+  esquema: Esquema,
+): Esquema {
+  const patch: Esquema = {};
+  for (const [nome, definicao] of Object.entries(esquema)) {
+    const desejadas = (definicao.select as { options?: Array<{ name: string }> } | undefined)
+      ?.options;
+    if (!desejadas || desejadas.length === 0) continue;
+    const atual = atuais[nome] as { select?: { options?: Array<OpcaoSelect> } } | undefined;
+    const existentes = atual?.select?.options;
+    if (!existentes) continue;
+    const nomes = new Set(existentes.map((o) => o.name));
+    const novas = desejadas.filter((o) => !nomes.has(o.name));
+    if (novas.length === 0) continue;
+    patch[nome] = {
+      select: { options: [...existentes.map((o) => ({ id: o.id })), ...novas] },
+    };
+  }
+  return patch;
 }
 
 /** Two-way relation: the ticket shows its lines as chips under `Linhas`. */
@@ -225,6 +258,7 @@ export function esquemaLinhas(encomendasDataSourceId: string): Esquema {
     [LIN.novaQty]: { number: { format: "number" } },
     [LIN.guia]: { rich_text: {} },
     [LIN.qtyMovimento]: { number: { format: "number" } },
+    [LIN.guias]: { rich_text: {} },
     [LIN.erro]: { rich_text: {} },
   };
 }
@@ -291,6 +325,8 @@ export function estadoDesk(
       return ESTADO_DESK.aAguardarPagamento;
     case "paga":
       return ESTADO_DESK.paga;
+    case "pronta_a_levantar":
+      return ESTADO_DESK.prontaALevantar;
     case "concluida":
       return ESTADO_DESK.concluida;
     case "cancelada":
@@ -355,6 +391,42 @@ export function espelhoLinha(
     [LIN.emTransito]: prop.numero(linha.qtyEmTransito ?? null),
     [LIN.noArmazem]: prop.numero(linha.qtyAguardaRecolha ?? null),
     [LIN.falhada]: prop.numero(linha.qtyFalhada ?? null),
+    [LIN.guias]: prop.texto(
+      (linha.guiasFornecedor ?? []).map((g) => `${g.numero} × ${g.qty}`).join(" · "),
+    ),
+  };
+}
+
+/** What a failed qty move tells the desk (see `encomendas.falharQtyLinha`). */
+export type Falha = {
+  ref: string;
+  nome: string;
+  qty: number;
+  precoRevendaCents: number;
+  ivaPercent: number;
+  numero: number;
+};
+
+/** Reembolso row in db-excecoes for a Falhar qtd; the office refunds by hand. */
+export function excecaoReembolso(
+  falha: Falha,
+  encomendaPageId: string,
+  linhaPageId: string,
+): Record<string, unknown> {
+  const semIva = falha.precoRevendaCents * falha.qty;
+  const comIva = Math.round((semIva * (100 + falha.ivaPercent)) / 100);
+  const eur = (c: number) => `${euros(c).toFixed(2)} €`;
+  return {
+    [EXC.titulo]: prop.titulo(`Reembolso ENC-${falha.numero} — ${falha.ref} × ${falha.qty}`),
+    [EXC.tipo]: prop.selecao("Reembolso"),
+    [EXC.encomenda]: prop.relacao([encomendaPageId]),
+    [EXC.linha]: prop.relacao([linhaPageId]),
+    [EXC.descricao]: prop.texto(
+      `Fornecedor falhou ${falha.qty} × ${falha.ref} (${falha.nome}). ` +
+        `Reembolsar ${eur(comIva)} c/IVA (${eur(semIva)} s/IVA + IVA ${falha.ivaPercent}%) ` +
+        "e emitir nota de crédito.",
+    ),
+    [EXC.resolvida]: prop.checkbox(false),
   };
 }
 
@@ -532,12 +604,16 @@ export type ComandoEncomenda =
   | { tipo: "pedir_pagamento" }
   | { tipo: "voltar_editar" }
   | { tipo: "cancelar"; motivo: string }
+  | { tipo: "registar_levantamento" }
   | { tipo: "nao_disponivel"; acao: string };
 
 export type ComandoLinha =
   | { tipo: "confirmar"; custoCents: number | undefined }
   | { tipo: "retirar" }
   | { tipo: "alterar_qty"; qty: number }
+  | { tipo: "registar_guia"; guia: string; qty: number | undefined }
+  | { tipo: "rececao"; qty: number | undefined }
+  | { tipo: "falhar"; qty: number | undefined }
   | { tipo: "nao_disponivel"; acao: string };
 
 export type Props = Record<string, unknown>;
@@ -555,6 +631,8 @@ export function interpretarEncomenda(props: Props): ComandoEncomenda | null {
       return { tipo: "voltar_editar" };
     case ACAO_ENCOMENDA.cancelar:
       return { tipo: "cancelar", motivo: ler.texto(props, ENC.motivo) };
+    case ACAO_ENCOMENDA.registarLevantamento:
+      return { tipo: "registar_levantamento" };
     default:
       return { tipo: "nao_disponivel", acao };
   }
@@ -583,9 +661,28 @@ export function interpretarLinha(props: Props): ComandoLinha | null {
       }
       return { tipo: "alterar_qty", qty };
     }
+    case ACAO_LINHA.registarGuia: {
+      const guia = ler.texto(props, LIN.guia).trim();
+      if (guia.length === 0) throw new Error("Preencha 'Guia nº' com a guia do fornecedor");
+      return { tipo: "registar_guia", guia, qty: qtyDoMovimento(props) };
+    }
+    case ACAO_LINHA.rececao:
+      return { tipo: "rececao", qty: qtyDoMovimento(props) };
+    case ACAO_LINHA.falhar:
+      return { tipo: "falhar", qty: qtyDoMovimento(props) };
     default:
       return { tipo: "nao_disponivel", acao };
   }
+}
+
+/** `Qtd movimento` empty = everything available in the source bucket. */
+function qtyDoMovimento(props: Props): number | undefined {
+  const qty = ler.numero(props, LIN.qtyMovimento);
+  if (qty === null) return undefined;
+  if (!Number.isInteger(qty) || qty < 1) {
+    throw new Error("Preencha 'Qtd movimento' com um inteiro ≥ 1, ou deixe vazio para tudo");
+  }
+  return qty;
 }
 
 /** A row the office added by hand: no Convex ID yet, `Ref` + `Qtd` typed. */

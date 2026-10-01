@@ -2,16 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   assertPodeCancelar,
   assertPodeEditarLinhas,
+  assertPodeMoverQty,
   assertPodePedirStock,
+  assertPodeRegistarLevantamento,
   assertQty,
   bucketsIniciais,
   bucketsValidos,
+  estadoAposMovimento,
   estadoLinhaAposQty,
+  FILTROS_ENCOMENDA,
   linhasRestantes,
   podeCancelar,
   podeEditarLinhas,
   prontaParaPagamento,
-  prontaParaConcluir,
+  qtyMovimento,
   registarFalha,
   registarGuia,
   registarRecepcao,
@@ -25,6 +29,7 @@ const ESTADOS: Array<EstadoEncomenda> = [
   "aguardando_stock",
   "aguardando_pagamento",
   "paga",
+  "pronta_a_levantar",
   "cancelada",
   "concluida",
 ];
@@ -153,25 +158,62 @@ describe("post-pay qty buckets", () => {
     expect(() => registarFalha(b, 0)).toThrow(/fail/);
   });
 
-  it("concluida when every remaining line is at the warehouse or failed", () => {
-    const feita = {
-      qtyPorEnviar: 0,
-      qtyEmTransito: 0,
-      qtyAguardaRecolha: 1,
-      qtyFalhada: 1,
-    };
+  it("qty movimento: empty means everything available", () => {
+    expect(qtyMovimento(null, 4)).toBe(4);
+    expect(qtyMovimento(2, 4)).toBe(2);
+    expect(() => qtyMovimento(null, 0)).toThrow(/nothing available/);
+  });
+});
+
+describe("post-pay header", () => {
+  const b = (
+    qtyPorEnviar: number,
+    qtyEmTransito: number,
+    qtyAguardaRecolha: number,
+    qtyFalhada: number,
+  ) => ({ qtyPorEnviar, qtyEmTransito, qtyAguardaRecolha, qtyFalhada });
+
+  it("stays paga while any remaining qty is por enviar or em trânsito", () => {
     expect(
-      prontaParaConcluir([
-        { estadoLinha: "confirmada", qty: 2, buckets: feita },
+      estadoAposMovimento([
+        { estadoLinha: "confirmada", qty: 2, buckets: b(0, 0, 2, 0) },
+        { estadoLinha: "confirmada", qty: 2, buckets: b(0, 1, 1, 0) },
+      ]),
+    ).toBe("paga");
+  });
+
+  it("pronta_a_levantar once everything is at the warehouse or failed", () => {
+    expect(
+      estadoAposMovimento([
+        { estadoLinha: "confirmada", qty: 2, buckets: b(0, 0, 1, 1) },
+        { estadoLinha: "confirmada", qty: 3, buckets: b(0, 0, 0, 3) },
         { estadoLinha: "retirada", qty: 9, buckets: null },
       ]),
-    ).toBe(true);
+    ).toBe("pronta_a_levantar");
+  });
+
+  it("concluida directly when every remaining qty failed", () => {
     expect(
-      prontaParaConcluir([
-        { estadoLinha: "confirmada", qty: 2, buckets: feita },
-        { estadoLinha: "confirmada", qty: 2, buckets: bucketsIniciais(2) },
+      estadoAposMovimento([
+        { estadoLinha: "confirmada", qty: 2, buckets: b(0, 0, 0, 2) },
+        { estadoLinha: "retirada", qty: 9, buckets: null },
       ]),
-    ).toBe(false);
-    expect(prontaParaConcluir([])).toBe(false);
+    ).toBe("concluida");
+  });
+
+  it("qty moves only while paga; levantamento only from pronta_a_levantar", () => {
+    for (const estado of ESTADOS) {
+      if (estado === "paga") expect(() => assertPodeMoverQty(estado)).not.toThrow();
+      else expect(() => assertPodeMoverQty(estado)).toThrow(estado);
+      if (estado === "pronta_a_levantar") {
+        expect(() => assertPodeRegistarLevantamento(estado)).not.toThrow();
+      } else {
+        expect(() => assertPodeRegistarLevantamento(estado)).toThrow(estado);
+      }
+    }
+  });
+
+  it("the Em curso chip includes pronta_a_levantar", () => {
+    expect(FILTROS_ENCOMENDA["em-curso"]).toContain("pronta_a_levantar");
   });
 });

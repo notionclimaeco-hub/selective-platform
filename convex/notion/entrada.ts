@@ -6,12 +6,14 @@ import { clienteDoAmbiente, type NotionRequest } from "./cliente";
 import {
   baseDoParent,
   ENC,
+  excecaoReembolso,
   interpretarEncomenda,
   interpretarLinha,
   interpretarNovaLinha,
   LIN,
   limparEntradasEncomenda,
   limparEntradasLinha,
+  type NotionBase,
   type Props,
 } from "./esquema";
 import { ler, prop } from "./propriedades";
@@ -29,6 +31,15 @@ import { pedirPagamento, voltarAEditar } from "../revolut/fluxo";
  */
 
 const POR_NOTION = "notion";
+
+type Bases = ReadonlyArray<{ chave: NotionBase; dataSourceId: string }>;
+
+/** Log suffix when a qty move changed the header (#78). */
+function aposMovimento(estado: string): string {
+  if (estado === "pronta_a_levantar") return " · Tudo no armazém — pronta a levantar";
+  if (estado === "concluida") return " · Nada a levantar — encomenda concluída";
+  return "";
+}
 
 function mensagem(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -101,6 +112,10 @@ async function processarEncomenda(
         });
         evento = `Cancelada pelo escritório${comando.motivo ? ` — ${comando.motivo}` : ""}`;
         break;
+      case "registar_levantamento":
+        await ctx.runMutation(internal.encomendas.registarLevantamento, { encomendaId });
+        evento = "Levantamento registado — encomenda concluída";
+        break;
       case "nao_disponivel":
         throw new Error(`a ação "${comando.acao}" ainda não está disponível nesta fase`);
     }
@@ -152,9 +167,35 @@ async function adotarLinha(
   }
 }
 
+/**
+ * Reembolso row for the office. The qty move is already committed, so a
+ * failure here is logged on the ticket instead of undoing it.
+ */
+async function abrirReembolso(
+  notion: NotionRequest,
+  bases: Bases,
+  linhaPageId: string,
+  props: Props,
+  falha: Parameters<typeof excecaoReembolso>[0],
+): Promise<string> {
+  const excecoes = bases.find((b) => b.chave === "excecoes");
+  const encomendaPageId = ler.relacao(props, LIN.encomenda)[0];
+  try {
+    if (!excecoes || !encomendaPageId) throw new Error("base de exceções não configurada");
+    await notion("POST", "/pages", {
+      parent: { type: "data_source_id", data_source_id: excecoes.dataSourceId },
+      properties: excecaoReembolso(falha, encomendaPageId, linhaPageId),
+    });
+    return "exceção de Reembolso criada";
+  } catch (e) {
+    return `ATENÇÃO: exceção de Reembolso não criada (${mensagem(e)}) — criar à mão`;
+  }
+}
+
 async function processarLinha(
   ctx: ActionCtx,
   notion: NotionRequest,
+  bases: Bases,
   pageId: string,
   props: Props,
 ): Promise<void> {
@@ -195,6 +236,32 @@ async function processarLinha(
         evento = `Quantidade alterada: ${linha.ref} → ${linha.qty}`;
         break;
       }
+      case "registar_guia": {
+        const m = await ctx.runMutation(internal.encomendas.registarGuiaLinha, {
+          linhaId,
+          guia: comando.guia,
+          qty: comando.qty,
+        });
+        evento = `Guia ${comando.guia}: ${m.ref} × ${m.qty} em trânsito${aposMovimento(m.estado)}`;
+        break;
+      }
+      case "rececao": {
+        const m = await ctx.runMutation(internal.encomendas.registarRececaoLinha, {
+          linhaId,
+          qty: comando.qty,
+        });
+        evento = `Receção no armazém: ${m.ref} × ${m.qty}${aposMovimento(m.estado)}`;
+        break;
+      }
+      case "falhar": {
+        const m = await ctx.runMutation(internal.encomendas.falharQtyLinha, {
+          linhaId,
+          qty: comando.qty,
+        });
+        const reembolso = await abrirReembolso(notion, bases, pageId, props, m);
+        evento = `Falhada pelo fornecedor: ${m.ref} × ${m.qty} — ${reembolso}${aposMovimento(m.estado)}`;
+        break;
+      }
       case "nao_disponivel":
         throw new Error(`a ação "${comando.acao}" ainda não está disponível nesta fase`);
     }
@@ -225,10 +292,10 @@ export const processarPagina = internalAction({
         await processarEncomenda(ctx, notion, args.pageId, props);
         break;
       case "linhas":
-        await processarLinha(ctx, notion, args.pageId, props);
+        await processarLinha(ctx, notion, bases, args.pageId, props);
         break;
       default:
-        // exceções (later slice), modelos, or a page that is not ours.
+        // exceções (Resolvida, later slice), modelos, or a page that is not ours.
         break;
     }
     return null;

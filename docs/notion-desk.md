@@ -16,13 +16,14 @@ npx convex run notion/setup:configurar --prod   # production, at cutover
 ```
 
 Creates inside `back-end`, or upgrades if they already exist (adds missing
-properties, never deletes):
+properties and missing select options such as a new Estado or Ação, never
+deletes). Re-run it after a deploy that adds desk states or actions:
 
 | Database | Purpose |
 | --- | --- |
 | `db-encomendas-selectivedistribui` | one ticket per installer order (`ENC-<n> — <empresa>`) |
 | `db-linhas-selectivedistribui` | one row per order line, related to its ticket |
-| `db-excecoes-selectivedistribui` | refunds / invoicing / other exceptions (later slice) |
+| `db-excecoes-selectivedistribui` | refunds / invoicing / other exceptions; `Falhar qtd` opens a `Reembolso` row |
 | `db-modelos-selectivedistribui` | supplier email templates; `default` is seeded |
 
 The office works through linked views of these databases in its own hub.
@@ -64,25 +65,39 @@ static lines table itself. Tickets created before the template existed keep
 their old body; new ones get the template. Edit the template freely — only
 the two Convex headings above are looked up by name.
 
-## How the office uses it (stock + payment)
+## How the office uses it (stock, payment, warehouse, levantamento)
 
 - **Estado** is written by Convex only: `Nova — pedir stock` → `A confirmar
   stock` → `Pronta a cobrar` → `A aguardar pagamento` → `Paga — em curso` →
-  `Concluída`; `Cancelada (…)`.
+  `Pronta a levantar` → `Concluída`; `Cancelada (…)`. `Concluída` means the
+  installer collected the goods (or every quantity failed and there was
+  nothing to collect).
 - Ticket **Ação**: `Stock pedido` (after emailing the suppliers — drafts are
   in the ticket body), `Pedir pagamento` (only at `Pronta a cobrar`: creates
   the Revolut order, mirrors `Link pagamento`, logs amount c/IVA and the
   7-day deadline — see `docs/pagamentos.md`), `Voltar a editar` (cancels the
   Revolut order and reopens the lines; refused if Revolut already reports
   the order paid), `Cancelar` (+ optional `Motivo`; also cancels an open
-  Revolut order).
+  Revolut order), `Registar levantamento` (only at `Pronta a levantar`: the
+  installer collected everything, one pickup per order → `Concluída`).
 - Payment events are logged in **Registo** by the webhook: received, expired
   (ticket → `Cancelada (pagamento expirado)`), declined attempts, and an
   `ATENÇÃO` line if money arrives on a ticket that is no longer awaiting
   payment (manual refund).
-- Line **Ação**: `Confirmar stock` (+ `Custo (€)`), `Retirar`, `Alterar qtd`
-  (+ `Nova qtd`). `Registar guia`, `Receção armazém`, `Falhar qtd` arrive
-  with the post-payment slice.
+- Line **Ação** before payment: `Confirmar stock` (+ `Custo (€)`),
+  `Retirar`, `Alterar qtd` (+ `Nova qtd`).
+- Line **Ação** after payment (`Paga — em curso`), each moving quantity
+  between the `Por enviar` / `Em trânsito` / `No armazém` / `Falhada`
+  columns. `Qtd movimento` empty = everything available in the source column.
+  - `Registar guia` (+ `Guia nº`, the supplier's guia): por enviar → em
+    trânsito. Recorded guias are listed in `Guias do fornecedor`.
+  - `Receção armazém`: em trânsito → no armazém.
+  - `Falhar qtd`: por enviar → falhada, and opens a `Reembolso` row in
+    `db-excecoes` linked to the ticket and the line, with the amount to
+    refund c/IVA. The refund itself (Revolut + nota de crédito) is manual.
+  - When every remaining line is fully `No armazém` or `Falhada` the ticket
+    moves to `Pronta a levantar` (or straight to `Concluída` if everything
+    failed). The installer sees the same state on `/encomendas`.
 - **Add a line**: new row in `db-linhas`, fill `Ref`, `Qtd` and the
   `Encomenda` relation. Convex validates the ref, snapshots the current
   reseller price and fills the rest.

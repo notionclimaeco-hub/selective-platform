@@ -34,7 +34,7 @@ export function assertQty(qty: number): number {
 /** The chips on the installer's orders list, each a fixed set of states. */
 export const FILTROS_ENCOMENDA = {
   "a-pagar": ["aguardando_pagamento"],
-  "em-curso": ["recebida", "aguardando_stock", "paga"],
+  "em-curso": ["recebida", "aguardando_stock", "paga", "pronta_a_levantar"],
   concluidas: ["concluida"],
   canceladas: ["cancelada"],
 } as const satisfies Record<string, ReadonlyArray<EstadoEncomenda>>;
@@ -208,21 +208,48 @@ export function registarFalha(b: QtyBuckets, q: number): QtyBuckets {
   };
 }
 
-/** `paga` → `concluida` once every remaining line is fully at the warehouse or failed. */
-export function prontaParaConcluir(
+/** Qtd movimento left empty on the desk means everything the source bucket holds. */
+export function qtyMovimento(pedida: number | null, disponivel: number): number {
+  if (pedida !== null) return pedida;
+  if (disponivel < 1) throw new Error("Invalid qty move: nothing available");
+  return disponivel;
+}
+
+/** Guia, receção and falha only move qty on a paid order still in progress. */
+export function assertPodeMoverQty(estado: EstadoEncomenda): void {
+  if (estado !== "paga") {
+    throw new Error(`Cannot move line quantities in state ${estado}`);
+  }
+}
+
+/** One pickup per order (#78): only once everything is at the warehouse. */
+export function assertPodeRegistarLevantamento(estado: EstadoEncomenda): void {
+  if (estado !== "pronta_a_levantar") {
+    throw new Error(`Cannot register levantamento in state ${estado}`);
+  }
+}
+
+/**
+ * Header of a `paga` order after a qty move (#78). Once every remaining line
+ * is fully at the warehouse or failed it is `pronta_a_levantar`, or
+ * `concluida` straight away when nothing is left to collect.
+ */
+export function estadoAposMovimento(
   linhas: ReadonlyArray<{
     estadoLinha: EstadoLinha;
     qty: number;
     buckets: QtyBuckets | null;
   }>,
-): boolean {
+): "paga" | "pronta_a_levantar" | "concluida" {
   const restantes = linhasRestantes(linhas);
-  return (
+  const resolvidas =
     restantes.length > 0 &&
     restantes.every(
       (l) =>
         l.buckets !== null &&
         l.buckets.qtyAguardaRecolha + l.buckets.qtyFalhada === l.qty,
-    )
-  );
+    );
+  if (!resolvidas) return "paga";
+  const aLevantar = restantes.some((l) => (l.buckets?.qtyAguardaRecolha ?? 0) > 0);
+  return aLevantar ? "pronta_a_levantar" : "concluida";
 }

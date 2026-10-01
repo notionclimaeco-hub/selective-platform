@@ -20,6 +20,10 @@ _Avoid_: Installer, account
 An installer company that Climaeco has authorized to see reseller prices and place installer orders.
 _Avoid_: Approved user, pro user
 
+**Admin app**:
+The staff-only application where Climaeco staff approve installer companies, set tiers, manage the catalog and its imports, and run installer orders and their documents.
+_Avoid_: Back-office, desk, office desk, Notion
+
 **Suspended installer company**:
 An installer company that staff has frozen: members keep sign-in, but reseller prices and new installer orders are blocked and unpaid orders are cancelled.
 _Avoid_: Banned account, deactivated company
@@ -73,7 +77,7 @@ An end customer's ask for a quotation from Climaeco. Handled outside the platfor
 _Avoid_: RFQ, quote, public order
 
 **Installer order**:
-A purchase request placed by an approved installer company at reseller prices. It has one payment, one fatura-recibo, and collection at Climaeco's warehouse. There is no pró-forma: once every remaining line is stock-confirmed, the order page itself is what the installer pays.
+A purchase request placed by an approved installer company at reseller prices. It has one payment, one fatura-recibo, and one levantamento at Climaeco's warehouse. There is no pró-forma: once every remaining line is stock-confirmed, the order page itself is what the installer pays.
 _Avoid_: Quote request, customer order
 
 **Installer-order line**:
@@ -85,12 +89,16 @@ The lines of one marca on an installer order, grouped so the office can request 
 _Avoid_: Sub-order, split order, shipment
 
 **Guia do fornecedor**:
-The supplier's transport-document identifier for goods moving to Climaeco's warehouse. The office records it per line (Notion *Registar guia*, `registarGuia`), which moves quantity from por enviar to em trânsito.
+The supplier's transport-document identifier for goods moving to Climaeco's warehouse. The office records it per line in the admin app (*Registar guia*), which moves quantity from por enviar to em trânsito.
 _Avoid_: Guia de transporte (that is ours, at levantamento), tracking number, delivery note, CMR
 
 **Levantamento**:
-Collection of paid goods by the installer at Climaeco's warehouse.
-_Avoid_: Delivery, home delivery, shipment to the installer
+Collection of paid goods by the installer at Climaeco's warehouse. One per installer order: the installer collects everything at once when the order is pronta a levantar, and the office records it in the admin app (*Registar levantamento*), which completes the order.
+_Avoid_: Delivery, home delivery, shipment to the installer, partial pickup
+
+**Pronta a levantar**:
+The installer-order state once every remaining quantity is at Climaeco's warehouse or failed by the supplier, with something left to collect. If everything failed there is nothing to collect and the order completes directly. *Concluída* means collected.
+_Avoid_: Delivered, arrived, ready for delivery
 
 **Price snapshot**:
 The reseller price frozen on an installer-order line when that line is added to the order.

@@ -146,7 +146,12 @@ function EstadoNaoPagavel({ pagamento: p }: { pagamento: Vista }) {
       <p className="mt-2 text-sm text-muted-foreground">{texto}</p>
       {p.totalPagamentoCents !== undefined && (
         <p className="mt-4 border-t pt-3 text-sm text-muted-foreground">
-          Total{p.estado === "paga" || p.estado === "concluida" ? " pago" : ""}{" "}
+          Total
+          {p.estado === "paga" ||
+          p.estado === "pronta_a_levantar" ||
+          p.estado === "concluida"
+            ? " pago"
+            : ""}{" "}
           <span className="float-right font-semibold text-foreground tabular-nums">
             {eurExato.format(p.totalPagamentoCents / 100)}
           </span>
@@ -164,6 +169,7 @@ function textoEstado(p: Vista): {
 } {
   switch (p.estado) {
     case "paga":
+    case "pronta_a_levantar":
     case "concluida":
       return {
         icon: CheckCircle2,

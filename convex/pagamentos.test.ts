@@ -253,3 +253,116 @@ describe("Revolut webhook effects", () => {
     ).toBe("desconhecido");
   });
 });
+
+describe("post-payment desk (#78)", () => {
+  async function encomendaPaga() {
+    const cenario = await encomendaProntaACobrar();
+    await registarPedido(cenario.test, cenario.encomendaId);
+    await cenario.test.mutation(internal.pagamentos.aplicarEvento, {
+      revolutOrderId: REVOLUT_ID,
+      evento: "ORDER_COMPLETED",
+      recebidoEm: 9_000,
+    });
+    return cenario;
+  }
+
+  it("guia → receção moves qty and reaches pronta_a_levantar", async () => {
+    const { test, asInstaller, encomendaId, linhaId } = await encomendaPaga();
+    const guia = await test.mutation(internal.encomendas.registarGuiaLinha, {
+      linhaId,
+      guia: "GT 2026/118",
+      qty: 1,
+    });
+    expect(guia).toMatchObject({ ref: "HS-001", qty: 1, estado: "paga" });
+    // Empty qty = everything still por enviar.
+    await test.mutation(internal.encomendas.registarGuiaLinha, { linhaId, guia: "GT 2026/119" });
+    const linha = await test.run((ctx) => ctx.db.get(linhaId));
+    expect(linha).toMatchObject({ qtyPorEnviar: 0, qtyEmTransito: 2 });
+    expect(linha?.guiasFornecedor?.map((g) => [g.numero, g.qty])).toEqual([
+      ["GT 2026/118", 1],
+      ["GT 2026/119", 1],
+    ]);
+
+    const rececao = await test.mutation(internal.encomendas.registarRececaoLinha, { linhaId });
+    expect(rececao).toMatchObject({ qty: 2, estado: "pronta_a_levantar" });
+    const detalhe = await asInstaller.query(api.encomendas.obter, { encomendaId });
+    expect(detalhe?.estado).toBe("pronta_a_levantar");
+    expect(detalhe?.prontaAt).toBeTypeOf("number");
+    expect(detalhe?.linhas[0]).toMatchObject({ qtyAguardaRecolha: 2, qtyEmTransito: 0 });
+  });
+
+  it("rejects moves larger than the source bucket and a guia without number", async () => {
+    const { test, linhaId } = await encomendaPaga();
+    await expect(
+      test.mutation(internal.encomendas.registarGuiaLinha, { linhaId, guia: "G1", qty: 3 }),
+    ).rejects.toThrow(/guia qty 3/);
+    await expect(
+      test.mutation(internal.encomendas.registarGuiaLinha, { linhaId, guia: "  " }),
+    ).rejects.toThrow(/Guia/);
+    await expect(
+      test.mutation(internal.encomendas.registarRececaoLinha, { linhaId }),
+    ).rejects.toThrow(/nothing available/);
+    await expect(
+      test.mutation(internal.encomendas.falharQtyLinha, { linhaId, qty: 0 }),
+    ).rejects.toThrow(/fail qty 0/);
+  });
+
+  it("falha is refunded info for the office; all failed → concluida", async () => {
+    const { test, encomendaId, linhaId } = await encomendaPaga();
+    const falha = await test.mutation(internal.encomendas.falharQtyLinha, { linhaId, qty: 1 });
+    expect(falha).toMatchObject({
+      ref: "HS-001",
+      qty: 1,
+      precoRevendaCents: 10000,
+      ivaPercent: 23,
+      numero: 1,
+      estado: "paga",
+    });
+    const resto = await test.mutation(internal.encomendas.falharQtyLinha, { linhaId });
+    expect(resto).toMatchObject({ qty: 1, estado: "concluida" });
+    const encomenda = await test.run((ctx) => ctx.db.get(encomendaId));
+    expect(encomenda?.estado).toBe("concluida");
+    expect(encomenda?.levantadaAt).toBeUndefined();
+  });
+
+  it("mixed falha + receção reaches pronta_a_levantar", async () => {
+    const { test, linhaId } = await encomendaPaga();
+    await test.mutation(internal.encomendas.falharQtyLinha, { linhaId, qty: 1 });
+    await test.mutation(internal.encomendas.registarGuiaLinha, { linhaId, guia: "G1" });
+    const r = await test.mutation(internal.encomendas.registarRececaoLinha, { linhaId });
+    expect(r.estado).toBe("pronta_a_levantar");
+  });
+
+  it("Registar levantamento only from pronta_a_levantar; moves only while paga", async () => {
+    const { test, asInstaller, encomendaId, linhaId } = await encomendaPaga();
+    await expect(
+      test.mutation(internal.encomendas.registarLevantamento, { encomendaId }),
+    ).rejects.toThrow(/levantamento in state paga/);
+    await test.mutation(internal.encomendas.registarGuiaLinha, { linhaId, guia: "G1" });
+    await test.mutation(internal.encomendas.registarRececaoLinha, { linhaId });
+
+    const concluida = await test.mutation(internal.encomendas.registarLevantamento, {
+      encomendaId,
+    });
+    expect(concluida.estado).toBe("concluida");
+    expect(concluida.levantadaAt).toBeTypeOf("number");
+    await expect(
+      test.mutation(internal.encomendas.registarLevantamento, { encomendaId }),
+    ).rejects.toThrow(/levantamento in state concluida/);
+    await expect(
+      test.mutation(internal.encomendas.falharQtyLinha, { linhaId }),
+    ).rejects.toThrow(/state concluida/);
+    const lista = await asInstaller.query(api.encomendas.minhas, {
+      paginationOpts: { numItems: 10, cursor: null },
+      filtro: "concluidas",
+    });
+    expect(lista.page.map((e) => e._id)).toEqual([encomendaId]);
+  });
+
+  it("refuses moves before payment", async () => {
+    const { test, linhaId } = await encomendaProntaACobrar();
+    await expect(
+      test.mutation(internal.encomendas.registarGuiaLinha, { linhaId, guia: "G1" }),
+    ).rejects.toThrow(/state aguardando_stock/);
+  });
+});

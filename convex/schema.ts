@@ -35,12 +35,14 @@ export const estadoAprovacaoValidator = v.union(
   v.literal("suspensa"),
 );
 
-// Installer-order header states (#5). `cancelada` and `concluida` are terminal.
+// Installer-order header states (#5, amended by #78). `cancelada` and
+// `concluida` are terminal; `concluida` means collected (or nothing to collect).
 export const estadoEncomendaValidator = v.union(
   v.literal("recebida"),
   v.literal("aguardando_stock"),
   v.literal("aguardando_pagamento"),
   v.literal("paga"),
+  v.literal("pronta_a_levantar"),
   v.literal("cancelada"),
   v.literal("concluida"),
 );
@@ -506,6 +508,10 @@ export default defineSchema({
     paymentRequestedAt: v.optional(v.number()),
     paymentExpiresAt: v.optional(v.number()),
     paidAt: v.optional(v.number()),
+    // Post-pay (#78): every remaining qty at the warehouse or failed, then
+    // the single pickup (Registar levantamento) that closes the order.
+    prontaAt: v.optional(v.number()),
+    levantadaAt: v.optional(v.number()),
     // Notion desk ticket (#12). Set by the first successful render; the
     // office never needs it. `notionErro` is the last failed render reason.
     notionPageId: v.optional(v.string()),
@@ -547,6 +553,11 @@ export default defineSchema({
     qtyEmTransito: v.optional(v.number()),
     qtyAguardaRecolha: v.optional(v.number()),
     qtyFalhada: v.optional(v.number()),
+    // Supplier transport documents (guia do fornecedor) recorded by
+    // Registar guia, one entry per movement.
+    guiasFornecedor: v.optional(
+      v.array(v.object({ numero: v.string(), qty: v.number(), em: v.number() })),
+    ),
     reembolsadoAt: v.optional(v.number()),
     // Row in db-linhas-selectivedistribui (#12).
     notionPageId: v.optional(v.string()),
