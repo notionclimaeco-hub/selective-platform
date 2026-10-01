@@ -217,3 +217,13 @@ def test_bomba_de_calor_e_recuperador_levam_o_rotulo_da_familia_sem_repetir():
     assert por_ref["AHW-044HCDS1"]["nomeGrupo"] == "Bomba de Calor Hi-Therma R32 Split | Unidade Exterior"
     assert por_ref["HKF-25D1EC"]["nomeGrupo"] == "Recuperadores de calor de fluxos cruzados"
     assert por_ref["HKF-25D1EC"]["nome"] == "Recuperadores de calor de fluxos cruzados 250 m³/h"
+
+
+def test_acessorios_com_o_mesmo_esqueleto_partem_se_pela_descricao():
+    # Opções de UTA por tamanho: F7 e F9 têm o mesmo esqueleto (ARF#F#B) e os mesmos tamanhos.
+    linhas = [linha(f"ARF0{t}F{f}B", "acessorios", 27, 10000 + t, {"descricao": f"Filtro F{f}", "tamanho": str(t)})
+              for f in (7, 9) for t in (1, 2)]
+    grupos = {}
+    for s in run(linhas)["skus"]:
+        grupos.setdefault(s["grupoModelo"], []).append(s["ref"])
+    assert sorted(grupos.values()) == [["ARF01F7B", "ARF02F7B"], ["ARF01F9B", "ARF02F9B"]]

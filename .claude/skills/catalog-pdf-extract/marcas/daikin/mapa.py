@@ -58,7 +58,7 @@ SECCOES = [
     # p13-22 fichas: só o conjunto tem preço (as UI/UE da ficha não), mais acessórios.
     # A Ururu Sarara só tem ficha; as outras gamas estão no resumo das p23-24, por isso das
     # fichas lêem-se só os acessórios (os cabeçalhos "SB.FTXA20" / "CS/CB" partem as refs).
-    dom("ururu-sarara", "Unidade Mural Ururu Sarara", 13, soComPreco=True),
+    dom("ururu-sarara", "Unidade Mural Ururu Sarara", 13, soComPreco=True, especificacoes="transpostas"),
     dom("emura", "Unidade Mural Emura", 14, soAcessorios=True),
     dom("stylish", "Unidade Mural Stylish", 17, soAcessorios=True),
     dom("perfera-mural", "Unidade Mural Perfera", 18, soAcessorios=True),
@@ -126,7 +126,7 @@ SECCOES = [
     *[sec(f"altherma-kits-{pg}", "Kits para ligações simplificadas", pg, ACESS, "acessorio",
           posicoes={str(pg): 690}, regiao={"x0": 310, "x1": 600}, descricao="esquerda") for pg in (63, 67, 69)],
     *[sec(f"altherma-acessorios-{pg}", "Acessórios para bombas de calor Daikin Altherma", pg, ACESS,
-          "acessorio", descricao="esquerda") for pg in (65, 66, 77, 78)],
+          "acessorio", descricao="esquerda", refNumerica=True) for pg in (65, 66, 77, 78)],
     sec("altherma-3m", "Daikin Altherma 3 M", [71, 72], BC, "conjunto", "domestico", "monobloco", "exterior",
         regras=["altherma"], colunas={"calor-kw": [170, 235], "frio-kw": [270, 330]},
         posicoes={"71": 690, "72": 620}),
@@ -200,8 +200,9 @@ SECCOES = [
     ignorar("biddle", "Cortina de ar Biddle (sem preços)", 109),
     sec("era", "Unidade Daikin ERA", 111, AC, "unidade-exterior", "comercial", "vrf", "exterior",
         regras=["ventilacao"], precoPorBaixo={"dy": 15}, especificacoes="transpostas"),
+    # p112: lista à esquerda (ref, descrição por baixo, preço à direita) e grelha por modelo de VAM/VKM.
     sec("opcoes-ventilacao", "Opções - Ventilação", 112, ACESS, "acessorio", descricao="linha",
-        precoPorBaixo={"dy": 14}),
+        precoPorBaixo={"dy": 14}, colunasPreco=[{"rx": "^(BRC|DCS|DGE|DMS|DCM|EKMBDXB)", "x": [170, 210], "dy": 12}]),
     # --- Unidades de tratamento de ar (p114-121) -----------------------------------------------
     sec("uta-compact-r", "UTA Compact R", 114, VMC, "conjunto", "comercial", None, "uta", regras=["ventilacao"],
         posicoes={"114": 700}),
@@ -211,8 +212,13 @@ SECCOES = [
         posicoes={"118": 500}),
     # Grelhas de opcionais: preço por baixo da ref; direita/esquerda (…R / …L) empilhadas
     # partilham o preço por baixo da segunda.
-    *[sec(f"uta-opcoes-{pg}", "Opcionais UTA", pg, ACESS, "acessorio", descricao="linha", regras=["ventilacao"],
-          precoPorBaixo={"dy": 24}) for pg in (115, 117, 119, 120, 121)],
+    # Cada linha é uma opção vendida por tamanho de UTA (ARF01G4A … ARF07G4A): um grupo por
+    # linha, com o tamanho tirado da ref.
+    *[sec(f"uta-opcoes-{pg}", f"Opcionais {uta}", pg, ACESS, "acessorio", descricao="linha", regras=["ventilacao"],
+          precoPorBaixo={"dy": 24}, ignorarRefs="^(ERA\\d|EKEXVA|EKEACB)", prefixoDescricao=uta,
+          tamanhoDaRef=r"^A[RTL][A-Z](\d{2})") for pg, uta in (
+        (115, "UTA Compact R"), (117, "UTA Compact T"), (119, "UTA Compact L"), (120, "UTA Modular R"),
+        (121, "UTA Modular P"))],
     ignorar("uta-especificacoes", "UTA — especificações", [114, 116, 118], posicoes={"114": 0, "116": 0, "118": 0}),
     # --- Rooftops (p122-124) ---------------------------------------------------------------
     sec("rooftops", "Visão geral dos produtos RoofTop", [122, 123], AC, "conjunto", "industrial", "rooftop",
@@ -256,7 +262,7 @@ SECCOES = [
           posicoes={str(pg): y}) for pg, y in ((142, 690), (143, 525))],
     *[sec(f"ventiloconvectores-{pg}", t, pg, FC, "conjunto", "comercial", None, None,
           regras=["ventiloconvectores", "fc-paineis"] if pg == 142 else ["ventiloconvectores"],
-          especificacoes="fc", soEquipamento=pg in (142, 143),
+          especificacoes="fc", soEquipamento=pg in (142, 143), soComPreco=True,
           colunasPreco=[{"rx": "^BY", "x": [295, 330], "dy": 40}, {"rx": "^EKRP", "x": [380, 420], "dy": 40}]
           if pg == 142 else None) for pg, t in (
         (136, "Unidades de chão/teto com motor BLDC inverter"), (137, "Unidades de média pressão BLDC"),

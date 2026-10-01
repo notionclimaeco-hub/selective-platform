@@ -81,7 +81,8 @@ def _palavras(page, y_ini: float, y_fim: float, seccao: dict) -> list[list]:
     # Ref partida em duas linhas na célula ("SB.EKWHCTRL0_" / "CTRL1", p80; "FWEDA+" /
     # "SHINKATOUCHBA/WA", p141).
     for w in [w for w in out if w[4].endswith("_") or (w[4].endswith("+") and e_ref(w[4][:-1]))]:
-        baixo = [o for o in out if 0 < o[1] - w[1] <= 10 and w[0] - 5 <= o[0] <= w[2] + 20 and o is not w]
+        baixo = [o for o in out if 0 < o[1] - w[1] <= 10 and w[0] - 5 <= o[0] <= w[2] + 20 and o is not w
+                 and re.match(r"^[A-Z]", o[4])]
         if baixo:
             o = min(baixo, key=lambda o: o[1])
             w[4] += o[4]
@@ -105,7 +106,8 @@ def _juntar(palavras: list[list]) -> list[list]:
                 or (w[4] == "/" and re.search(r"[\d+]$", out[-1][4]))
                 or (re.fullmatch(r"\d{1,3}\.", out[-1][4]) and re.match(r"^\d{3}", w[4]))
                 or (re.fullmatch(r"\d{1,3}", out[-1][4]) and re.fullmatch(r"\d{3}€", w[4]) and w[0] - out[-1][2] < 4)
-                or (out[-1][4].endswith("/") and re.match(r"^[\dA-]", w[4]))):
+                or (out[-1][4].endswith("/") and re.match(r"^[\dA-]", w[4])
+                    and re.match(r"^[\d,.]+/$|^A\+*/$|^[A-Z0-9]", out[-1][4]))):
             a = out.pop()
             out.append([a[0], a[1], w[2], a[3], a[4] + w[4]])
         else:
@@ -247,6 +249,8 @@ def _campo(campos: dict, chave: str, texto: str) -> None:
         md = re.fullmatch(r"(\d+(?:,\d+)?)\s*[xX×]\s*(\d+(?:,\d+)?)\s*[xX×]\s*(\d+(?:,\d+)?)", t)
         if md:
             campos.setdefault(chave, "x".join(_num(g) for g in md.groups()))
+    elif chave in ("kw", "seer-scop"):
+        return                                        # célula sem o par "frio/calor"
     elif re.fullmatch(r"\d+(?:[.,]\d+)?", t):
         campos.setdefault(chave, _num(t) if "," in t else t)
 
@@ -308,10 +312,12 @@ def _e_nota(linha_ws: list[list], w, seccao: dict) -> bool:
     """Ref citada numa frase (nota de rodapé, descrição de outra linha): há uma
     palavra corrida colada à esquerda na mesma linha (salvo nas listas com a
     descrição à esquerda da ref)."""
-    for o in linha_ws if seccao.get("descricao") != "esquerda" or w[4].endswith(".") else []:
-        if o is w or abs(_yc(o) - _yc(w)) > 2.5 or o[2] > w[0]:
-            continue
-        if w[0] - o[2] < 14 and re.search(r"[a-zà-ú]{2}", o[4]) and not MARCA_NOTA_RX.match(o[4]):
+    if seccao.get("descricao") not in ("esquerda", "linha") or w[4].endswith("."):
+        # Só a palavra imediatamente à esquerda ("Tamanho 5 SB.ATB05RBM", p116, não é frase).
+        antes = [o for o in linha_ws if o is not w and abs(_yc(o) - _yc(w)) <= 2.5 and o[2] <= w[0]]
+        o = max(antes, key=lambda o: o[2], default=None)
+        if o is not None and w[0] - o[2] < 14 and re.search(r"[a-zà-ú]{2}", o[4]) \
+                and not MARCA_NOTA_RX.match(o[4]):
             return True
     # Continuação de uma descrição de várias linhas ("Sonda … para" / "FWEC10", p136):
     # palavra corrida a começar no mesmo x na linha logo acima.
@@ -330,7 +336,9 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
     ws = _palavras(page, y_ini, y_fim, seccao)
     # Refs citadas em frases não são âncoras, salvo equipamento conhecido nas secções
     # que imprimem a ref a seguir a um rótulo ("Referência do conjunto SB.EKSV26P/2DBFP", p96).
-    refs = [w for w in ws if e_ref(w[4], seccao) and (not _e_nota(ws, w, seccao) or (
+    ignorar = seccao.get("ignorarRefs")
+    refs = [w for w in ws if e_ref(w[4], seccao) and not (ignorar and re.search(ignorar, w[4]))
+            and (not _e_nota(ws, w, seccao) or (
         seccao.get("refAposRotulo") and classificar(w[4].rstrip("*"), seccao)))]
     precos = [w for w in ws if preco(w[4]) is not None]
     cabecalhos = sorted({round(_yc(w), 1) for w in ws if CABECALHO_RX.match(w[4])
@@ -338,7 +346,9 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
     def celula(w) -> tuple[float, float]:
         """Da ref até à ref seguinte à direita nas linhas vizinhas (±25 pt): as
         colunas são locais (a mesma página tem listas e tabelas com outras colunas)."""
-        direita = [o[0] for o in refs if o[0] > w[0] + 20 and abs(_yc(o) - _yc(w)) <= 25]
+        # "E2MV03A6 / E2MV06A6" (p141): a ref depois de uma barra partilha a célula da anterior.
+        direita = [o[0] for o in refs if o[0] > w[0] + 20 and abs(_yc(o) - _yc(w)) <= 25 and not any(
+            abs(_yc(b) - _yc(o)) < 3 and 0 <= o[0] - b[2] < 10 and b[4].endswith("/") for b in ws)]
         return w[0] - 2, (min(direita) - 2 if direita else 10_000)
 
     def mesma_coluna(a, b) -> bool:
@@ -426,6 +436,11 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
             cands = sorted((abs(_yc(r) - _yc(p)), p[0], p) for p in precos if na_celula(r, p) or (
                 abs((p[0] + p[2]) / 2 - (r[0] + r[2]) / 2) <= 30 and not separado(_yc(r), _yc(p))))
         limite = coluna_preco.get("dy", 20) if coluna_preco else (seccao.get("precoPorBaixo") or {}).get("dy", 20)
+        if tipo(r) is None and por_baixo and not coluna_preco and not any(d <= limite for d, _x, _p in cands):
+            p = preco_na_linha(r)                # lista com o preço à direita numa página de fichas
+            if p is not None:
+                preco_de[id(r)] = [0, p]
+            continue
         for d, _x, p in cands:
             if d > limite:
                 break
@@ -458,9 +473,14 @@ def ler_pares(page, y_ini: float, y_fim: float, seccao: dict, numero: int) -> li
                 x_min = min(q[0] for q in refs if abs(_yc(q) - _yc(r)) <= 25) - 5
                 rot = [o for o in outras if o[2] <= x_min and -6 <= _yc(o) - _yc(r) <= 14]
                 desc = _texto_por_colunas(rot) if rot else ""
-                for ref in expandir_ref(r[4].rstrip(".")):
-                    out.append(_linha(ref, seccao, numero, _yc(r), {"descricao": desc} if desc else {},
-                                      pvp, componente="acessorio"))
+                if seccao.get("prefixoDescricao"):          # "UTA Compact R: G4 - ISO Coarse 55%"
+                    desc = f"{seccao['prefixoDescricao']}: {desc}" if desc else seccao["prefixoDescricao"]
+                for ref in expandir_ref(r[4].rstrip("./")):
+                    campos = {"descricao": desc} if desc else {}
+                    m = re.match(seccao.get("tamanhoDaRef") or r"(?!)", ref)
+                    if m:                                    # opção por tamanho de UTA: ARF03G4A = tamanho 3
+                        campos["tamanho"] = str(int(m.group(1)))
+                    out.append(_linha(ref, seccao, numero, _yc(r), campos, pvp, componente="acessorio"))
                 continue
             if seccao.get("descricao") == "esquerda":
                 # "Descrição | Referência | Preço": da coluna "Descrição" do cabeçalho mais
@@ -529,12 +549,12 @@ ROTULOS_FICHA = (
     (re.compile(r"(?i)\bcaudal\b|fluxo de ar"), "caudal-m3h", "max"),
     (re.compile(r"(?i)efici[êe]ncia.*(temperatura|permuta)"), "rendimento-pct", "primeiro"),
     (re.compile(r"(?i)n[íi]vel de (press[ãa]o|pot[êe]ncia) sonora"), "nivel-sonoro-db", "max"),
-    (re.compile(r"(?i)(capacidade|pot[êe]ncia)[^/]*arref|^arrefecimento"), "frio-kw", "primeiro"),
-    (re.compile(r"(?i)(capacidade|pot[êe]ncia)[^/]*aquec|^aquecimento"), "calor-kw", "primeiro"),
+    (re.compile(r"(?i)(capacidade|pot[êe]ncia)[^/]*arref|\barrefecimento\b"), "frio-kw", "primeiro"),
+    (re.compile(r"(?i)(capacidade|pot[êe]ncia)[^/]*aquec|\baquecimento\b"), "calor-kw", "primeiro"),
     (re.compile(r"(?i)^eer\b"), "eer", "primeiro"),
     (re.compile(r"(?i)^cop\b"), "cop", "primeiro"),
-    (re.compile(r"(?i)^seer\b"), "seer", "primeiro"),
-    (re.compile(r"(?i)^scop\b"), "scop", "primeiro"),
+    (re.compile(r"(?i)\bseer\b"), "seer", "primeiro"),
+    (re.compile(r"(?i)\bscop\b"), "scop", "primeiro"),
     (re.compile(r"(?i)dimens"), "dimensoes", "dimensoes"),
     (re.compile(r"(?i)[áa]rea (aplic|recomend)"), "area-m2", "primeiro"),
 )
@@ -549,17 +569,34 @@ def _specs_transpostas(ws: list[list], r, refs: list[list], y_fim: float, c: dic
     xc = (r[0] + r[2]) / 2
     passo = min((b - a for a, b in zip(vizinhas, vizinhas[1:])), default=80)
     x_rotulo = min(vizinhas) - passo / 2 - 5
-    fim = min([_yc(q) for q in refs if _yc(q) > _yc(r) + 15 and abs((q[0] + q[2]) / 2 - xc) < passo / 2]
-              + [y_fim])
+    # A ficha acaba na linha seguinte de refs da mesma série (as linhas "unidade interior
+    # FTXZ25N" dentro da ficha da Ururu, p13, não contam).
+    serie = re.match(r"^[A-Z.]*", r[4]).group(0)
+    fim = min([_yc(q) for q in refs if _yc(q) > _yc(r) + 15 and abs((q[0] + q[2]) / 2 - xc) < passo / 2
+               and re.match(r"^[A-Z.]*", q[4]).group(0) == serie] + [y_fim])
     linhas: dict[int, list] = defaultdict(list)
     for w in ws:
         if _yc(r) + 4 < _yc(w) < fim:
             linhas[round(_yc(w))].append(w)
     campos: dict[str, str] = {}
     rotulo_ant = ""
+    classes: list[str] = []                       # "Etiqueta Energética": arrefecimento, aquecimento
     for y in sorted(linhas):
         l = linhas[y]
         rot = " ".join(w[4] for w in sorted(l, key=lambda w: w[0]) if w[2] <= x_rotulo)
+        if re.search(r"(?i)etiqueta", rot):
+            # Célula fundida sobre as colunas com a mesma classe: o valor mais próximo da linha.
+            vals = [w for w in l if w[0] > x_rotulo and CLASSE_RX.match(w[4])]
+            if vals:
+                classes.append(min(vals, key=lambda w: abs((w[0] + w[2]) / 2 - xc))[4])
+            continue
+        if not rot or not re.search(r"[A-Za-z]{4}", rot):
+            # Rótulo em várias linhas ("Potência de" / "Mín./Nom./Máx. kW" / "arrefecimento", p13).
+            viz = [w for y2 in linhas if 0 < abs(y2 - y) <= 6 for w in linhas[y2] if w[2] <= x_rotulo]
+            rot = " ".join([rot] + [w[4] for w in sorted(viz, key=lambda w: (w[1], w[0]))]).strip()
+        elif re.search(r"(?i)m[íi]n\./nom", rot):
+            viz = [w for y2 in linhas if 0 < abs(y2 - y) <= 6 for w in linhas[y2] if w[2] <= x_rotulo]
+            rot = " ".join(w[4] for w in sorted(viz, key=lambda w: (w[1], w[0]))) + " " + rot
         rot = rot or rotulo_ant
         rotulo_ant = rot
         cel = " ".join(w[4] for w in sorted(l, key=lambda w: w[0])
@@ -569,12 +606,17 @@ def _specs_transpostas(ws: list[list], r, refs: list[list], y_fim: float, c: dic
         for rx, chave, modo in ROTULOS_FICHA:
             if chave in campos or not rx.search(rot) or (chave == "caudal-m3h" and c.get("familia") == "purificadores-de-ar"):
                 continue
-            if chave in ("frio-kw", "calor-kw") and re.search(r"(?i)absorvid|efici|consumo|%", rot):
-                break                                   # potência absorvida / eficiência, não capacidade
+            if chave in ("frio-kw", "calor-kw") and (re.search(r"(?i)absorvid|efici|consumo|%|dB|sonor|°C|temp", rot) or (
+                    c.get("familia") == "ventilacao")):
+                # Potência absorvida / eficiência, não capacidade; na ventilação (VAM, EKVDX) os kW
+                # impressos são do conjunto com a UE ou da potência absorvida.
+                break
             if modo == "dimensoes":
                 m = re.search(r"(\d[\d.,]*)\s*[xX×]\s*(\d[\d.,]*)\s*[xX×]\s*(\d[\d.,]*)", cel)
                 if m:
                     campos[chave] = "x".join(g.replace(".", "").replace(",", "") for g in m.groups())
+            elif chave in ("frio-kw", "calor-kw") and re.fullmatch(r"[\d,.]+/[\d,.]+/[\d,.]+", cel.replace(" ", "")):
+                campos[chave] = cel.replace(" ", "").split("/")[1].replace(",", ".")   # Mín./Nom./Máx.
             else:
                 limpa = re.sub(r"\(\d\)", "", cel)
                 limpa = re.sub(r"(?<=\d)\.(?=\d{3}\b)", "", limpa)          # "1.500" m³/h = 1500
@@ -583,6 +625,8 @@ def _specs_transpostas(ws: list[list], r, refs: list[list], y_fim: float, c: dic
                     v = max(nums, key=float) if modo == "max" else nums[0]
                     campos[chave] = v.rstrip("0").rstrip(".") if "." in v else v
             break
+    if classes and c.get("componente") == "conjunto":
+        campos["classe-energetica"] = f"{classes[0]}/{classes[1] if len(classes) > 1 else '-'}"
     return campos
 
 
@@ -598,26 +642,40 @@ def ler_rooftops(page, y_ini: float, y_fim: float, seccao: dict, numero: int) ->
                     and re.fullmatch(r"\d{2,3}(-[SX]S)?|\d{3}D[VW]\dP", w[4])]
         if len(tamanhos) < 3:
             continue
-        abaixo = sorted({round(_yc(w)) for w in ws if 0 < _yc(w) - _yc(cab) <= 70})
-        def linha_com(rx):
-            for y in abaixo:
-                l = [w for w in ws if abs(_yc(w) - y) <= 2]
-                rot = " ".join(w[4] for w in l if w[2] < tamanhos[0][0] - 5)
+        abaixo = sorted({round(_yc(w)) for w in ws if 0 < _yc(w) - _yc(cab) <= 150})
+        def rotulo(y):
+            return " ".join(w[4] for w in sorted(ws, key=lambda w: w[0])
+                            if abs(_yc(w) - y) <= 2 and w[2] < tamanhos[0][0] - 5)
+        def linha_com(rx, continuar=False):
+            # O rótulo da potência pode continuar na linha de baixo ("Potência de Nom." /
+            # "aquecimento …", p122), mas só quando a linha não diz já o que é.
+            for i, y in enumerate(abaixo):
+                seguinte = abaixo[i + 1] if i + 1 < len(abaixo) and abaixo[i + 1] - y <= 10 else None
+                rot = rotulo(y)
+                if continuar and seguinte is not None and re.search(r"(?i)pot[êe]ncia|capacidade", rot) \
+                        and not re.search(r"(?i)arref|aquec", rot):
+                    rot += " " + rotulo(seguinte)
                 if re.search(rx, rot):
-                    return l
+                    return [w for w in ws if abs(_yc(w) - y) <= 2]
             return []
         precos = [w for w in linha_com(r"(?i)pre[çc]o") if preco(w[4]) is not None]
-        frio = linha_com(r"(?i)arref|Pot[êe]ncia de\s+Nom|Pdc")
-        calor = [l for l in [linha_com(r"(?i)aquec")] if l]
+        frio = linha_com(r"(?i)cap\.?\s*arref|arrefecimento\s+nom|pot[êe]ncia de\b.*\barref|pdc", True)
+        calor = [l for l in [linha_com(r"(?i)cap\.?\s*aquec|aquecimento\s+nom|pot[êe]ncia de\b.*\baquec", True)] if l]
+        caudal = linha_com(r"(?i)\bcaudal\b")
         serie = cab[4].rstrip("*")
         for t in tamanhos:
             xc = (t[0] + t[2]) / 2
             def na_coluna(l):
-                c = [w for w in l if abs((w[0] + w[2]) / 2 - xc) <= 11 and re.fullmatch(r"\d+(,\d+)?", w[4])]
-                return c[0][4].replace(",", ".") if c else None
+                # Primeiro número da célula: "11,6(1)/11,5(2)" = condição da nota (1); "500/500/440" = máx.
+                c = [re.match(r"^(\d+(?:,\d+)?)(?:\(\d\))?(?:/|$)", w[4]) for w in sorted(l, key=lambda w: w[0])
+                     if abs((w[0] + w[2]) / 2 - xc) <= 14]
+                c = [m.group(1) for m in c if m]
+                return c[0].replace(",", ".") if c else None
             p = min(precos, key=lambda w: abs((w[0] + w[2]) / 2 - xc), default=None)
             pvp = preco(p[4]) if p is not None and abs((p[0] + p[2]) / 2 - xc) <= 14 else None
-            campos = {k: v for k, v in (("frio-kw", na_coluna(frio)), ("calor-kw", na_coluna(calor[0]) if calor else None)) if v}
+            campos = {k: v for k, v in (("frio-kw", na_coluna(frio)),
+                                        ("calor-kw", na_coluna(calor[0]) if calor else None),
+                                        ("caudal-m3h", na_coluna(caudal))) if v}
             if serie.startswith("UATYA"):
                 ref = serie.replace("-", t[4])                       # UATYA-BBAY1 + 100 → UATYA100BBAY1
             elif re.fullmatch(r"EW[AY]A", serie):
@@ -628,6 +686,11 @@ def ler_rooftops(page, y_ini: float, y_fim: float, seccao: dict, numero: int) ->
                 n, v = t[4].split("-")                               # EWAT-B + 085-SS → EWAT085B-SS
                 ref = f"{serie[:4]}{n}B-{v}"
             cl = classificar(ref, seccao) or {}
+            if cl.get("fases") and alimentacao_da_ref(ref):
+                campos["alimentacao"] = alimentacao_da_ref(ref)
+            if cl.get("familia") == "ventilacao":
+                campos.pop("frio-kw", None)
+                campos.pop("calor-kw", None)
             out.append(_linha(ref, seccao, numero, _yc(cab), campos, pvp, componente=cl.get("componente", "conjunto"),
                               classificacao={k: v for k, v in cl.items() if k in (
                                   "familia", "segmento", "sistema", "tipoUnidade", "gama", "rotulo")}))

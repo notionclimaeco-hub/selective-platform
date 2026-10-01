@@ -410,9 +410,9 @@ def classificar(ref: str, seccao: dict) -> dict | None:
 def alimentacao_da_ref(ref: str) -> str | None:
     """Fase pelo sufixo Daikin: …V1/…MV/_ANV = monofásica, …Y1/…MY/_ANY = trifásica."""
     r = ref.split("_")[-1] if ref.startswith("SB.") else ref
-    if re.search(r"(NY1|MY|Y1|TY9|[A-Z]Y|W1|W17)$", r):
+    if re.search(r"(NY1|MY|Y1|TY9|[A-Z]Y|W1|W17|W1P)$", r):
         return "trifasica"
-    if re.search(r"(NV1|MV|V1|TV9|TV1|[A-Z]V|V3|V37|EVH|EVH7)$", r):
+    if re.search(r"(NV1|MV|V1|TV9|TV1|[A-Z]V|V3|V37|EVH|EVH7|V3P)$", r):
         return "monofasica"
     return None
 

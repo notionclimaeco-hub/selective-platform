@@ -65,6 +65,11 @@ export const CORES = [
   "vermelho",
   "cinzento",
   "inox",
+  // Daikin Stylish (2026): painéis de madeira, pele e tecido.
+  "madeira-clara",
+  "madeira-escura",
+  "castanho",
+  "azul",
 ] as const;
 
 const UI: ReadonlyArray<Componente> = ["conjunto", "unidade-interior"];
@@ -153,6 +158,7 @@ const COMPATIVEL_COM: Base = {
   padrao: PADRAO_LISTA,
 };
 const TIPO: Base = { chave: "tipo", tipo: "texto", rotulo: "Tipo" };
+const TAMANHO: Base = { chave: "tamanho", tipo: "texto", rotulo: "Tamanho" };
 const TUBAGEM: Base = {
   chave: "tubagem",
   tipo: "texto",
@@ -175,6 +181,8 @@ const ACESSORIOS: CategoriaSpecs = {
     chave(numero("cv", "Potência", "CV")),
     chave(REFRIGERANTE),
     chave(ALIMENTACAO),
+    // UTA options are sold per unit size (Daikin Compact R/T/L 01-07).
+    chave(TAMANHO),
   ],
 };
 
@@ -220,10 +228,12 @@ export const REGISTO_SPECS = {
   },
   "bombas-de-calor": {
     chaves: [
+      // Hydroboxes and integrated indoor units have no capacity of their own (it
+      // depends on the outdoor unit): the table prints only their class.
       chave({
         ...CALOR_KW,
         hero: true,
-        obrigatorio: ["conjunto", "unidade-interior", "unidade-exterior"],
+        obrigatorio: ["conjunto", "unidade-exterior"],
       }),
       chave({ ...CLASSE_ENERGETICA, hero: true, obrigatorio: ["conjunto"] }),
       chave({ ...DEPOSITO_L, hero: true }),
@@ -231,6 +241,11 @@ export const REGISTO_SPECS = {
       chave(COP),
       chave(SCOP),
       chave(numero("temp-agua-max", "Temp. água máx.", "°C")),
+      // Capacity class from the model name ("Classes 4-6-8": EPSX10… = 10).
+      chave({
+        ...numero("classe-kw", "Classe", "kW"),
+        componentes: ["unidade-interior"],
+      }),
       chave(REFRIGERANTE),
       chave(ALIMENTACAO),
       chave(DIMENSOES_UI),
@@ -241,7 +256,8 @@ export const REGISTO_SPECS = {
   },
   aqs: {
     chaves: [
-      chave({ ...DEPOSITO_L, hero: true, obrigatorio: ["conjunto", "deposito"] }),
+      // Solar thermal kits are sold without the tank: only the tank itself must have it.
+      chave({ ...DEPOSITO_L, hero: true, obrigatorio: ["deposito"] }),
       chave({ ...CALOR_KW, hero: true }),
       chave({ ...CLASSE_ENERGETICA, hero: true }),
       chave(COP),
@@ -257,6 +273,7 @@ export const REGISTO_SPECS = {
       // Área da serpentina para ligação solar (Nipon Flexus "1S"): distingue o
       // modelo com serpentina do modelo igual sem ela.
       chave(numero("serpentina-solar-m2", "Serpentina solar", "m²")),
+      chave(numero("coletores", "Coletores")),
     ],
   },
   ventilacao: {
@@ -279,6 +296,21 @@ export const REGISTO_SPECS = {
       chave(REFRIGERANTE),
       chave(TUBAGEM),
       chave(ALIMENTACAO),
+      // Variant axes of heat-recovery units and AHUs (DucoBox, UTA Compact).
+      chave(TAMANHO),
+      chave(numero("zonas", "Zonas")),
+      chave({
+        chave: "controlo",
+        tipo: "enum",
+        rotulo: "Controlo",
+        valores: ["sensor", "humidade"],
+      }),
+      chave({
+        chave: "orientacao",
+        tipo: "enum",
+        rotulo: "Ligações",
+        valores: ["esquerda", "direita"],
+      }),
     ],
   },
   ventiloconvectores: {
@@ -302,6 +334,11 @@ export const REGISTO_SPECS = {
       }),
       chave(CAUDAL),
       chave(PRESSAO_ESTATICA),
+      chave({
+        chave: "valvula-3-vias",
+        tipo: "booleano",
+        rotulo: "Válvula de 3 vias",
+      }),
       chave(NIVEL_SONORO),
       chave(DIMENSOES),
     ],

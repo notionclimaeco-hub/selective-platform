@@ -22,7 +22,7 @@ def _kw_dos_kits(run: dict) -> None:
            if s["componente"] == "unidade-interior" and not s["ref"].startswith("SB.")
            and "frio-kw" in _attrs(s)}
     for s in run["skus"]:
-        m = re.match(r"^SB\.([A-Z]+\d+)[A-Z]?_(?:W?FW|P|W)$", s["ref"])
+        m = re.match(r"^SB\.([A-Z]+\d+)[A-Z]?_(?:S?W?FW|P|W)$", s["ref"])
         if not m or s["componente"] != "unidade-interior" or "frio-kw" in _attrs(s):
             continue
         base = m.group(1)
@@ -105,7 +105,9 @@ def _caudal_uta(run: dict, doc) -> None:
     "Caudal de ar m3/h")."""
     for pagina in (114, 116, 118):
         ws = _palavras(doc, pagina)
-        cab = next(((x0, y) for x0, y, x1, t in ws if t == "Caudal" and x0 < 60), None)
+        # A linha "Caudal de ar m3/h 600 1100 …" (não o "Caudal de ar de 200 a 6000" do texto).
+        cab = next(((x0, y) for x0, y, x1, t in ws if t == "Caudal" and x0 < 60 and sum(
+            1 for w in ws if abs(w[1] - y) <= 3 and w[0] > 200 and re.fullmatch(r"[\d.]+", w[3])) >= 3), None)
         if cab is None:
             continue
         valores = [(x0 + x1) / 2 for x0, y, x1, t in ws if abs(y - cab[1]) <= 3 and x0 > 200]
@@ -125,6 +127,107 @@ def _caudal_uta(run: dict, doc) -> None:
             a = _attrs(s)
             if pagina in s["pdfPaginas"] and s["familia"] == "ventilacao" and a.get("tamanho") in caudal:
                 _por_ordem(s, {"caudal-m3h": caudal[a["tamanho"]]})
+                lado = "direita" if a.get("orientacao") == "direita" else "esquerda"
+                s["nome"] = f"{s['nomeGrupo']} {caudal[a['tamanho']]} m³/h ({lado})"
+
+
+CORES = {"branco": "branco", "branca": "branco", "preto": "preto", "preta": "preto",
+         "cinzento": "cinzento", "cinza": "cinzento", "prateado": "prateado"}
+# Comandos com a cor só no sufixo da ref ("BRC1H52W7/S7/K7 … (K=preto/S=Cinzento)").
+COR_SUFIXO = ((re.compile(r"^BRC1H52([WKS])7$"), {"W": "branco", "K": "preto", "S": "cinzento"}),
+              (re.compile(r"^BRC1KPD51([WK])$"), {"W": "branco", "K": "preto"}),
+              (re.compile(r"^BRC1HHD([WSK])7$"), {"W": "branco", "S": "prateado", "K": "preto"}))
+COR_RX = re.compile(r"(?i)\s*\b(branc[oa]|pret[oa]|cinzento|cinza|prateado)\b")
+
+
+def _cores_dos_acessorios(run: dict) -> None:
+    """Acessórios que só diferem na cor (painéis BYCQ140EW/EB, comandos BRC7FA532F/FB,
+    Madoka BRC1H52W7/K7/S7): a cor sai do nome para o atributo `cor` e as variantes
+    com o mesmo título ficam num grupo."""
+    por_titulo: dict[tuple, str] = {}
+    for s in run["skus"]:
+        if s["familia"] != "acessorios-e-controlo":
+            continue
+        cor = None
+        for rx, mapa in COR_SUFIXO:
+            m = rx.match(s["ref"])
+            if m:
+                cor = mapa[m.group(1)]
+        m = COR_RX.search(s["nomeGrupo"])
+        if cor is None and m:
+            cor = CORES[m.group(1).lower()]
+        if cor is None:
+            continue
+        titulo = COR_RX.sub("", s["nomeGrupo"])
+        titulo = re.sub(r"\s+" + re.escape(s["ref"]) + r"$", "", titulo)      # código de desambiguação
+        titulo = re.sub(r"\s*\([^)]*\)\s*$", "", titulo).strip(" -,")
+        _por_ordem(s, {"cor": cor})
+        chave = (titulo, s["componente"])
+        grupo = por_titulo.setdefault(chave, s["grupoModelo"])
+        s["grupoModelo"], s["nomeGrupo"] = grupo, titulo
+        s["nome"] = titulo                                  # a cor é a coluna da tabela
+
+
+def _nomes_limpos(run: dict) -> None:
+    """Travessões das descrições impressas ("Bateria DX – direita") no título: hífen.
+    Um grupo partilha o segmento (o mesmo comando aparece em páginas domésticas e
+    comerciais): fica o do primeiro SKU."""
+    segmento: dict[str, str | None] = {}
+    for s in run["skus"]:
+        for k in ("nomeGrupo", "nome"):
+            s[k] = re.sub(r"\s*[–—]\s*", " - ", s[k])
+        g = segmento.setdefault(s["grupoModelo"], s.get("segmento"))
+        if s.get("segmento") != g:
+            if g is None:
+                s.pop("segmento", None)
+            else:
+                s["segmento"] = g
+
+
+# Acessórios vendidos por tamanho e impressos em blocos com uma só descrição (a descrição
+# fica partida pelas linhas do bloco): uma página de produto por série, com o tamanho.
+#   (ref, chave da série, título de recurso, atributo do tamanho)
+SERIES_ACESSORIOS = (
+    (re.compile(r"^EKEXVA(\d+)$"), lambda m: "EKEXVA", "Kit de válvula de expansão para UTA EKEXVA", "tamanho"),
+    (re.compile(r"^ECOLLECTRM([VX])(\d+)A$"), lambda m: f"ECOLLECTRM{m.group(1)}",
+     None, "tamanho"),
+    (re.compile(r"^EKM(\d\d)([A-Z0-9]+)$"), lambda m: f"EKM-{m.group(2)}", None, "tamanho"),
+    (re.compile(r"^EIWRX(\d+)RV\d+AB$"), lambda m: "EIWRX", "Caixa para coletor de piso radiante", "tamanho"),
+)
+NOMES_COLETOR = {"ECOLLECTRMV": "Coletor de distribuição RMV",
+                 "ECOLLECTRMX": "Coletor de distribuição RMX"}
+
+
+def _primeira_frase(texto: str) -> str:
+    t = re.split(r"(?<=[a-zà-ú0-9)])[.;:]\s", texto or "")[0].strip(" .")
+    return t[:80].rsplit(" ", 1)[0] if len(t) > 80 else t
+
+
+def _series_de_acessorios(run: dict) -> None:
+    grupos: dict[str, list[tuple[dict, str]]] = {}
+    for s in run["skus"]:
+        if s["familia"] != "acessorios-e-controlo":
+            continue
+        for rx, chave, titulo, attr in SERIES_ACESSORIOS:
+            m = rx.match(s["ref"])
+            if m:
+                tamanho = next(g for g in m.groups() if g and g.isdigit())
+                grupos.setdefault(chave(m), []).append((s, str(int(tamanho))))
+                break
+    for chave, membros in grupos.items():
+        if len(membros) < 2:
+            continue
+        titulo = NOMES_COLETOR.get(chave) or next((t for rx, k, t, a in SERIES_ACESSORIOS
+                                                   if t and chave.startswith(k(rx.match(membros[0][0]["ref"])))), None)
+        if titulo is None:                       # a descrição do bloco que começa por maiúscula
+            frases = [_primeira_frase(s.get("descricao", "")) for s, _t in membros]
+            boas = [f for f in frases if re.match(r"^[A-ZÁÉÓÚ]", f) and len(f.split()) >= 2]
+            titulo = max(boas, key=len) if boas else f"Acessório {chave}"
+        grupo = "daikin-" + re.sub(r"[^a-z0-9]+", "-", chave.lower()).strip("-") + "-acessorio"
+        for s, tamanho in membros:
+            s["grupoModelo"], s["nomeGrupo"], s["nome"] = grupo, titulo, f"{titulo} {tamanho}"
+            s["atributos"] = [a for a in s["atributos"] if a["chave"] != "tamanho"] + [
+                {"chave": "tamanho", "valor": tamanho}]
 
 
 def corrigir(run: dict, doc) -> None:
@@ -132,3 +235,6 @@ def corrigir(run: dict, doc) -> None:
     _produtos_sem_ref_impressa(run, doc)
     _caudal_vam(run)
     _caudal_uta(run, doc)
+    _cores_dos_acessorios(run)
+    _series_de_acessorios(run)
+    _nomes_limpos(run)
