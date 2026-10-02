@@ -68,7 +68,7 @@ async function photoroomCutout(key, src) {
 export async function ensureCutouts(sources) {
   await mkdir(REMBG_CACHE, { recursive: true })
   const bySrc = new Map()
-  const pending = []
+  let pending = []
 
   for (const src of sources) {
     const hash = await fileHash(src)
@@ -88,6 +88,7 @@ export async function ensureCutouts(sources) {
   if (key) {
     console.log(`A remover fundo de ${pending.length} imagens (Photoroom)…`)
     let feitas = 0
+    let esgotado = false
     const fila = [...pending]
     const worker = async () => {
       for (let item = fila.shift(); item; item = fila.shift()) {
@@ -96,6 +97,8 @@ export async function ensureCutouts(sources) {
             await writeFile(cutoutPathForHash(item.hash), await photoroomCutout(key, item.src))
             break
           } catch (err) {
+            // 402 = plan exhausted: stop and let rembg do the rest.
+            if (/Photoroom 402/.test(String(err))) { esgotado = true; fila.length = 0; return }
             // 429 = plan rate limit; the body says how long to wait.
             const espera = /available in (\d+) seconds/.exec(String(err))?.[1]
             if (tentativa >= 6) throw err
@@ -107,7 +110,10 @@ export async function ensureCutouts(sources) {
       }
     }
     await Promise.all(Array.from({ length: 2 }, worker))
-    return bySrc
+    if (!esgotado) return bySrc
+    pending = pending.filter((item) => !existsSync(cutoutPathForHash(item.hash)))
+    console.log(`Photoroom sem imagens no plano: ${pending.length} ficam para o rembg`)
+    if (pending.length === 0) return bySrc
   }
 
   const workIn = path.join(tmpdir(), `rembg-in-${Date.now()}`)
@@ -123,7 +129,9 @@ export async function ensureCutouts(sources) {
   console.log(`A remover fundo de ${pending.length} imagens (rembg)…`)
   const res = spawnSync(
     "uvx",
-    ["--python", "3.11", "--from", "rembg[cpu,cli]", "rembg", "p", workIn, workOut],
+    // REMBG_MODEL=isnet-general-use: much faster than the default on CPU (~1 s vs ~40 s per image).
+    ["--python", "3.11", "--from", "rembg[cpu,cli]", "rembg", "p",
+      ...(process.env.REMBG_MODEL ? ["-m", process.env.REMBG_MODEL] : []), workIn, workOut],
     { stdio: "inherit" },
   )
   if (res.status !== 0) {
