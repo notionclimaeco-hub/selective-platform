@@ -244,7 +244,8 @@ primeiro), que conta na aprovação; o staff só muda o que quiser.
 `pnpm test:pdf` corre os testes (pytest) sobre páginas de fixture geradas com
 PyMuPDF: emparelhamento ref/preço, refs combinadas, colunas do cabeçalho,
 matrizes de compatibilidade, agrupamento, registo, layouts Midea
-(`tests/test_midea.py`), fichas e listas da Nipon (`tests/test_nipon.py`) e as
+(`tests/test_midea.py`), fichas e listas da Nipon (`tests/test_nipon.py`), fichas,
+matrizes e pós-processamento da Mitsubishi (`tests/test_mitsubishi.py`) e as
 partes por marca (`tests/test_marcas.py`). `tests/test_hisense.py`
 corre a cadeia inteira na tabela Hisense 2026 quando o PDF e o
 `spec-registry.json` existem localmente.
@@ -252,5 +253,5 @@ corre a cadeia inteira na tabela Hisense 2026 quando o PDF e o
 ## Notas por marca
 
 Cada marca tem as suas em `marcas/<marca>/NOTAS.md` (Hisense 2026, Midea
-2026, Nipon 2025). Ler antes de recarregar a marca; acrescentar o que a tabela nova
+2026, Nipon 2025, Mitsubishi 2026). Ler antes de recarregar a marca; acrescentar o que a tabela nova
 trouxer de diferente.

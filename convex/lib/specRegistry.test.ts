@@ -214,6 +214,25 @@ describe("validarAtributos", () => {
     expect(r).toEqual({ erros: [], avisos: [] });
   });
 
+  it("accepts the Mitsubishi 2026 variant axes (#46)", () => {
+    const fc = validarAtributos("ventiloconvectores", "conjunto", [
+      { chave: "versao", valor: "completo" },
+      { chave: "frio-kw", valor: "1.41" },
+      { chave: "calor-kw", valor: "1.85" },
+    ]);
+    expect(fc).toEqual({ erros: [], avisos: [] });
+    expect(
+      validarAtributos("ventiloconvectores", "conjunto", [{ chave: "versao", valor: "vc v3v" }]).erros,
+    ).toHaveLength(1);
+    const deposito = validarAtributos("aqs", "deposito", [
+      { chave: "deposito-l", valor: "500" },
+      { chave: "ligacoes", valor: "6" },
+    ]);
+    expect(deposito).toEqual({ erros: [], avisos: [] });
+    // Hydroboxes print no capacity of their own: not required on the indoor unit.
+    expect(validarAtributos("bombas-de-calor", "unidade-interior", [])).toEqual({ erros: [], avisos: [] });
+  });
+
   it("errors on an unknown familia", () => {
     const r = validarAtributos("frigorificos", "conjunto", ok);
     expect(r.erros).toHaveLength(1);

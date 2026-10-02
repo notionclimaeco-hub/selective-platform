@@ -216,14 +216,23 @@ export const REGISTO_SPECS = {
       chave(numero("calor-kw-max", "Calor máx.", "kW")),
       chave(numero("cv", "Potência", "CV")),
       chave({ ...COMPATIVEL_COM, componentes: ["unidade-exterior"] }),
+      // Close control units (Mitsubishi s-MEXT) are sold with air supply over or under.
+      chave({
+        chave: "insuflacao",
+        tipo: "enum",
+        rotulo: "Insuflação",
+        valores: ["superior", "inferior"],
+      }),
     ],
   },
   "bombas-de-calor": {
     chaves: [
+      // Hydroboxes and integrated indoor units have no capacity of their own (it
+      // depends on the outdoor unit): the table prints only their class.
       chave({
         ...CALOR_KW,
         hero: true,
-        obrigatorio: ["conjunto", "unidade-interior", "unidade-exterior"],
+        obrigatorio: ["conjunto", "unidade-exterior"],
       }),
       chave({ ...CLASSE_ENERGETICA, hero: true, obrigatorio: ["conjunto"] }),
       chave({ ...DEPOSITO_L, hero: true }),
@@ -251,6 +260,8 @@ export const REGISTO_SPECS = {
         rotulo: "Perfil de carga",
         valores: ["S", "M", "L", "XL", "XXL", "3XL"],
       }),
+      // Buffer tanks sold with 4 or 6 work-circuit connections (Mitsubishi EASYDAN IN…-4/-6).
+      chave(numero("ligacoes", "Ligações")),
       chave(REFRIGERANTE),
       chave(ALIMENTACAO),
       chave(DIMENSOES),
@@ -279,6 +290,12 @@ export const REGISTO_SPECS = {
       chave(REFRIGERANTE),
       chave(TUBAGEM),
       chave(ALIMENTACAO),
+      chave({
+        chave: "orientacao",
+        tipo: "enum",
+        rotulo: "Ligações",
+        valores: ["esquerda", "direita"],
+      }),
     ],
   },
   ventiloconvectores: {
@@ -299,6 +316,14 @@ export const REGISTO_SPECS = {
         rotulo: "Tubos",
         valores: ["2", "4"],
         hero: true,
+      }),
+      // What the price includes (Climaveneta): the unit only, + 3-way valve,
+      // + valve and control ("completo"), + touch control SmarT 1C ("smart").
+      chave({
+        chave: "versao",
+        tipo: "enum",
+        rotulo: "Versão",
+        valores: ["vc", "v3v", "completo", "smart"],
       }),
       chave(CAUDAL),
       chave(PRESSAO_ESTATICA),
