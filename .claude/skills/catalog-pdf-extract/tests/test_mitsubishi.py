@@ -129,7 +129,7 @@ def test_cadeia_mitsubishi_de_ponta_a_ponta():
     resumo = validar_run(run, json.loads(REGISTO.read_text(encoding="utf-8")))
     por_ref = {s["ref"]: s for s in run["skus"]}
     assert resumo["comErro"] == 0
-    assert len(run["skus"]) == 914
+    assert len(run["skus"]) == 915
     # Âncoras ref/preço conferidas no PDF (conjunto, conjunto trifásico, UI multi, UE Twin,
     # Ecodan, depósito, ventiloconvector, UTA, comando).
     assert por_ref["MSZ-LN25VGW/MUZ-LN25VG"]["pvpCents"] == 142000                # p9
@@ -141,4 +141,6 @@ def test_cadeia_mitsubishi_de_ponta_a_ponta():
     assert por_ref["a-LIFE3 2T DLIO 1002 V3V"]["pvpCents"] == 78000               # p113
     assert por_ref["s-AIRME MF/B 3000"]["pvpCents"] == 1729000                    # p163
     assert por_ref["PAR-41MAA"]["pvpCents"] == 13500                              # p83, p206
+    assert por_ref["P-250SB-E"]["descricao"] == "Atenuador acústico p/ VL-250"         # p128, após o P-RCC-E
+    assert por_ref["P-RCC-E"]["componente"] == "acessorio"
     assert "MXZ-2HA40VF" in por_ref and por_ref["MXZ-2HA40VF"]["compativelCom"] == ["MSZ-HR"]

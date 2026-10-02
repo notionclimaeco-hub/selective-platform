@@ -199,6 +199,17 @@ def _gralhas(run: dict) -> None:
                 s["avisos"].append(f"{chave}: o PDF imprime '{impresso}' (p{s['pdfPaginas'][0]}), lido como {valor}")
 
 
+# A descrição fala do comando mas o produto é a tampa do lugar do comando (p128).
+ACESSORIO_NAO_COMANDO = {"P-RCC-E"}
+
+
+def _componente(run: dict) -> None:
+    for s in run["skus"]:
+        if s["ref"] in ACESSORIO_NAO_COMANDO and s["componente"] == "comando":
+            s["componente"] = "acessorio"
+            s["grupoModelo"] = s["grupoModelo"].removesuffix("-comando") + "-acessorio"
+
+
 def _chaves_do_registo(run: dict) -> None:
     registo = carregar_registo()["categorias"]
     for s in run["skus"]:
@@ -216,5 +227,6 @@ def corrigir(run: dict, doc) -> None:
     _comandos_por_cor(run)
     _deposito_da_descricao(run)
     _refs(run)
+    _componente(run)
     _gralhas(run)
     _chaves_do_registo(run)

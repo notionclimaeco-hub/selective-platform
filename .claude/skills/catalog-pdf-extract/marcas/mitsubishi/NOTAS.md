@@ -34,6 +34,7 @@ specs sem preço, tabelas de combinações e condições gerais.
   ERSD/ERSE/ERSF e Duo ERST..C/D/F): cada uma liga a outra UE.
 - Ventiloconvectores Climaveneta: a ref é o modelo impresso + versão (VC, V3V,
   COMPLETO, SMART), como o catálogo já usava; o eixo é a chave `versao`.
+- Jet Towel: JT-SB… (vertical) é a Slim e JT-S2AP… (caixa) a Smart, como no site.
 - Refrigerante impresso só como logótipo em PUMY-SM (R32), PUMY-SP/P e
   PUHZ-SW (R410A), QAHV (CO2): vem de `fixos` em `series.py`.
 
@@ -61,6 +62,8 @@ specs sem preço, tabelas de combinações e condições gerais.
   p81 vende-as como PUZ-M200YKA/PUZ-M250YKA → conjuntos corrigidos, com aviso.
 - p114 a-LIFE2 HP 2T DLIO 1002: aquecimento impresso "807" → 8.07, com aviso.
 - PAR-CT01MAA-S/SB/PB: um comando com `cor` e `tipo` (com/sem Bluetooth).
+- P-RCC-E (p128, tampa do lugar do comando): a ref não tem dígitos (aceite pelo leitor de
+  listas) e a descrição fala de "comando": fica acessório.
 
 ## Avisos que ficam (genuínos)
 

@@ -835,6 +835,8 @@ def _parece_ref_lista(t: str, numericas: bool = False) -> bool:
     t = t.rstrip("*")
     if numericas and re.fullmatch(r"\d{10}|A\d{3}", t):         # Climaveneta '5549097151', 'A104'
         return True
+    if re.fullmatch(r"[A-Z]{1,4}(?:-[A-Z]{2,4}){1,2}-E", t):      # Lossnay 'P-RCC-E' (sem dígitos)
+        return True
     return bool(re.fullmatch(r"[A-Z0-9][A-Za-z0-9\-/_.()]{4,}", t)) and bool(re.search(r"\d", t)) and \
         len(re.findall(r"[A-Z]", t)) >= 2 and preco(t) is None
 
