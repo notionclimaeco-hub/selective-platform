@@ -55,6 +55,12 @@ specs sem preço, tabelas de combinações e condições gerais.
 - QAHV (bomba de calor CO2 para AQS) vai para bombas-de-calor: o registo AQS
   exige depósito.
 
+- Listas com cabeçalho "REFERÊNCIAS" (p118-119, acessórios Climaveneta, refs de 10
+  dígitos): a descrição é só a da linha da ref (entre itens há subtítulos de grupo).
+- p210: FGBACNET e "MelcoBEMS Mini (A1M)" não têm dígitos (`refs_nome`). A mesma ref
+  impressa para dois protocolos (ME-AC-700-50/100 KNX e MODBUS, MelcoBEMS Mini BACnet e
+  Modbus) é um produto: as descrições juntam-se ("Interface KNX ou MODBUS (IP) …").
+
 ## Correções (`pos.py`)
 
 - MAC-334IF / MAC-497IF / PAC-SJ95MA (p209) = MAC-334IF-E / … (p83): fica a ref "-E".
@@ -71,4 +77,5 @@ specs sem preço, tabelas de combinações e condições gerais.
   125/140 e PEA 200/250 imprimem "-"; CAHV/QAHV sob consulta.
 - calor-kw: s-MEXT e MSY-TP são só frio.
 - PAC-SA88HA-E: 15 € na p83 (Mr. Slim) e 50 € na p130 (Lossnay).
+- 5569010100 / 5569010200 (p119): 130 €/200 € para LIFE2 HP e 120 €/130 € para i-MXW.
 - PLA-M60EA/SUZ-M60VA: "2.550" sem €.

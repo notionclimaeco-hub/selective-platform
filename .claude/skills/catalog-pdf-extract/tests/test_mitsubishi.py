@@ -67,6 +67,12 @@ def test_matriz_multi_split_le_precos_por_cor_e_alternativas_de_sufixo(doc):
     assert linhas["SEZ-M25DA"]["componenteHint"] == "unidade-interior"
 
 
+def test_mesma_ref_para_dois_protocolos_junta_as_descricoes():
+    assert ex._juntar_descricoes("Interface KNX (IP) para controlar via AE-C400E",
+                                 "Interface MODBUS (IP) para controlar via AE-C400E") == \
+        "Interface KNX ou MODBUS (IP) para controlar via AE-C400E"
+
+
 def test_ue_trifasica_pela_nota_da_ref():
     assert ex._ue_por_fase("PUZ-M100VKA/YKA", "trifasica") == "PUZ-M100YKA"
     assert ex._ue_por_fase("PUZ-M100VKA2/YKA2", "monofasica") == "PUZ-M100VKA2"
@@ -129,7 +135,7 @@ def test_cadeia_mitsubishi_de_ponta_a_ponta():
     resumo = validar_run(run, json.loads(REGISTO.read_text(encoding="utf-8")))
     por_ref = {s["ref"]: s for s in run["skus"]}
     assert resumo["comErro"] == 0
-    assert len(run["skus"]) == 915
+    assert len(run["skus"]) == 943
     # Âncoras ref/preço conferidas no PDF (conjunto, conjunto trifásico, UI multi, UE Twin,
     # Ecodan, depósito, ventiloconvector, UTA, comando).
     assert por_ref["MSZ-LN25VGW/MUZ-LN25VG"]["pvpCents"] == 142000                # p9
@@ -143,4 +149,9 @@ def test_cadeia_mitsubishi_de_ponta_a_ponta():
     assert por_ref["PAR-41MAA"]["pvpCents"] == 13500                              # p83, p206
     assert por_ref["P-250SB-E"]["descricao"] == "Atenuador acústico p/ VL-250"         # p128, após o P-RCC-E
     assert por_ref["P-RCC-E"]["componente"] == "acessorio"
+    assert por_ref["FGBACNET"]["pvpCents"] == 175000                                  # p210, ref sem dígitos
+    assert "KNX ou MODBUS (IP)" in por_ref["ME-AC-700-50"]["descricao"]               # a mesma ref para os dois
+    assert "MelcoBEMS Mini (A1M)" in por_ref
+    assert por_ref["5549079000"]["pvpCents"] == 9000                                  # p118, cabeçalho 'REFERÊNCIAS'
+    assert por_ref["5549053100"]["descricao"] == "Kit válvula de 3 vias, On/Off - 230V"
     assert "MXZ-2HA40VF" in por_ref and por_ref["MXZ-2HA40VF"]["compativelCom"] == ["MSZ-HR"]

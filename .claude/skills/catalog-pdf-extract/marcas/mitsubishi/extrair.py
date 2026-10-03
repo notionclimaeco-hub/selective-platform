@@ -759,9 +759,9 @@ def ler_lista(linhas: list[dict], pagina: int, opts: dict) -> list[dict]:
     ancoras = []
     for l in linhas:
         n = _norm(l["texto"])
-        if re.search(r"\b(modelo|referencia)\b", n) and re.search(r"\bpvr\b", n):
+        if re.search(r"\b(modelo|referencias?)\b", n) and re.search(r"\bpvr\b", n):
             ws = {(_norm(w[4])): w for w in l["ws"]}
-            col_ref = ws.get("modelo") or ws.get("referencia")
+            col_ref = ws.get("modelo") or ws.get("referencia") or ws.get("referencias")   # p118-119 'REFERÊNCIAS'
             col_desc = ws.get("descricao") or ws.get("designacao")
             col_compat = ws.get("compatibilidade")
             cab = {"y": l["y"], "ref": _xc(col_ref), "desc": col_desc, "compat": col_compat,
@@ -775,6 +775,12 @@ def ler_lista(linhas: list[dict], pagina: int, opts: dict) -> list[dict]:
         else:
             refs = [w for w in l["ws"] if abs(_xc(w) - cab["ref"]) < 55
                     and _parece_ref_lista(w[4], opts.get("numericas"))]
+        if not refs and opts.get("refs_nome"):          # p210: 'FGBACNET', 'MelcoBEMS Mini (A1M)*'
+            ini = " ".join(w[4] for w in l["ws"] if _xc(w) < cab["ref"] + 55)
+            m = re.match(opts["refs_nome"], ini)
+            if m:
+                ws_ref = l["ws"][:len(m.group(0).split())]
+                refs = [(ws_ref[0][0], ws_ref[0][1], ws_ref[-1][2], ws_ref[-1][3], m.group(0))]
         if refs:
             ancoras.append((l, refs[0], cab))
     for k, (l, wref, cab) in enumerate(ancoras):
@@ -809,6 +815,8 @@ def ler_lista(linhas: list[dict], pagina: int, opts: dict) -> list[dict]:
             if not ws:
                 continue
             if x is not l:
+                if opts.get("so_linha_ref"):             # p118-119: entre itens só há subtítulos de grupo
+                    continue
                 letras = "".join(ch for w in ws for ch in w[4] if ch.isalpha())
                 if (x_ini is not None and ws[0][0] < x_ini - 6) or (letras.isupper() and len(ws) >= 2):
                     continue
@@ -827,8 +835,27 @@ def ler_lista(linhas: list[dict], pagina: int, opts: dict) -> list[dict]:
         l2 = linha(ref, series.seccao_de(ref, comp or "acessorio", pagina), pagina, l["y"], {"descricao": desc},
                    pvp, componente=comp)
         l2["precoSobConsulta"] = consulta
+        igual = next((x for x in out if x["ref"] == ref), None)
+        if igual is not None and igual["pvpCents"] == pvp:
+            igual["campos"]["descricao"] = _juntar_descricoes(igual["campos"].get("descricao", ""), desc)
+            continue
         out.append(l2)
     return out
+
+
+def _juntar_descricoes(a: str, b: str) -> str:
+    """A mesma ref impressa para dois protocolos (p210 ME-AC-700-50 KNX/MODBUS):
+    'Interface KNX (IP) para …' + 'Interface MODBUS (IP) para …' → 'Interface KNX (IP) ou MODBUS (IP) para …'."""
+    ta, tb = a.split(), b.split()
+    if ta == tb:
+        return a
+    p = 0
+    while p < min(len(ta), len(tb)) and ta[p] == tb[p]:
+        p += 1
+    s = 0
+    while s < min(len(ta), len(tb)) - p and ta[-1 - s] == tb[-1 - s]:
+        s += 1
+    return " ".join(ta[:p] + ta[p:len(ta) - s] + ["ou"] + tb[p:len(tb) - s] + ta[len(ta) - s:])
 
 
 def _parece_ref_lista(t: str, numericas: bool = False) -> bool:
@@ -1061,8 +1088,8 @@ PAGINAS: dict[int, list[tuple[str, dict]]] = {
                        "componente": "conjunto"}),
           ("lista", {"y0": 560})],
     **{p: [("fancoil", {})] for p in (111, 112, 113, 114, 115, 116, 117)},
-    118: [("lista", {"numericas": True})],
-    119: [("lista", {"numericas": True})],
+    118: [("lista", {"numericas": True, "so_linha_ref": True})],
+    119: [("lista", {"numericas": True, "so_linha_ref": True})],
     **{p: [("modelos", {"inicio": r"^capacidade( de aqs inercia)? \d", "ref": r"^referencia",
                         "componente": "deposito", "pares": p == 125})]
        for p in (122, 123, 124, 125)},
@@ -1084,7 +1111,7 @@ PAGINAS: dict[int, list[tuple[str, dict]]] = {
           ("fixo", {"y0": 680, "y1": 690, "ref": "PAC-SC51KUA", "componente": "acessorio",
                     "descricao": "Fonte de alimentação para o controlador AT-50B"})],
     209: [("caixas", {})],
-    210: [("lista", {"componente": "comando"})],
+    210: [("lista", {"componente": "comando", "refs_nome": r"FGBACNET|MelcoBEMS Mini \(A1M\)"})],
     211: [("lista", {"componente": "comando"})],
     215: [("modelos", {"componente": "conjunto"})],
     217: [("modelos", {"componente": "conjunto"})],
