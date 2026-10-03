@@ -31,7 +31,7 @@ OBRIGATORIOS = ("ref", "nome", "nomeGrupo", "marca", "familia", "componente", "a
                 "ivaIncluido", "tabelaOrigem", "grupoModelo", "pdfPaginas", "avisos")
 COERENTES = ("nomeGrupo", "marca", "familia", "segmento", "sistema", "tipoUnidade", "gama", "componente")
 CAPACIDADE_NO_NOME = re.compile(r"(?i)(?:\b\d+(?:[.,]\d+)?\s*kW\b|\b\d{4,5}\s*BTU\b|\b\d+\s*L\b)")
-COR_NO_NOME = re.compile(r"(?i)\b(?:branco(?:-perola)?|preto|prateado|prata|vermelho|cinzento|inox|"
+COR_NO_NOME = re.compile(r"(?i)\b(?:branco(?:-perola)?|preto|prateado|(?<!de )prata|vermelho|cinzento|inox|"
                          r"champagne|grafite|ouro)\b")
 SUFIXO_CAPACIDADE = re.compile(r"(?i)\s(?:\d+(?:[.,]\d+)?\s*(?:kW|CV|m³/h|m3/h)|\d{4,5}\s*BTU|\d+\s*L)"
                                r"(?:\s*\([^)]*\))?(?:\s+(?:mono|tri)fásico)?\s*$")

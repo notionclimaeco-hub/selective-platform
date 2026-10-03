@@ -100,6 +100,8 @@ def main() -> None:
         n = sum(1 for s in mapa["seccoes"] if s.get("tipo") != "ignorar")
         print(f"mapa: {n} secções (estratégia {mapa.get('estrategia')})", flush=True)
     if "extrair" in passos:
+        for velho in pasta.glob("linhas-*.json"):     # secções renomeadas não deixam linhas órfãs
+            velho.unlink()
         _correr("extrair.py", str(pdf), "--mapa", "mapa.json", "--todas", "--marca", args.marca, pasta=pasta)
     if "agrupar" in passos:
         _correr("agrupar.py", "--mapa", "mapa.json", "--marca", args.marca, "--ano", str(args.ano),

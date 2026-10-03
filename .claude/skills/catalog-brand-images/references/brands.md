@@ -54,6 +54,12 @@ Config de sementes: `scripts/imagens/crawl.config.json`.
 - Há muitas páginas de série (`/msz-ln`, `/pead-m`, …). Mr.Slim ZM/SZ e
   acessórios muitas vezes não têm fotos próprias: cair para a Megaclima
   (`--brand mitsubishi`, boa para mural e cassete).
+- 2026 (#46): o `sitemap.xml` (índice Liferay) lista todas as páginas; os
+  comandos e interfaces têm página própria (`/par-ct01maa`, `/pac-yt52cra`,
+  `/mac-334if`, `/ae-200e`…, já nas seeds). Sem packshot no site: UE Ecodan
+  split, chillers, UTAs s-AIRME, rooftops WSM2, s-MEXT, depósitos EASYDAN,
+  GUX. As fotos do catálogo anterior (por ref, já recortadas) cobrem quase
+  todos; o script está em `docs/screenshots/46/candidatas-build.py`.
 
 ## Midea
 
