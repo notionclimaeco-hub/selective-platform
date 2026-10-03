@@ -84,20 +84,40 @@ _Avoid_: Quote request, customer order
 One SKU and quantity on an installer order, with its own stock confirmation and warehouse progress.
 _Avoid_: Item, order item, product row
 
+**Installer-order stage**:
+Where an installer order stands, in office order: Recebida → A confirmar stock → Aguardar pagamento → Por encomendar → Em trânsito → Em armazém → Concluída, or Cancelada from any stage before payment. The order is in exactly one stage; per-marca progress lives inside it.
+_Avoid_: Status, column, step
+
 **Supplier fulfillment**:
-The lines of one marca on an installer order, grouped so the office can request stock and purchase from that supplier. Not a separate status; lines of one marca may reach the warehouse on different days.
+The lines of one marca on an installer order, grouped so the office can request stock from and then purchase from that supplier. A supplier fulfillment is ordered once its fatura do fornecedor is recorded; lines of one marca may still reach the warehouse on different days.
 _Avoid_: Sub-order, split order, shipment
 
+**Por encomendar**:
+The stage after payment while the office still has to place the purchase with at least one supplier, by email or on the supplier's portal. It ends when every supplier fulfillment with quantity still wanted has a fatura do fornecedor.
+_Avoid_: Paga, pending purchase, to order
+
+**Fatura do fornecedor**:
+The supplier's invoice for what Climaeco bought from that supplier for one installer order. Recording it marks that supplier fulfillment as ordered and its quantity as em trânsito.
+_Avoid_: Fatura-recibo (ours, to the installer), purchase order, nota de encomenda, guia do fornecedor
+
+**Em trânsito**:
+The stage after every supplier fulfillment is ordered, until every remaining quantity is at Climaeco's warehouse or failed.
+_Avoid_: Shipped, enviada, paga
+
+**Quantidade falhada**:
+Paid quantity a supplier will not deliver, whether it was still to order or already em trânsito. It is refunded to the installer.
+_Avoid_: Cancelled quantity, out of stock, backorder
+
 **Guia do fornecedor**:
-The supplier's transport-document identifier for goods moving to Climaeco's warehouse. The office records it per line in the admin app (*Registar guia*), which moves quantity from por enviar to em trânsito.
+The supplier's transport-document number for goods arriving at Climaeco's warehouse. Optional: the office may note it at receção; it does not move an order between stages (the fatura do fornecedor does).
 _Avoid_: Guia de transporte (that is ours, at levantamento), tracking number, delivery note, CMR
 
 **Levantamento**:
-Collection of paid goods by the installer at Climaeco's warehouse. One per installer order: the installer collects everything at once when the order is pronta a levantar, and the office records it in the admin app (*Registar levantamento*), which completes the order.
+Collection of paid goods by the installer at Climaeco's warehouse. One per installer order: the installer collects everything at once when the order is em armazém, and the office records it in the admin app (*Registar levantamento*), which completes the order.
 _Avoid_: Delivery, home delivery, shipment to the installer, partial pickup
 
-**Pronta a levantar**:
-The installer-order state once every remaining quantity is at Climaeco's warehouse or failed by the supplier, with something left to collect. If everything failed there is nothing to collect and the order completes directly. *Concluída* means collected.
+**Em armazém**:
+The stage once every remaining quantity is at Climaeco's warehouse or failed, with something left to collect. Installers see it as "Pronta a levantar". If everything failed there is nothing to collect and the order completes directly. *Concluída* means collected.
 _Avoid_: Delivered, arrived, ready for delivery
 
 **Price snapshot**:
