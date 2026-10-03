@@ -76,7 +76,24 @@ Config de sementes: `scripts/imagens/crawl.config.json`.
   as fotos de todas no mesmo grupo. Modelos irmãos que partilham a carcaça
   (CTXA multi = Stylish FTXA) reutilizam as galerias da série irmã, listadas
   outra vez no grupo.
-- Acessórios, UTA e chillers quase sempre não têm packshot: ficam sem fotos.
+- As páginas de série não estão no sitemap e o nome não se adivinha pelo
+  `gama`: o slug é o prefixo da ref + sufixo da série (`FTXM-A`, `RXJ-A9`,
+  `EHBX-E6V`, `EWAT-CZP`, `FWZ-AT`, `RXYSQ-TV9`); uma série que não existe
+  devolve 404 com título "404 | Daikin". Sondar palpites tirados das refs dos
+  grupos (2026: ~130 de 360 existiam) e ler as páginas
+  `particular/products-and-advice/...` e `product-group/...` do sitemap, que
+  ligam a mais séries. Uma página de série lista também comandos, fotos de
+  instalação e ambientes: ficar com os ficheiros cujo nome tem a série
+  (`_F`/`_L`/`_R`, `Front/Left/Right`).
+- MDM: o ficheiro é `.tif` ou `.tiff` (o nome no HTML não chega para saber);
+  o JPEG é `<ficheiro>/_jcr_content/renditions/cq5dam.web.1280.1280.jpeg`.
+- As páginas residenciais têm packshots b2c em `b2c/shared/images/packshots/`
+  e, para algumas gamas, em `b2c/portugal/imagens/products/` (Altherma 3 R F
+  Mini, EKHWSP). Os UI Altherma (ECH2O, F, W) usam a mesma foto para R e H HT,
+  e a ECH2O usa a bivalente (EHSXB): aviso nos grupos não bivalentes.
+- Acessórios com página própria (Madoka, BRP069, DCS/DCM, painéis BYCQ/BYFQ)
+  têm packshot; os restantes acessórios vêm do klima.pt (`procurar-ref.mjs`).
+  UTA Compact R/T e a DucoBox Comfort não têm foto própria (2026).
 - Megaclima costuma ter Sensira / Comfora / Perfera / Stylish / Emura:
   `node scripts/imagens/crawl-megaclima-curl.mjs --brand daikin`.
 

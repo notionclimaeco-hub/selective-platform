@@ -71,8 +71,12 @@ def _seccao(mapa: dict, sid: str) -> dict:
 def _seccao_linha(mapa: dict, l: dict) -> dict:
     """Secção da linha com o `porRef` do mapa aplicado: numa tabela que mistura
     produtos ("UE + depósito", "UE + módulo hidráulico") o prefixo da ref dá
-    familia/componente/tipoUnidade/gama próprios."""
+    familia/componente/tipoUnidade/gama próprios. Uma linha lida por uma parte
+    da marca pode trazer a sua `classificacao` (Daikin: a mesma ref repete-se
+    por muitas páginas e é classificada pela ref), que ganha à secção."""
     s = _seccao(mapa, l["seccao"])
+    if l.get("classificacao"):
+        return {**s, **l["classificacao"], "componenteFixo": True}
     for regra in s.get("porRef") or []:
         if l["ref"].upper().startswith(regra["prefixo"].upper()):
             fixo = {"componenteFixo": True} if "componente" in regra else {}
@@ -330,17 +334,23 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
         else:
             chaves_grupo[ref] = (l["seccao"], l["_componente"], "serie", l["contexto"].get("serie"))
 
-    # Acessórios com o mesmo esqueleto só ficam juntos se algum atributo os distingue.
+    # Acessórios com o mesmo esqueleto só ficam juntos se algum atributo os distingue;
+    # quando não, tenta-se por descrição (filtros F7 e F9 de UTA, ARF#F#B, por tamanho).
+    def _attrs_acc(r: str) -> tuple:
+        return tuple(sorted(por_ref[r]["campos"].items() - {("descricao", por_ref[r]["campos"].get("descricao"))}))
+
     membros: dict[tuple, list[str]] = defaultdict(list)
     for ref, chave in chaves_grupo.items():
         membros[chave].append(ref)
     for chave, refs in list(membros.items()):
-        if chave[2] == "acc" and len(refs) > 1:
-            attrs = {tuple(sorted(por_ref[r]["campos"].items() - {("descricao", por_ref[r]["campos"].get("descricao"))}))
-                     for r in refs}
-            if len(attrs) < len(refs):
-                for r in refs:
-                    chaves_grupo[r] = (chave[0], chave[1], "acc", r)
+        if chave[2] == "acc" and len(refs) > 1 and len({_attrs_acc(r) for r in refs}) < len(refs):
+            por_desc: dict[str, list[str]] = defaultdict(list)
+            for r in refs:
+                por_desc[por_ref[r]["campos"].get("descricao", "")].append(r)
+            for desc, sub in por_desc.items():
+                juntos = len(sub) > 1 and len({_attrs_acc(r) for r in sub}) == len(sub) and len(por_desc) > 1
+                for r in sub:
+                    chaves_grupo[r] = (chave[0], chave[1], "acc", f"{chave[3]}|{desc}" if juntos else r)
     tamanho_grupo = Counter(chaves_grupo.values())
 
     # 5. SKUs.
@@ -358,7 +368,12 @@ def agrupar(linhas: list[dict], mapa: dict, marca: str, ano: int, ficheiro: str)
 
         if familia == "acessorios-e-controlo":
             gama = None
-            codigo = ref if tamanho_grupo[chave] == 1 else esqueleto(ref).replace("#", "")
+            if tamanho_grupo[chave] == 1:
+                codigo = ref
+            elif "|" in str(chave[3]):                   # partido por descrição: a primeira ref do grupo
+                codigo = min(r for r, k in chaves_grupo.items() if k == chave)
+            else:
+                codigo = esqueleto(ref).replace("#", "")
             nome_grupo = _primeira_frase(desc) if desc else ""
             if not nome_grupo or not re.search(r"[A-Za-z]{3}", nome_grupo):
                 painel = "cassete" in (s.get("tipoUnidade") or "") and s["familia"] != "acessorios-e-controlo"

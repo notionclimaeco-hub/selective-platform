@@ -214,6 +214,52 @@ describe("validarAtributos", () => {
     expect(r).toEqual({ erros: [], avisos: [] });
   });
 
+  it("heat-pump indoor units carry their class, not their own kW", () => {
+    const r = validarAtributos("bombas-de-calor", "unidade-interior", [
+      { chave: "classe-kw", valor: "10" },
+      { chave: "deposito-l", valor: "300" },
+    ]);
+    expect(r).toEqual({ erros: [], avisos: [] });
+    const ue = validarAtributos("bombas-de-calor", "unidade-exterior", [
+      { chave: "classe-kw", valor: "10" },
+    ]);
+    expect(ue.avisos.join("\n")).toMatch(/classe-kw: não se aplica/);
+    expect(ue.avisos.join("\n")).toMatch(/calor-kw: obrigatório/);
+  });
+
+  it("solar kits need collectors, not a tank volume", () => {
+    expect(
+      validarAtributos("aqs", "conjunto", [{ chave: "coletores", valor: "3" }]),
+    ).toEqual({ erros: [], avisos: [] });
+    expect(validarAtributos("aqs", "deposito", []).avisos[0]).toMatch(/deposito-l/);
+  });
+
+  it("knows the Stylish panel colours and the AHU/fan coil axes", () => {
+    expect(
+      validarAtributos("ar-condicionado", "unidade-interior", [
+        { chave: "frio-kw", valor: "2.0" },
+        { chave: "calor-kw", valor: "2.5" },
+        { chave: "cor", valor: "madeira-clara" },
+      ]),
+    ).toEqual({ erros: [], avisos: [] });
+    expect(
+      validarAtributos("ventilacao", "conjunto", [
+        { chave: "caudal-m3h", valor: "325" },
+        { chave: "zonas", valor: "2" },
+        { chave: "controlo", valor: "humidade" },
+        { chave: "orientacao", valor: "direita" },
+        { chave: "tamanho", valor: "3" },
+      ]),
+    ).toEqual({ erros: [], avisos: [] });
+    expect(
+      validarAtributos("ventiloconvectores", "conjunto", [
+        { chave: "frio-kw", valor: "2.6" },
+        { chave: "calor-kw", valor: "3.5" },
+        { chave: "valvula-3-vias", valor: "sim" },
+      ]),
+    ).toEqual({ erros: [], avisos: [] });
+  });
+
   it("errors on an unknown familia", () => {
     const r = validarAtributos("frigorificos", "conjunto", ok);
     expect(r.erros).toHaveLength(1);
