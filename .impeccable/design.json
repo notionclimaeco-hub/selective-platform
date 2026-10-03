@@ -1,0 +1,568 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T19:50:44.057Z",
+  "title": "Design System: Climaeco Admin app",
+  "authority": {
+    "documents": "admin-frontend (the Admin app)",
+    "source": "client-frontend (Climaeco Pro). Change the client first, then mirror into the admin files.",
+    "verbatimCopies": [
+      "src/styles.css (foundation + --warning tokens)",
+      "components/ui/button.tsx",
+      "components/ui/input.tsx",
+      "components/ui/tooltip.tsx",
+      "components/ui/dialog.tsx (Fechar label)",
+      "components/ui/skeleton.tsx (+ admin loading shapes)",
+      "components/auth/cartao-auth.tsx",
+      "components/shell/avatar-clerk.ts",
+      "lib/clerk-ui.ts",
+      "components/brand/wordmark.tsx (ADMIN subtitle)"
+    ],
+    "adminMirrors": [
+      "components/ui/tabela.tsx",
+      "components/ui/campo-editavel.tsx",
+      "components/ui/seletor.tsx",
+      "components/ui/paginacao.tsx",
+      "components/ui/sonner.tsx",
+      "components/shell/app-shell.tsx"
+    ]
+  },
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Forest Green",
+        "canonical": "oklch(0.45 0.115 148)",
+        "cssVariable": "--primary",
+        "tonalRamp": [
+          "oklch(0.15 0.058 148)",
+          "oklch(0.26 0.086 148)",
+          "oklch(0.37 0.104 148)",
+          "oklch(0.48 0.115 148)",
+          "oklch(0.59 0.115 148)",
+          "oklch(0.7 0.098 148)",
+          "oklch(0.82 0.063 148)",
+          "oklch(0.95 0.029 148)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Forest Green, hover",
+        "canonical": "color-mix(in oklch, var(--primary), black 10%)",
+        "cssVariable": "(computed)",
+        "tonalRamp": [
+          "oklch(0.15 0.052 148)",
+          "oklch(0.26 0.078 148)",
+          "oklch(0.37 0.094 148)",
+          "oklch(0.48 0.104 148)",
+          "oklch(0.59 0.104 148)",
+          "oklch(0.7 0.088 148)",
+          "oklch(0.82 0.057 148)",
+          "oklch(0.95 0.026 148)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "primary",
+        "displayName": "Near-White on Green",
+        "canonical": "oklch(0.985 0.005 130)",
+        "cssVariable": "--primary-foreground",
+        "tonalRamp": [
+          "oklch(0.15 0.003 130)",
+          "oklch(0.26 0.004 130)",
+          "oklch(0.37 0.005 130)",
+          "oklch(0.48 0.005 130)",
+          "oklch(0.59 0.005 130)",
+          "oklch(0.7 0.004 130)",
+          "oklch(0.82 0.003 130)",
+          "oklch(0.95 0.001 130)"
+        ]
+      },
+      "brand": {
+        "role": "secondary",
+        "displayName": "Leaf Lime",
+        "canonical": "oklch(0.76 0.185 129)",
+        "cssVariable": "--brand",
+        "tonalRamp": [
+          "oklch(0.15 0.092 129)",
+          "oklch(0.26 0.139 129)",
+          "oklch(0.37 0.167 129)",
+          "oklch(0.48 0.185 129)",
+          "oklch(0.59 0.185 129)",
+          "oklch(0.7 0.157 129)",
+          "oklch(0.82 0.102 129)",
+          "oklch(0.95 0.046 129)"
+        ]
+      },
+      "accent": {
+        "role": "secondary",
+        "displayName": "Lime Wash",
+        "canonical": "oklch(0.955 0.03 132)",
+        "cssVariable": "--accent",
+        "tonalRamp": [
+          "oklch(0.15 0.015 132)",
+          "oklch(0.26 0.022 132)",
+          "oklch(0.37 0.027 132)",
+          "oklch(0.48 0.03 132)",
+          "oklch(0.59 0.03 132)",
+          "oklch(0.7 0.025 132)",
+          "oklch(0.82 0.017 132)",
+          "oklch(0.95 0.007 132)"
+        ]
+      },
+      "accent-foreground": {
+        "role": "primary",
+        "displayName": "Forest Ink",
+        "canonical": "oklch(0.35 0.08 148)",
+        "cssVariable": "--accent-foreground",
+        "tonalRamp": [
+          "oklch(0.15 0.04 148)",
+          "oklch(0.26 0.06 148)",
+          "oklch(0.37 0.072 148)",
+          "oklch(0.48 0.08 148)",
+          "oklch(0.59 0.08 148)",
+          "oklch(0.7 0.068 148)",
+          "oklch(0.82 0.044 148)",
+          "oklch(0.95 0.02 148)"
+        ]
+      },
+      "ring": {
+        "role": "primary",
+        "displayName": "Focus Green",
+        "canonical": "oklch(0.55 0.11 148)",
+        "cssVariable": "--ring",
+        "tonalRamp": [
+          "oklch(0.15 0.055 148)",
+          "oklch(0.26 0.083 148)",
+          "oklch(0.37 0.099 148)",
+          "oklch(0.48 0.11 148)",
+          "oklch(0.59 0.11 148)",
+          "oklch(0.7 0.093 148)",
+          "oklch(0.82 0.061 148)",
+          "oklch(0.95 0.028 148)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(1 0 0)",
+        "cssVariable": "--background",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.37 0 0)",
+          "oklch(0.48 0 0)",
+          "oklch(0.59 0 0)",
+          "oklch(0.7 0 0)",
+          "oklch(0.82 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "oklch(0.2 0.005 260)",
+        "cssVariable": "--foreground",
+        "tonalRamp": [
+          "oklch(0.15 0.003 260)",
+          "oklch(0.26 0.004 260)",
+          "oklch(0.37 0.005 260)",
+          "oklch(0.48 0.005 260)",
+          "oklch(0.59 0.005 260)",
+          "oklch(0.7 0.004 260)",
+          "oklch(0.82 0.003 260)",
+          "oklch(0.95 0.001 260)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Mist",
+        "canonical": "oklch(0.968 0.002 260)",
+        "cssVariable": "--secondary",
+        "tonalRamp": [
+          "oklch(0.15 0.001 260)",
+          "oklch(0.26 0.002 260)",
+          "oklch(0.37 0.002 260)",
+          "oklch(0.48 0.002 260)",
+          "oklch(0.59 0.002 260)",
+          "oklch(0.7 0.002 260)",
+          "oklch(0.82 0.001 260)",
+          "oklch(0.95 0.001 260)"
+        ]
+      },
+      "secondary-foreground": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "oklch(0.3 0.005 260)",
+        "cssVariable": "--secondary-foreground",
+        "tonalRamp": [
+          "oklch(0.15 0.003 260)",
+          "oklch(0.26 0.004 260)",
+          "oklch(0.37 0.005 260)",
+          "oklch(0.48 0.005 260)",
+          "oklch(0.59 0.005 260)",
+          "oklch(0.7 0.004 260)",
+          "oklch(0.82 0.003 260)",
+          "oklch(0.95 0.001 260)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Pewter",
+        "canonical": "oklch(0.52 0.012 260)",
+        "cssVariable": "--muted-foreground",
+        "tonalRamp": [
+          "oklch(0.15 0.006 260)",
+          "oklch(0.26 0.009 260)",
+          "oklch(0.37 0.011 260)",
+          "oklch(0.48 0.012 260)",
+          "oklch(0.59 0.012 260)",
+          "oklch(0.7 0.01 260)",
+          "oklch(0.82 0.007 260)",
+          "oklch(0.95 0.003 260)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.905 0.003 260)",
+        "cssVariable": "--border",
+        "tonalRamp": [
+          "oklch(0.15 0.002 260)",
+          "oklch(0.26 0.002 260)",
+          "oklch(0.37 0.003 260)",
+          "oklch(0.48 0.003 260)",
+          "oklch(0.59 0.003 260)",
+          "oklch(0.7 0.003 260)",
+          "oklch(0.82 0.002 260)",
+          "oklch(0.95 0.001 260)"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "oklch(0.87 0.004 260)",
+        "cssVariable": "--input",
+        "tonalRamp": [
+          "oklch(0.15 0.002 260)",
+          "oklch(0.26 0.003 260)",
+          "oklch(0.37 0.004 260)",
+          "oklch(0.48 0.004 260)",
+          "oklch(0.59 0.004 260)",
+          "oklch(0.7 0.003 260)",
+          "oklch(0.82 0.002 260)",
+          "oklch(0.95 0.001 260)"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Grey",
+        "canonical": "oklch(0.985 0.002 260)",
+        "cssVariable": "--sidebar",
+        "tonalRamp": [
+          "oklch(0.15 0.001 260)",
+          "oklch(0.26 0.002 260)",
+          "oklch(0.37 0.002 260)",
+          "oklch(0.48 0.002 260)",
+          "oklch(0.59 0.002 260)",
+          "oklch(0.7 0.002 260)",
+          "oklch(0.82 0.001 260)",
+          "oklch(0.95 0.001 260)"
+        ]
+      },
+      "auth-tint": {
+        "role": "neutral",
+        "displayName": "Auth Tint",
+        "canonical": "oklch(0.982 0.005 132)",
+        "cssVariable": "(.fundo-auth background-color)",
+        "tonalRamp": [
+          "oklch(0.15 0.003 132)",
+          "oklch(0.26 0.004 132)",
+          "oklch(0.37 0.005 132)",
+          "oklch(0.48 0.005 132)",
+          "oklch(0.59 0.005 132)",
+          "oklch(0.7 0.004 132)",
+          "oklch(0.82 0.003 132)",
+          "oklch(0.95 0.001 132)"
+        ]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Amber Wash",
+        "canonical": "oklch(0.97 0.04 85)",
+        "cssVariable": "--warning",
+        "tonalRamp": [
+          "oklch(0.15 0.02 85)",
+          "oklch(0.26 0.03 85)",
+          "oklch(0.37 0.036 85)",
+          "oklch(0.48 0.04 85)",
+          "oklch(0.59 0.04 85)",
+          "oklch(0.7 0.034 85)",
+          "oklch(0.82 0.022 85)",
+          "oklch(0.95 0.01 85)"
+        ]
+      },
+      "warning-foreground": {
+        "role": "tertiary",
+        "displayName": "Amber Ink",
+        "canonical": "oklch(0.48 0.11 65)",
+        "cssVariable": "--warning-foreground",
+        "tonalRamp": [
+          "oklch(0.15 0.055 65)",
+          "oklch(0.26 0.083 65)",
+          "oklch(0.37 0.099 65)",
+          "oklch(0.48 0.11 65)",
+          "oklch(0.59 0.11 65)",
+          "oklch(0.7 0.093 65)",
+          "oklch(0.82 0.061 65)",
+          "oklch(0.95 0.028 65)"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Signal Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "cssVariable": "--destructive",
+        "tonalRamp": [
+          "oklch(0.15 0.122 27.325)",
+          "oklch(0.26 0.184 27.325)",
+          "oklch(0.37 0.221 27.325)",
+          "oklch(0.48 0.245 27.325)",
+          "oklch(0.59 0.245 27.325)",
+          "oklch(0.7 0.208 27.325)",
+          "oklch(0.82 0.135 27.325)",
+          "oklch(0.95 0.061 27.325)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page title in Cabecalho and the auth card title; one per page."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card header rows (Banda, Seccao)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Table cells, label / value rows, meta line under the title."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Buttons and sidebar items."
+      },
+      "chip": {
+        "displayName": "Chip",
+        "purpose": "Filter chips only."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Table header cells and badges."
+      },
+      "count": {
+        "displayName": "Count",
+        "purpose": "Sidebar count pills, tabular figures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "button-lift",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Primary and outline buttons (Tailwind shadow-xs)."
+      },
+      {
+        "name": "auth-card",
+        "value": "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -16px rgba(0,0,0,0.16)",
+        "purpose": "The single card on the sign-in and Sem acesso pages."
+      },
+      {
+        "name": "toast",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1), 0 0 0 1px color-mix(in oklch, var(--foreground), transparent 95%)",
+        "purpose": "Sonner toasts (shadow-lg + 5% foreground ring)."
+      },
+      {
+        "name": "dialog",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1), 0 0 0 1px color-mix(in oklch, var(--foreground), transparent 95%)",
+        "purpose": "Modal dialogs (shadow-xl + 5% foreground ring)."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%)",
+        "purpose": "Focus on buttons, inputs, chips, row buttons, with a ring-coloured border."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Colour, border and ring changes on hover / focus (Tailwind transition-colors default)."
+      },
+      {
+        "name": "sidebar-collapse",
+        "value": "width 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Sidebar 240px ↔ 56px."
+      },
+      {
+        "name": "press",
+        "value": "translateY(1px)",
+        "purpose": "Button press nudge."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition/animation-duration 0.01ms",
+        "purpose": "prefers-reduced-motion collapses all motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "24px page gutters, chips wrap, 10rem label column, inputs drop to 14px."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Sidebar replaces the phone top bar."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "32px page top padding, two-column record pages, import review page panel beside the variants table."
+      }
+    ],
+    "layout": {
+      "pageMaxWidth": "72rem",
+      "importReviewMaxWidth": "1600px",
+      "pageGutter": "16px / 24px from sm",
+      "blockGap": "24px",
+      "cardGutter": "20px",
+      "rowHeight": "56px",
+      "labelColumn": "7.5rem / 10rem from sm",
+      "sidebarWidth": "240px / 56px collapsed"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per state: Forest Green, 10px radius, 36px tall.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Aprovar empresa</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid transparent; font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap; cursor: pointer; font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; transition: background-color 150ms, border-color 150ms, color 150ms; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%); } .ds-btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-btn-primary:hover { background: color-mix(in oklch, var(--primary), black 10%); border-color: color-mix(in oklch, var(--primary), black 10%); }"
+    },
+    {
+      "name": "Outline and Destructive Buttons",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary actions: outline on a Field Edge border; destructive is red text on a 10% red fill.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn ds-btn-outline\">Anterior</button><button class=\"ds-btn ds-btn-ghost\">Cancelar</button><button class=\"ds-btn ds-btn-destructive\">Suspender</button></div>",
+      "css": ".ds-row { display: flex; gap: 8px; align-items: center; } .ds-btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--foreground); font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; transition: background-color 150ms, color 150ms; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%); } .ds-btn-outline { background: var(--background); border-color: var(--input); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-btn-outline:hover, .ds-btn-ghost:hover { background: var(--muted); } .ds-btn-destructive { background: color-mix(in oklch, var(--destructive), transparent 90%); color: var(--destructive); } .ds-btn-destructive:hover { background: color-mix(in oklch, var(--destructive), transparent 80%); }"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Single-select list filters under the page title; the active chip fills Forest Green.",
+      "html": "<div class=\"ds-chips\" role=\"tablist\"><button class=\"ds-chip\" role=\"tab\" aria-selected=\"true\">Todas</button><button class=\"ds-chip\" role=\"tab\" aria-selected=\"false\">Pendente</button><button class=\"ds-chip\" role=\"tab\" aria-selected=\"false\">Aprovada</button><button class=\"ds-chip\" role=\"tab\" aria-selected=\"false\">Suspensa</button></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 6px; } .ds-chip { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; transition: border-color 150ms, background-color 150ms; } .ds-chip:hover { border-color: color-mix(in oklch, var(--foreground), transparent 75%); } .ds-chip:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%); } .ds-chip[aria-selected=\"true\"] { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }"
+    },
+    {
+      "name": "State Badges",
+      "kind": "chip",
+      "refersTo": "badge-neutral",
+      "description": "Pill with a dot for every state; the six Marcador tones, matching the client's EstadoBadge.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-neutro\"><span class=\"ds-badge-dot\"></span>Recebida</span><span class=\"ds-badge ds-badge-aviso\"><span class=\"ds-badge-dot\"></span>Pendente</span><span class=\"ds-badge ds-badge-progresso\"><span class=\"ds-badge-dot\"></span>Em revisão</span><span class=\"ds-badge ds-badge-feito\"><span class=\"ds-badge-dot\"></span>Aprovada</span><span class=\"ds-badge ds-badge-perigo\"><span class=\"ds-badge-dot\"></span>Rejeitada</span><span class=\"ds-badge ds-badge-inativo\"><span class=\"ds-badge-dot\"></span>Arquivada</span></div>",
+      "css": ".ds-badges { display: flex; flex-wrap: wrap; gap: 8px; } .ds-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 2px 10px; font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; box-shadow: inset 0 0 0 1px var(--ds-ring); background: var(--ds-bg); color: var(--ds-fg); } .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: var(--ds-dot); flex-shrink: 0; } .ds-badge-neutro { --ds-bg: var(--secondary); --ds-fg: var(--secondary-foreground); --ds-ring: var(--border); --ds-dot: color-mix(in oklch, var(--muted-foreground), transparent 40%); } .ds-badge-aviso { --ds-bg: var(--warning); --ds-fg: var(--warning-foreground); --ds-ring: color-mix(in oklch, var(--warning-foreground), transparent 80%); --ds-dot: oklch(0.769 0.188 70.08); } .ds-badge-progresso { --ds-bg: color-mix(in oklch, var(--primary), transparent 90%); --ds-fg: var(--primary); --ds-ring: color-mix(in oklch, var(--primary), transparent 80%); --ds-dot: color-mix(in oklch, var(--primary), transparent 50%); } .ds-badge-feito { --ds-bg: color-mix(in oklch, var(--primary), transparent 90%); --ds-fg: var(--primary); --ds-ring: color-mix(in oklch, var(--primary), transparent 80%); --ds-dot: var(--primary); } .ds-badge-perigo { --ds-bg: color-mix(in oklch, var(--destructive), transparent 90%); --ds-fg: var(--destructive); --ds-ring: color-mix(in oklch, var(--destructive), transparent 80%); --ds-dot: var(--destructive); } .ds-badge-inativo { --ds-bg: var(--secondary); --ds-fg: var(--muted-foreground); --ds-ring: var(--border); --ds-dot: color-mix(in oklch, var(--muted-foreground), transparent 60%); }"
+    },
+    {
+      "name": "List Card with Table",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A list lives in a 12px hairline card: 56px header row, tinted column header, 56px rows with hover and a trailing chevron.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-band\"><h2>Precisa de ti <span>9</span></h2></div><table class=\"ds-table\"><thead><tr><th></th><th>Fila</th><th class=\"ds-num\">Qtd</th><th></th></tr></thead><tbody><tr><td class=\"ds-dotcell\"><span class=\"ds-dot\" aria-label=\"Ação necessária\"></span></td><td>Encomendas</td><td class=\"ds-num\"><strong>6</strong></td><td class=\"ds-chev\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></td></tr><tr><td class=\"ds-dotcell\"><span class=\"ds-dot\" aria-label=\"Ação necessária\"></span></td><td>Empresas pendentes</td><td class=\"ds-num\"><strong>3</strong></td><td class=\"ds-chev\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></td></tr><tr><td class=\"ds-dotcell\"></td><td>Importações em revisão</td><td class=\"ds-num ds-muted\">0</td><td class=\"ds-chev\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></td></tr></tbody></table></section>",
+      "css": ".ds-card { overflow: hidden; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; } .ds-band { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 20px; border-bottom: 1px solid var(--border); } .ds-band h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; } .ds-band h2 span { margin-left: 8px; font-weight: 400; color: var(--muted-foreground); font-variant-numeric: tabular-nums; } .ds-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 20px; } .ds-table th { padding: 10px 16px; text-align: left; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--muted-foreground); background: color-mix(in oklch, var(--secondary), transparent 60%); border-bottom: 1px solid var(--border); } .ds-table td { height: 56px; padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; } .ds-table th:first-child, .ds-table td:first-child { padding-left: 20px; } .ds-table th:last-child, .ds-table td:last-child { padding-right: 20px; } .ds-table tbody tr:last-child td { border-bottom: 0; } .ds-table tbody tr { transition: background-color 150ms; cursor: pointer; } .ds-table tbody tr:hover { background: color-mix(in oklch, var(--secondary), transparent 60%); } .ds-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .ds-muted { color: var(--muted-foreground); } .ds-dotcell { width: 8px; } .ds-dot { display: inline-block; width: 8px; height: 8px; border-radius: 9999px; background: var(--brand); } .ds-chev { width: 16px; color: var(--muted-foreground); }"
+    },
+    {
+      "name": "Record Card with Inline Edit",
+      "kind": "card",
+      "refersTo": "card-header",
+      "description": "Settings-style Seccao card: label / value rows on the 10rem label column, and an editable row with the lime pencil tile.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-band\"><h2>Comercial</h2></div><dl class=\"ds-ficha\"><div class=\"ds-linha\"><dt>Volume pago</dt><dd>0,00 €</dd></div><div class=\"ds-linha\"><dt>Tier actual</dt><dd>Base</dd></div></dl><div class=\"ds-editavel\"><dt>Pin de tier</dt><dd>Sem pin (volume)</dd><button class=\"ds-edit\" aria-label=\"Editar pin de tier\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/><path d=\"m15 5 4 4\"/></svg></button></div></section>",
+      "css": ".ds-card { overflow: hidden; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; } .ds-band { display: flex; align-items: center; min-height: 56px; padding: 0 20px; border-bottom: 1px solid var(--border); } .ds-band h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; } .ds-ficha { margin: 0; padding: 14px 0 0; font-size: 14px; line-height: 20px; } .ds-linha { display: grid; grid-template-columns: 10rem minmax(0, 1fr); column-gap: 16px; padding: 6px 20px; } .ds-linha dt, .ds-editavel dt { color: var(--muted-foreground); } .ds-linha dd, .ds-editavel dd { margin: 0; } .ds-editavel { display: grid; grid-template-columns: 10rem minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 56px; padding: 12px 20px; font-size: 14px; line-height: 20px; } .ds-edit { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-foreground); cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-edit:hover { background: var(--primary); color: var(--primary-foreground); } .ds-edit:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%); }"
+    },
+    {
+      "name": "Text Input and Select",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline field, 10px radius, darker border on hover, green border plus soft ring on focus; the select is native with its own chevron.",
+      "html": "<div class=\"ds-fields\"><input class=\"ds-input\" placeholder=\"Procurar grupo…\" /><span class=\"ds-select\"><select class=\"ds-input\"><option>Todas as famílias</option><option>Ar condicionado</option></select><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></span></div>",
+      "css": ".ds-fields { display: flex; gap: 8px; } .ds-input { height: 40px; width: 100%; min-width: 0; padding: 4px 12px; border-radius: 10px; border: 1px solid var(--input); background: var(--background); color: var(--foreground); font-size: 14px; font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:hover { border-color: color-mix(in oklch, var(--input), var(--foreground) 15%); } .ds-input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%); } .ds-select { position: relative; display: inline-flex; min-width: 12rem; } .ds-select select { appearance: none; padding-right: 32px; cursor: pointer; } .ds-select svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); pointer-events: none; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "sidebar-item",
+      "description": "Collapsible icon sidebar on Sidebar Grey: lime-tinted current item, green count pills on queue destinations.",
+      "html": "<nav class=\"ds-side\" aria-label=\"Administração\"><a class=\"ds-item\" aria-current=\"page\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span>Painel</span></a><a class=\"ds-item\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/></svg><span>Encomendas</span><b class=\"ds-pill\">6</b></a><a class=\"ds-item\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z\"/><path d=\"M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2\"/><path d=\"M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2\"/><path d=\"M10 6h4\"/><path d=\"M10 10h4\"/><path d=\"M10 14h4\"/><path d=\"M10 18h4\"/></svg><span>Empresas</span><b class=\"ds-pill\">3</b></a></nav>",
+      "css": ".ds-side { display: flex; flex-direction: column; gap: 2px; width: 240px; padding: 8px; background: var(--sidebar); border-right: 1px solid var(--border); font-family: \"Inter Variable\", sans-serif; letter-spacing: -0.011em; font-feature-settings: \"cv11\", \"ss01\"; } .ds-item { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--muted-foreground); text-decoration: none; transition: background-color 150ms, color 150ms; } .ds-item svg { flex-shrink: 0; } .ds-item:hover { background: var(--sidebar-accent); color: var(--foreground); } .ds-item:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 75%); } .ds-item[aria-current=\"page\"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); } .ds-pill { margin-left: auto; display: flex; align-items: center; justify-content: center; min-width: 20px; padding: 0 6px; border-radius: 9999px; background: var(--primary); color: var(--primary-foreground); font-size: 11px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Staff Side of the Same Counter",
+    "overview": "Installers buy at the front of the counter in Climaeco Pro; staff work behind the same counter in the Admin app. Both sides are built from the same materials: white sheets on a pale grey sidebar, settings-style cards whose header row puts the title on the left and the value on the right, column tables living inside those cards, pill badges with a dot, rounded filter chips. Nothing on the staff side announces itself as an \"admin tool\"; a staff member who has used the client app already knows every gesture.\n\nThe world is calm and dense. Colour is almost entirely neutral grey; forest green appears only where something is chosen or acted on (the primary button, the active chip, the count pill, the current page number), and lime appears only as the tint behind the active sidebar item and the edit tile, and as the small dot that means \"this needs the office\". Depth comes from hairline borders, not shadows. Copy is data only: titles, values, labels and actions, never explanatory sentences.\n\nA separate \"price table\" admin look was built and rejected on 2026-10-01. Do not reintroduce a distinct admin identity.",
+    "keyCharacteristics": [
+      "Client parity: every token, radius and component shape comes from `client-frontend`.",
+      "Neutral sheets; green is reserved for choice and action.",
+      "Settings-style cards with a 56px title-left / value-right header row.",
+      "Column tables inside cards: tinted header row, 56px rows, hairline dividers.",
+      "Pill badges with a coloured dot for every state.",
+      "Inline row edits (pencil tile → X / check) confirmed by a toast with *Reverter*.",
+      "Collapsible icon sidebar with lime-tinted active item and green count pills."
+    ],
+    "rules": [
+      {
+        "name": "The Green Means Chosen Rule",
+        "body": "Forest green fills only what is selected or what acts: the primary button, the active chip, the current page, count pills, the save check. A green surface that is neither chosen nor clickable is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lime Dot Rule",
+        "body": "The lime `brand` dot means exactly one thing: this needs the office now. It is never decoration and never a status colour inside a badge.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Every number that lines up in a column or can change in place (quantities, prices, counts, page numbers) uses tabular figures and right alignment in tables.",
+        "section": "typography"
+      },
+      {
+        "name": "The 56px Band Rule",
+        "body": "Card header rows, table rows and editable rows share one height (56px) and one gutter (20px). A new row type joins that rhythm.",
+        "section": "layout"
+      },
+      {
+        "name": "The Floating-Only Shadow Rule",
+        "body": "A shadow means the element floats over the page (toast, dialog, the lone auth card). In-page cards and tables never carry one.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** make the change in `client-frontend` first and mirror it into the admin copy; keep the files listed at the top of this document in step.",
+      "**Do** build every page as title block → filter chips → cards, inside the 72rem column with 16px / 24px gutters.",
+      "**Do** put lists in a card with a tinted header row and 56px rows, and records in `Seccao` cards with label / value rows on the 7.5rem / 10rem label column.",
+      "**Do** show every state as a dot badge from the six `Marcador` tones.",
+      "**Do** edit one property at a time with the pencil tile and confirm with a *Reverter* toast.",
+      "**Do** keep one primary (Forest Green) button per state; secondary actions are outline or ghost.",
+      "**Do** use tabular figures and right alignment for every number in a column."
+    ],
+    "donts": [
+      "**Don't** give the Admin app its own look: no separate palette, typeface, density or \"admin tool\" chrome (the rejected \"Tabela de Preços\" world).",
+      "**Don't** fill large areas with green or lime; green fills only what is chosen or acts, lime only tints the active item and the edit tile.",
+      "**Don't** use the lime dot for anything except \"needs the office\".",
+      "**Don't** put shadows on in-page cards, tables or chips.",
+      "**Don't** add explanatory sentences under titles or in cards; the meta line under a title carries data only.",
+      "**Don't** use a second typeface or a display size above the 1.5rem headline.",
+      "**Don't** add a solid red button; destructive actions are red text on a 10% red fill.",
+      "**Don't** let a table scroll the page sideways; it scrolls inside its card."
+    ]
+  }
+}

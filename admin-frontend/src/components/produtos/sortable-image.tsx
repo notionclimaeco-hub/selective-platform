@@ -42,19 +42,20 @@ export function SortableImage({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "group relative aspect-square overflow-hidden rounded-lg border bg-muted",
-        isDragging && "z-10 opacity-70 ring-2 ring-ring"
+        "group relative aspect-square overflow-hidden rounded-xl border bg-background transition-[border-color,box-shadow]",
+        isCapa ? "border-primary" : "hover:border-foreground/25",
+        isDragging && "z-10 opacity-70 shadow-lg ring-2 ring-primary/40"
       )}
     >
       <img
         src={item.url}
         alt=""
-        className="size-full object-cover"
+        className="size-full object-contain"
         draggable={false}
       />
 
       {isCapa && (
-        <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+        <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
           <Star className="size-3 fill-current" />
           Capa
         </span>
@@ -64,7 +65,7 @@ export function SortableImage({
       <button
         type="button"
         aria-label="Arrastar para reordenar"
-        className="absolute top-1.5 right-1.5 flex size-7 cursor-grab touch-none items-center justify-center rounded-md bg-background/80 text-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 active:cursor-grabbing pointer-coarse:opacity-100"
+        className="absolute top-1.5 right-1.5 flex size-7 cursor-grab touch-none items-center justify-center rounded-lg border bg-background/95 text-muted-foreground opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing pointer-coarse:opacity-100"
         {...attributes}
         {...listeners}
       >
@@ -72,13 +73,13 @@ export function SortableImage({
       </button>
 
       {/* Bottom actions — always visible on touch screens (no hover there). */}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100">
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 border-t bg-background/95 p-1 opacity-0 transition-opacity duration-150 ease-out group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
         <div className="flex min-w-0 items-center gap-1">
           {!isCapa && (
             <button
               type="button"
               onClick={onDefinirCapa}
-              className="min-w-0 truncate rounded-md bg-background/85 px-2 py-1 text-xs font-medium text-foreground backdrop-blur hover:bg-background"
+              className="min-w-0 truncate rounded-lg px-2 py-1 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-secondary"
             >
               Definir capa
             </button>
@@ -89,7 +90,7 @@ export function SortableImage({
           type="button"
           onClick={onRemover}
           aria-label="Remover imagem"
-          className="flex size-7 items-center justify-center rounded-md bg-background/85 text-destructive backdrop-blur hover:bg-background"
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-destructive/10 hover:text-destructive"
         >
           <X className="size-4" />
         </button>

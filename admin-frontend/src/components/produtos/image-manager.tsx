@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { arrayMove } from "@dnd-kit/sortable"
-import { ImagePlus, Loader2, X } from "lucide-react"
+import { ImagePlus, Loader2 } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
+import { Janela, JanelaMeta } from "@/components/produtos/janela"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { FaixaOrdenavel } from "@/components/imagens/faixa-ordenavel"
 import { ZonaUpload } from "@/components/imagens/zona-upload"
 import { useObjectUrls } from "@/components/imagens/use-object-urls"
@@ -133,81 +135,19 @@ export function ImageManager({
   const ocupado = aEnviar || aGuardar
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={ocupado ? undefined : onClose}
-      />
-
-      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
-        <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
-          <div className="min-w-0 flex-1">
-            <h2 className="font-medium">Gerir imagens</h2>
-            <p className="text-sm break-words text-muted-foreground">
-              {alvo.nome}
-            </p>
-            <p className="text-xs break-all text-muted-foreground">
-              Ref.: {alvo.ref}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            disabled={ocupado}
-            aria-label="Fechar"
-          >
-            <X />
-          </Button>
-        </header>
-
-        {/* Swallow drops that miss the upload zone (padding) so the browser
-            doesn't navigate to the file. */}
-        <div
-          className="flex-1 overflow-y-auto px-5 py-4"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => e.preventDefault()}
-        >
-          {dados === undefined ? (
-            <p className="text-sm text-muted-foreground">A carregar…</p>
-          ) : (
-            <ZonaUpload
-              ocupado={ocupado}
-              onFicheiros={aoReceberFicheiros}
-              rotulo={aEnviar ? "A enviar…" : "Adicionar imagens"}
-            >
-              <span className="mb-1 text-xs text-muted-foreground">
-                A primeira imagem é a capa. Arraste para reordenar.
-              </span>
-
-              <FaixaOrdenavel
-                itens={itens}
-                onReordenar={reordenar}
-                onRemover={remover}
-                onCapa={definirCapa}
-                vazio={
-                  <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-12 text-center">
-                    <ImagePlus className="size-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Arraste imagens para aqui ou use “Adicionar imagens”.
-                    </p>
-                  </div>
-                }
-              />
-
-              {erro && <p className="mt-1 text-sm text-destructive">{erro}</p>}
-            </ZonaUpload>
-          )}
-        </div>
-
-        {/* Stacks on phones: the checkbox label is too long to share a row
-            with two buttons at 320–390px. */}
-        <footer className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <Janela
+      titulo="Gerir imagens"
+      onFechar={onClose}
+      bloqueada={ocupado}
+      rodape={
+        // Stacks on phones: the checkbox label is too long to share a row
+        // with two buttons at 320–390px.
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           {alvo.temGrupo ? (
             <label className="flex min-w-0 items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                className="size-4 shrink-0"
+                className="size-4 shrink-0 accent-primary"
                 checked={aplicarAoGrupo}
                 disabled={ocupado}
                 onChange={(e) => setAplicarAoGrupo(e.target.checked)}
@@ -226,8 +166,72 @@ export function ImageManager({
               {aGuardar ? "A guardar…" : "Guardar"}
             </Button>
           </div>
-        </footer>
+        </div>
+      }
+    >
+      <JanelaMeta>
+        <span className="font-medium break-words">{alvo.nome}</span>
+        <span className="break-all text-muted-foreground">Ref. {alvo.ref}</span>
+        <span className="ml-auto text-muted-foreground tabular-nums">
+          {itens.length} {itens.length === 1 ? "imagem" : "imagens"}
+        </span>
+      </JanelaMeta>
+
+      {/* Swallow drops that miss the upload zone (padding) so the browser
+          doesn't navigate to the file. */}
+      <div
+        className="flex-1 overflow-y-auto px-5 py-5"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => e.preventDefault()}
+      >
+        {dados === undefined ? (
+          <div role="status" className="flex flex-col gap-3">
+            <span className="sr-only">A carregar…</span>
+            <div aria-hidden className="flex items-center gap-3">
+              <Skeleton className="h-9 w-44 rounded-lg" />
+              <Skeleton className="h-3 w-48 rounded-md" />
+            </div>
+            <div aria-hidden className="flex gap-3 sm:grid sm:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton
+                  key={i}
+                  className="aspect-square w-32 shrink-0 rounded-xl sm:w-auto"
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <ZonaUpload
+            ocupado={ocupado}
+            onFicheiros={aoReceberFicheiros}
+            rotulo={aEnviar ? "A enviar…" : "Adicionar imagens"}
+            nota="A primeira é a capa. Arraste para reordenar."
+          >
+            <FaixaOrdenavel
+              itens={itens}
+              onReordenar={reordenar}
+              onRemover={remover}
+              onCapa={definirCapa}
+              vazio={
+                <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-input bg-secondary/30 px-6 py-12 text-center">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-background ring-1 ring-border">
+                    <ImagePlus className="size-5 text-muted-foreground" />
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    Arraste imagens para aqui ou use “Adicionar imagens”.
+                  </p>
+                </div>
+              }
+            />
+
+            {erro && (
+              <p role="alert" className="text-sm text-destructive">
+                {erro}
+              </p>
+            )}
+          </ZonaUpload>
+        )}
       </div>
-    </div>
+    </Janela>
   )
 }

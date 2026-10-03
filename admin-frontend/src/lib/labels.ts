@@ -49,17 +49,7 @@ export const ESTADO_LABELS: Record<Estado, string> = {
 
 export const ESTADOS = Object.keys(ESTADO_LABELS) as Array<Estado>
 
-export const ESTADO_CLASSES: Record<Estado, string> = {
-  rascunho: "bg-amber-100 text-amber-800",
-  publicado: "bg-green-100 text-green-800",
-  descontinuado: "bg-muted text-muted-foreground",
-}
-
-export type EstadoAprovacao =
-  | "pendente"
-  | "aprovada"
-  | "rejeitada"
-  | "suspensa"
+export type EstadoAprovacao = "pendente" | "aprovada" | "rejeitada" | "suspensa"
 
 export const ESTADO_APROVACAO_LABELS: Record<EstadoAprovacao, string> = {
   pendente: "Pendente",
@@ -69,15 +59,8 @@ export const ESTADO_APROVACAO_LABELS: Record<EstadoAprovacao, string> = {
 }
 
 export const ESTADOS_APROVACAO = Object.keys(
-  ESTADO_APROVACAO_LABELS,
+  ESTADO_APROVACAO_LABELS
 ) as Array<EstadoAprovacao>
-
-export const ESTADO_APROVACAO_CLASSES: Record<EstadoAprovacao, string> = {
-  pendente: "bg-amber-100 text-amber-800",
-  aprovada: "bg-green-100 text-green-800",
-  rejeitada: "bg-destructive/10 text-destructive",
-  suspensa: "bg-muted text-muted-foreground",
-}
 
 export const TRANSICOES_APROVACAO: Record<
   EstadoAprovacao,
@@ -204,26 +187,12 @@ export const ESTADO_IMPORTACAO_LABELS: Record<EstadoImportacao, string> = {
   rejeitada: "Rejeitada",
 }
 
-export const ESTADO_IMPORTACAO_CLASSES: Record<EstadoImportacao, string> = {
-  "a-extrair": "bg-muted text-muted-foreground",
-  "em-revisao": "bg-amber-100 text-amber-800",
-  "a-promover": "bg-sky-100 text-sky-800",
-  aprovada: "bg-green-100 text-green-800",
-  rejeitada: "bg-destructive/10 text-destructive",
-}
-
 export type Diff = "novo" | "alterado" | "igual"
 
 export const DIFF_LABELS: Record<Diff, string> = {
   novo: "Novo",
   alterado: "Preço alterado",
   igual: "Igual",
-}
-
-export const DIFF_CLASSES: Record<Diff, string> = {
-  novo: "bg-green-100 text-green-800",
-  alterado: "bg-amber-100 text-amber-800",
-  igual: "bg-muted text-muted-foreground",
 }
 
 // --- Image candidates (imagens na revisão) ----------------------------------
@@ -250,4 +219,38 @@ const DATA_HORA = new Intl.DateTimeFormat("pt-PT", {
 
 export function dataHora(ms: number): string {
   return DATA_HORA.format(new Date(ms))
+}
+
+// --- Marker tones (price-table redesign) --------------------------------------
+// State is shown as `<Marcador tom=…>` (components/ui/tabela.tsx): a square
+// swatch + the word.
+
+export type Tom =
+  "neutro" | "aviso" | "progresso" | "feito" | "perigo" | "inativo"
+
+export const ESTADO_TOM: Record<Estado, Tom> = {
+  rascunho: "aviso",
+  publicado: "feito",
+  descontinuado: "inativo",
+}
+
+export const ESTADO_APROVACAO_TOM: Record<EstadoAprovacao, Tom> = {
+  pendente: "aviso",
+  aprovada: "feito",
+  rejeitada: "perigo",
+  suspensa: "inativo",
+}
+
+export const ESTADO_IMPORTACAO_TOM: Record<EstadoImportacao, Tom> = {
+  "a-extrair": "inativo",
+  "em-revisao": "aviso",
+  "a-promover": "progresso",
+  aprovada: "feito",
+  rejeitada: "perigo",
+}
+
+export const DIFF_TOM: Record<Diff, Tom> = {
+  novo: "feito",
+  alterado: "aviso",
+  igual: "inativo",
 }

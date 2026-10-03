@@ -2,18 +2,24 @@ import { useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { ImagePlus } from "lucide-react"
 
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
 // Drop target plus an "add files" button. `onFicheiros` receives only image
 // files; an empty array means a drop held no images (callers show an error).
-// Drops and the picker are ignored while `ocupado`.
+// Drops and the picker are ignored while `ocupado`. `nota` is a short hint
+// set on the button's row.
 export function ZonaUpload({
   ocupado,
   onFicheiros,
   rotulo,
+  nota,
   children,
 }: {
   ocupado: boolean
   onFicheiros: (files: Array<File>) => void
   rotulo: string
+  nota?: ReactNode
   children?: ReactNode
 }) {
   const [aArrastar, setAArrastar] = useState(false)
@@ -53,27 +59,37 @@ export function ZonaUpload({
       onDrop={handleDrop}
     >
       {aArrastar && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-primary/5 text-primary">
-          <ImagePlus className="size-8" />
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-background/90 text-primary backdrop-blur-[2px]">
+          <ImagePlus className="size-7" />
           <p className="text-sm font-medium">Largar para adicionar</p>
         </div>
       )}
-      <label className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-4xl border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
-        <ImagePlus className="size-4" />
-        {rotulo}
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          disabled={ocupado}
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? [])
-            e.target.value = ""
-            if (files.length > 0) onFicheiros(files)
-          }}
-        />
-      </label>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <label
+          aria-disabled={ocupado || undefined}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "cursor-pointer has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/25",
+            ocupado && "cursor-default opacity-50"
+          )}
+        >
+          <ImagePlus data-icon="inline-start" />
+          {rotulo}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="sr-only"
+            disabled={ocupado}
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              e.target.value = ""
+              if (files.length > 0) onFicheiros(files)
+            }}
+          />
+        </label>
+        {nota && <span className="text-xs text-muted-foreground">{nota}</span>}
+      </div>
       {children}
     </div>
   )

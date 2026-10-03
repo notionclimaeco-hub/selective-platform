@@ -1,7 +1,15 @@
 import { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { campoCls } from "@/components/ui/tabela"
+import { cn } from "@/lib/utils"
 
 /** Reject an import run with an optional free-text reason. */
 export function RejeitarDialog({
@@ -30,26 +38,46 @@ export function RejeitarDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={aProcessar ? undefined : onCancelar}
-      />
-      <div className="relative w-full max-w-sm rounded-xl border bg-background p-5 shadow-xl">
-        <h2 className="font-medium break-words">{titulo}</h2>
-        <label className="mt-3 flex flex-col gap-1.5 text-sm">
-          <span className="text-muted-foreground">Motivo</span>
+    <Dialog
+      open
+      onOpenChange={(aberto) => {
+        if (!aberto && !aProcessar) onCancelar()
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="block rounded-2xl sm:max-w-sm"
+      >
+        <DialogTitle className="pr-8 text-lg font-semibold tracking-tight break-words">
+          {titulo}
+        </DialogTitle>
+        <DialogClose
+          disabled={aProcessar}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-4 right-4 bg-secondary"
+            />
+          }
+        >
+          <X />
+          <span className="sr-only">Fechar</span>
+        </DialogClose>
+        <label className="mt-4 flex flex-col gap-1.5">
+          <span className="font-medium">Motivo</span>
           <textarea
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             rows={3}
-            className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className={cn(campoCls, "h-auto w-full py-2")}
           />
         </label>
         {erro && (
           <p className="mt-3 text-sm break-words text-destructive">{erro}</p>
         )}
-        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onCancelar} disabled={aProcessar}>
             Cancelar
           </Button>
@@ -62,7 +90,7 @@ export function RejeitarDialog({
             {aProcessar ? "A processar…" : "Rejeitar"}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

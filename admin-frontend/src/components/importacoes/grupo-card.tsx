@@ -1,19 +1,14 @@
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import {
-  Camera,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  ImageIcon,
-  Sparkles,
-  TriangleAlert,
-} from "lucide-react"
+import { Check, ChevronDown, ChevronRight, TriangleAlert } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Destaque, Marcador } from "@/components/ui/tabela"
 import {
+  DIFF_TOM,
   rotuloComponente,
   rotuloFamilia,
   rotuloSegmento,
@@ -32,34 +27,15 @@ import { cn } from "@/lib/utils"
 import { TabelaVariantes } from "./tabela-variantes"
 import { VisorPagina } from "./painel-pagina"
 import { PainelImagens } from "./painel-imagens"
+import { Subtitulo } from "./subtitulo"
 
 type Obter = NonNullable<FunctionReturnType<typeof api.importacoes.obter>>
 export type ResumoGrupo = Obter["grupos"][number]
 
-function Chip({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        className ?? "bg-secondary text-secondary-foreground"
-      )}
-    >
-      {children}
-    </span>
-  )
-}
-
 /**
- * One staged group of the review page. The header (always rendered) carries
- * the taxonomy badges, the counts and the revisto mark; the body subscribes
- * to the group's SKUs only while open. Groups nothing changed in start
- * collapsed.
+ * One staged group of the review page, a row of the "Grupos" card. The header (always rendered) carries the taxonomy, the counts and
+ * the revisto mark; the body subscribes to the group's SKUs only while open.
+ * Groups nothing changed in start collapsed.
  */
 export function GrupoCard({
   importacaoId,
@@ -73,92 +49,87 @@ export function GrupoCard({
   const [aberto, setAberto] = useState(!grupoInalterado(resumo))
   const precisa = resumo.precisaRevisao && !resumo.revisto
 
+  const taxonomia = [
+    rotuloFamilia(resumo.familia),
+    resumo.sistema && rotuloSistema(resumo.sistema),
+    resumo.tipoUnidade && rotuloTipoUnidade(resumo.tipoUnidade),
+    resumo.componente !== "conjunto" && rotuloComponente(resumo.componente),
+    resumo.segmento && rotuloSegmento(resumo.segmento),
+  ].filter(Boolean)
+
   return (
-    <li
-      className={cn(
-        "rounded-xl border bg-card",
-        precisa && "border-amber-300/70",
-        resumo.revisto && "border-green-300/70"
-      )}
-    >
+    <li>
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
         aria-expanded={aberto}
-        className="flex w-full items-start gap-2 p-3 text-left"
+        className={cn(
+          "flex w-full items-start gap-3 px-5 py-3.5 text-left transition-colors outline-none hover:bg-secondary/40 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:ring-inset",
+          aberto && "bg-secondary/40"
+        )}
       >
         {aberto ? (
           <ChevronDown className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         ) : (
           <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         )}
-        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="font-medium break-words">{resumo.nomeGrupo}</span>
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            {precisa && <Destaque />}
+            <span className="font-semibold break-words">
+              {resumo.nomeGrupo}
+            </span>
             {resumo.gama && (
               <span className="text-sm text-muted-foreground">
                 {resumo.gama}
               </span>
             )}
-            {resumo.revisto && (
-              <Chip className="bg-green-100 text-green-800">
-                <Check className="mr-1 size-3" />
-                Revisto
-              </Chip>
-            )}
           </span>
-          <span className="flex flex-wrap gap-1">
-            <Chip>{rotuloFamilia(resumo.familia)}</Chip>
-            {resumo.sistema && <Chip>{rotuloSistema(resumo.sistema)}</Chip>}
-            {resumo.tipoUnidade && (
-              <Chip>{rotuloTipoUnidade(resumo.tipoUnidade)}</Chip>
-            )}
-            {resumo.componente !== "conjunto" && (
-              <Chip>{rotuloComponente(resumo.componente)}</Chip>
-            )}
-            {resumo.segmento && <Chip>{rotuloSegmento(resumo.segmento)}</Chip>}
+          <span className="text-xs text-muted-foreground">
+            {taxonomia.join(" · ")}
           </span>
-          <span className="flex flex-wrap gap-1 text-xs text-muted-foreground">
-            <span className="py-0.5">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-1">
+            <span className="mr-1 text-sm font-medium tabular-nums">
               {resumo.numSkus} {resumo.numSkus === 1 ? "SKU" : "SKUs"}
             </span>
             {resumo.numAvisos > 0 && (
-              <Chip className="bg-amber-100 text-amber-800">
-                <TriangleAlert className="mr-1 size-3" />
-                {resumo.numAvisos} {resumo.numAvisos === 1 ? "aviso" : "avisos"}
-              </Chip>
+              <Marcador tom="aviso">
+                <span className="tabular-nums">{resumo.numAvisos}</span>{" "}
+                {resumo.numAvisos === 1 ? "aviso" : "avisos"}
+              </Marcador>
             )}
             {resumo.numNovos > 0 && (
-              <Chip className="bg-green-100 text-green-800">
-                {resumo.numNovos} novos
-              </Chip>
+              <Marcador tom={DIFF_TOM.novo}>
+                <span className="tabular-nums">{resumo.numNovos}</span> novos
+              </Marcador>
             )}
             {resumo.numAlterados > 0 && (
-              <Chip className="bg-amber-100 text-amber-800">
-                {resumo.numAlterados} alterados
-              </Chip>
+              <Marcador tom={DIFF_TOM.alterado}>
+                <span className="tabular-nums">{resumo.numAlterados}</span>{" "}
+                alterados
+              </Marcador>
             )}
-            {resumo.numIguais > 0 && <Chip>{resumo.numIguais} iguais</Chip>}
+            {resumo.numIguais > 0 && (
+              <Marcador tom={DIFF_TOM.igual}>
+                <span className="tabular-nums">{resumo.numIguais}</span> iguais
+              </Marcador>
+            )}
             {!resumo.temImagens && (
-              <Chip className="bg-muted text-muted-foreground">
-                <ImageIcon className="mr-1 size-3" />
-                Sem imagens
-              </Chip>
+              <Marcador tom="inativo">Sem imagens</Marcador>
             )}
             {resumo.fotosARever && (
-              <Chip className="bg-amber-100 text-amber-800">
-                <Camera className="mr-1 size-3" />
-                Fotos a rever
-              </Chip>
+              <Marcador tom="aviso">Fotos a rever</Marcador>
             )}
             {resumo.escolhaAgente && (
-              <Chip className="bg-sky-100 text-sky-800">
-                <Sparkles className="mr-1 size-3" />
-                Escolha do agente
-              </Chip>
+              <Marcador tom="progresso">Escolha do agente</Marcador>
             )}
           </span>
         </span>
+        {resumo.revisto && (
+          <Marcador tom="feito" className="shrink-0">
+            Revisto
+          </Marcador>
+        )}
       </button>
 
       {aberto && (
@@ -174,7 +145,7 @@ export function GrupoCard({
 
 /**
  * Open group: images and the variant table on the left, the price-table
- * pages on the right (stacked on narrow screens). The page badges in the
+ * pages on the right (stacked on narrow screens). The page buttons in the
  * table move the viewer to that page.
  */
 function CorpoGrupo({
@@ -213,15 +184,35 @@ function CorpoGrupo({
   }
 
   if (grupo === undefined) {
+    // Same frame as the loaded group: variants table left, page right.
     return (
-      <p className="border-t px-3 py-3 text-sm text-muted-foreground">
-        A carregar…
-      </p>
+      <div
+        role="status"
+        className="grid gap-6 border-t px-5 pt-5 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:items-start"
+      >
+        <span className="sr-only">A carregar…</span>
+        <div aria-hidden className="flex min-w-0 flex-col gap-3">
+          <Skeleton className="h-4 w-24 rounded-md" />
+          <div className="divide-y overflow-hidden rounded-lg border">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex h-12 items-center gap-4 px-4">
+                <Skeleton className="h-4 w-28 rounded-md" />
+                <Skeleton className="h-4 w-1/3 rounded-md" />
+                <Skeleton className="ml-auto h-4 w-16 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <Skeleton
+          aria-hidden
+          className="aspect-[1/1.414] w-full rounded-lg lg:max-h-[calc(100svh-7.5rem)]"
+        />
+      </div>
     )
   }
   if (grupo === null) {
     return (
-      <p className="border-t px-3 py-3 text-sm text-muted-foreground">
+      <p className="border-t px-5 py-4 text-sm text-muted-foreground">
         Grupo sem SKUs.
       </p>
     )
@@ -232,87 +223,98 @@ function CorpoGrupo({
   const paginaAtual = pagina ?? grupo.paginas.at(0)?.pagina ?? 0
 
   return (
-    <div className="grid gap-3 border-t p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
-      <div className="flex min-w-0 flex-col gap-3">
-      {avisos.length > 0 && (
-        <ul className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          {avisos.map((a, i) => (
-            <li key={i} className="flex gap-2 break-words">
-              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-              <span className="min-w-0">
-                <span className="font-medium break-all">{a.ref}</span> ·{" "}
-                {a.aviso}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="grid gap-6 border-t px-5 pt-5 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-6">
+        {avisos.length > 0 && (
+          <ul className="flex flex-col gap-1 rounded-lg bg-warning px-3 py-2.5 text-xs text-warning-foreground ring-1 ring-warning-foreground/20 ring-inset">
+            {avisos.map((a, i) => (
+              <li key={i} className="flex gap-2 break-words">
+                <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+                <span className="min-w-0">
+                  <span className="font-semibold break-all">{a.ref}</span> ·{" "}
+                  {a.aviso}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {comuns.length > 0 && (
-        <dl className="flex flex-wrap gap-1.5">
-          {comuns.map((a) => (
-            <div
-              key={a.chave}
-              className="inline-flex max-w-full items-baseline gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs"
-            >
-              <dt className="text-muted-foreground">{rotuloChave(a.chave)}</dt>
-              <dd className="font-medium break-all">{rotuloValor(a.valor)}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+        <div className="flex min-w-0 flex-col">
+          <Subtitulo contagem={grupo.skus.length}>Variantes</Subtitulo>
+          <TabelaVariantes
+            skus={grupo.skus}
+            familia={resumo.familia}
+            onVerPagina={setPagina}
+          />
+        </div>
 
-      <PainelImagens
-        grupoModelo={resumo.grupoModelo}
-        marca={resumo.marca}
-        refs={grupo.skus.map((s) => s.ref)}
-        cores={[
-          ...new Set(grupo.skus.flatMap((s) => valorDe(s, "cor") ?? [])),
-        ]}
-        podeEditar={podeRever}
-      />
+        {comuns.length > 0 && (
+          <div className="flex min-w-0 flex-col">
+            <Subtitulo>Comum às variantes</Subtitulo>
+            <dl className="grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
+              {comuns.map((a) => (
+                <div
+                  key={a.chave}
+                  className="flex items-baseline justify-between gap-3"
+                >
+                  <dt className="shrink-0 text-muted-foreground">
+                    {rotuloChave(a.chave)}
+                  </dt>
+                  <dd className="min-w-0 text-right font-medium break-all tabular-nums">
+                    {rotuloValor(a.valor)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
 
-      <TabelaVariantes
-        skus={grupo.skus}
-        familia={resumo.familia}
-        onVerPagina={setPagina}
-      />
+        <PainelImagens
+          grupoModelo={resumo.grupoModelo}
+          marca={resumo.marca}
+          refs={grupo.skus.map((s) => s.ref)}
+          cores={[
+            ...new Set(grupo.skus.flatMap((s) => valorDe(s, "cor") ?? [])),
+          ]}
+          podeEditar={podeRever}
+        />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          {resumo.grupoModelo}
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={resumo.revisto}
-          disabled={!podeRever || aMarcar}
-          onClick={() => void alternarRevisto()}
-          className={cn(
-            "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors disabled:opacity-50",
-            resumo.revisto
-              ? "border-green-300 bg-green-100 text-green-800"
-              : "bg-background hover:bg-muted"
-          )}
-        >
-          <span
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+          <span className="text-xs text-muted-foreground">
+            {resumo.grupoModelo}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={resumo.revisto}
+            disabled={!podeRever || aMarcar}
+            onClick={() => void alternarRevisto()}
             className={cn(
-              "flex size-4 items-center justify-center rounded-full border",
+              "inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-[background-color,border-color,color,transform] duration-150 ease-out outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
               resumo.revisto
-                ? "border-green-700 bg-green-700 text-white"
-                : "border-muted-foreground/40"
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-input bg-background shadow-xs hover:bg-muted"
             )}
           >
-            {resumo.revisto && <Check className="size-3" strokeWidth={3} />}
-          </span>
-          Revisto
-        </button>
-      </div>
-      {erro && <p className="text-sm text-destructive">{erro}</p>}
+            <span
+              aria-hidden
+              className={cn(
+                "flex size-4 items-center justify-center rounded-md border transition-colors duration-150",
+                resumo.revisto
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input bg-background"
+              )}
+            >
+              {resumo.revisto && <Check className="size-3" strokeWidth={3} />}
+            </span>
+            Revisto
+          </button>
+        </div>
+        {erro && <p className="text-sm text-destructive">{erro}</p>}
       </div>
 
-      {/* Sticks just below the app header (h-16). */}
-      <div className="min-w-0 lg:sticky lg:top-20">
+      {/* Sticks near the top of the viewport on wide screens. */}
+      <div className="min-w-0 lg:sticky lg:top-8">
         <VisorPagina
           paginas={grupo.paginas}
           pagina={paginaAtual}

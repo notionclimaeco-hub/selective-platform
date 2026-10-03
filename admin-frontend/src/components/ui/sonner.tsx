@@ -11,8 +11,10 @@ export function Toaster(props: ToasterProps) {
     <Sonner
       position="bottom-center"
       duration={6000}
-      offset={16}
-      mobileOffset={16}
+      // Clears the import review page's fixed decision bar (`__root.tsx`
+      // mounts it with the same offset).
+      offset={{ bottom: 80 }}
+      mobileOffset={{ bottom: 80 }}
       style={
         {
           "--normal-bg": "var(--popover)",

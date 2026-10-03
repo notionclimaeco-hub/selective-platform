@@ -5,3 +5,8 @@ allowBuilds:
   lightningcss: true
   unrs-resolver: true
   msw: false
+
+# react-router-ssr-query resolves its query-core peer to the newest release on
+# any lockfile change, which splits QueryClient types from react-query's copy.
+overrides:
+  "@tanstack/query-core": 5.101.3

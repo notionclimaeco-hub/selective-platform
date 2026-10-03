@@ -3,7 +3,7 @@ import { Loader2, Scissors } from "lucide-react"
 import type { Candidata } from "@/lib/imagens-estado"
 
 const ESTILO_BOTAO =
-  "rounded-md bg-background/85 text-foreground backdrop-blur hover:bg-background disabled:pointer-events-none disabled:opacity-50"
+  "rounded-lg border border-input bg-background/90 text-foreground backdrop-blur transition-[background-color,transform] duration-150 ease-out hover:bg-background active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50"
 
 // The cutout and its original are one pair: a recorte points at its original
 // (`origem`), the original at its recorte (`recorteId`).

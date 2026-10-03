@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   Authenticated,
@@ -22,20 +23,33 @@ import type { FunctionReturnType } from "convex/server"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Paginacao } from "@/components/ui/paginacao"
-import { useDebounced } from "@/lib/use-debounced"
+import { LinhasEsqueleto } from "@/components/ui/skeleton"
+import { Seletor } from "@/components/ui/seletor"
+import { BOTAO_EDITAR } from "@/components/ui/campo-editavel"
 import {
-  ImageManager
-  
-} from "@/components/produtos/image-manager"
-import type {ManagerAlvo} from "@/components/produtos/image-manager";
+  Cabecalho,
+  Filtros,
+  Marcador,
+  Seccao,
+  Tabela,
+  Td,
+  Th,
+  Vazio,
+  campoCls,
+  linhaCls,
+} from "@/components/ui/tabela"
+import { useDebounced } from "@/lib/use-debounced"
+import { ImageManager } from "@/components/produtos/image-manager"
+import type { ManagerAlvo } from "@/components/produtos/image-manager"
 import { ProductEditor } from "@/components/produtos/product-editor"
 import { ConfirmDialog } from "@/components/produtos/confirm-dialog"
 import {
   FAMILIAS,
-  ESTADO_CLASSES,
   ESTADO_LABELS,
+  ESTADO_TOM,
   ESTADOS,
   MARCA_LABELS,
+  eurosDeCents,
   rotuloFamilia,
   rotuloMarca,
 } from "@/lib/labels"
@@ -43,8 +57,9 @@ import type { Estado } from "@/lib/labels"
 
 export const Route = createFileRoute("/produtos")({ component: ProdutosPage })
 
-type AdminEntry =
-  FunctionReturnType<typeof api.produtos.listarAdmin>["entradas"][number]
+type AdminEntry = FunctionReturnType<
+  typeof api.produtos.listarAdmin
+>["entradas"][number]
 type AdminVariante = AdminEntry["variantes"][number]
 
 const MARCAS = Object.keys(MARCA_LABELS)
@@ -52,10 +67,7 @@ const MARCAS = Object.keys(MARCA_LABELS)
 // Human label for a variant = the values of the attribute keys that actually
 // vary within its group (specs shared by every variant are omitted); falls
 // back to the manufacturer ref when nothing distinguishes it.
-function rotuloVariante(
-  v: AdminVariante,
-  grupo: Array<AdminVariante>,
-): string {
+function rotuloVariante(v: AdminVariante, grupo: Array<AdminVariante>): string {
   const valoresPorChave = new Map<string, Set<string>>()
   for (const variante of grupo) {
     for (const a of variante.atributos) {
@@ -81,10 +93,29 @@ type ConfirmState = {
   onConfirmar: () => Promise<void>
 }
 
-const eur = new Intl.NumberFormat("pt-PT", {
-  style: "currency",
-  currency: "EUR",
-})
+/** A native select laid invisibly over its own face, so the control reads
+ *  like the table (a `Marcador`, a word) but keeps the platform picker. */
+function SeletorSobreposto({
+  rosto,
+  children,
+  ...props
+}: { rosto: ReactNode } & ComponentProps<"select">) {
+  return (
+    <span className="relative -mx-1.5 inline-flex h-7 items-center gap-1 rounded-lg px-1.5 transition-colors duration-150 ease-out hover:bg-secondary has-[select:disabled]:opacity-50 has-[select:focus-visible]:ring-3 has-[select:focus-visible]:ring-ring/25">
+      {rosto}
+      <ChevronDown
+        aria-hidden
+        className="size-3.5 shrink-0 text-muted-foreground"
+      />
+      <select
+        {...props}
+        className="absolute inset-0 size-full cursor-pointer appearance-none opacity-0 disabled:cursor-default"
+      >
+        {children}
+      </select>
+    </span>
+  )
+}
 
 function EstadoSelect({
   value,
@@ -98,22 +129,21 @@ function EstadoSelect({
   ariaLabel: string
 }) {
   return (
-    <select
+    <SeletorSobreposto
       aria-label={ariaLabel}
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as Estado)}
-      className={cn(
-        "h-8 rounded-full border px-2.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50",
-        ESTADO_CLASSES[value],
-      )}
+      rosto={
+        <Marcador tom={ESTADO_TOM[value]}>{ESTADO_LABELS[value]}</Marcador>
+      }
     >
       {ESTADOS.map((e) => (
         <option key={e} value={e}>
           {ESTADO_LABELS[e]}
         </option>
       ))}
-    </select>
+    </SeletorSobreposto>
   )
 }
 
@@ -134,7 +164,7 @@ function ProdutosPage() {
   async function mudarEstado(
     ref: string,
     estado: Estado,
-    aplicarAoGrupo?: boolean,
+    aplicarAoGrupo?: boolean
   ) {
     setErroAcao(null)
     try {
@@ -164,20 +194,14 @@ function ProdutosPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-10 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-foreground">
-          Catálogo
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight">Produtos</h1>
-        <p className="text-sm text-muted-foreground">
-          Publicar, editar e gerir imagens dos produtos. Variantes da mesma
-          família partilham as fotografias.
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
+      <Cabecalho titulo="Produtos" />
 
       {erroAcao && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
           {erroAcao}
         </p>
       )}
@@ -250,9 +274,6 @@ type ListaProps = {
   }) => void
 }
 
-const filtroCls =
-  "h-9 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-
 function Lista({
   busca,
   setBusca,
@@ -304,22 +325,21 @@ function Lista({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Procurar por nome ou referência…"
-            className={cn(filtroCls, "w-full pl-9")}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Filtros
+          valor={estado}
+          onChange={(v) => setEstadoFiltro(v ?? "")}
+          opcoes={[
+            { valor: undefined, rotulo: "Todos" },
+            ...ESTADOS.map((e) => ({ valor: e, rotulo: ESTADO_LABELS[e] })),
+          ]}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Seletor
             aria-label="Filtrar por marca"
             value={marcaFiltro}
             onChange={(e) => setMarcaFiltro(e.target.value)}
-            className={filtroCls}
+            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
           >
             <option value="">Todas as marcas</option>
             {MARCAS.map((m) => (
@@ -327,12 +347,12 @@ function Lista({
                 {MARCA_LABELS[m]}
               </option>
             ))}
-          </select>
-          <select
+          </Seletor>
+          <Seletor
             aria-label="Filtrar por família"
             value={familiaFiltro}
             onChange={(e) => setFamiliaFiltro(e.target.value)}
-            className={filtroCls}
+            className="min-w-0 flex-1 sm:w-48 sm:flex-none"
           >
             <option value="">Todas as famílias</option>
             {FAMILIAS.map((f) => (
@@ -340,43 +360,89 @@ function Lista({
                 {rotuloFamilia(f)}
               </option>
             ))}
-          </select>
-          <select
-            aria-label="Filtrar por estado"
-            value={estadoFiltro}
-            onChange={(e) => setEstadoFiltro(e.target.value)}
-            className={filtroCls}
-          >
-            <option value="">Todos os estados</option>
-            {ESTADOS.map((e) => (
-              <option key={e} value={e}>
-                {ESTADO_LABELS[e]}
-              </option>
-            ))}
-          </select>
+          </Seletor>
+          <div className="relative basis-full sm:basis-auto">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              aria-label="Procurar"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Procurar por nome ou referência…"
+              className={cn(campoCls, "w-full pl-8 sm:w-64")}
+            />
+          </div>
         </div>
       </div>
 
-      {resultado === undefined ? (
-        <p className="text-sm text-muted-foreground">A carregar…</p>
-      ) : resultado.totalFamilias === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {temFiltro
-            ? "Nenhum produto corresponde aos filtros."
-            : "Sem produtos importados."}
-        </p>
-      ) : (
-        <>
-          <p className="text-xs text-muted-foreground">
-            {resultado.totalFamilias}{" "}
-            {resultado.totalFamilias === 1 ? "família" : "famílias"} ·{" "}
-            {resultado.totalProdutos}{" "}
-            {resultado.totalProdutos === 1 ? "produto" : "produtos"}
-          </p>
-          <ul className="flex flex-col gap-2">
+      <Seccao
+        titulo={
+          <span className="whitespace-nowrap">
+            {estado ? ESTADO_LABELS[estado] : "Todos os produtos"}
+          </span>
+        }
+        contagem={
+          resultado === undefined ? (
+            "…"
+          ) : (
+            <>
+              {resultado.totalFamilias}{" "}
+              {resultado.totalFamilias === 1 ? "família" : "famílias"}
+              <span className="hidden sm:inline">
+                {" · "}
+                {resultado.totalProdutos}{" "}
+                {resultado.totalProdutos === 1 ? "produto" : "produtos"}
+              </span>
+            </>
+          )
+        }
+      >
+        {resultado === undefined ? (
+          <LinhasEsqueleto
+            linhas={8}
+            colunas={[
+              "size-10 rounded-lg",
+              "w-2/5",
+              "ml-auto hidden w-16 sm:block",
+              "hidden h-5 w-20 rounded-full sm:block",
+            ]}
+          />
+        ) : resultado.totalFamilias === 0 ? (
+          <Vazio>
+            {temFiltro
+              ? "Nenhum produto corresponde aos filtros."
+              : "Sem produtos importados."}
+          </Vazio>
+        ) : (
+          // One `<tbody>` per family: rule every family's last row except
+          // the table's very last (`Td` only drops the border on a last row).
+          <Tabela className="sm:[&_td]:px-3 sm:[&_th]:px-3 [&>tbody:not(:last-child)>tr:last-child>td]:border-b">
+            {/* Phones get stacked rows (thumb, name, facts, badge) with no
+                column heads, like the client's order cards. */}
+            <thead className="hidden sm:table-header-group">
+              <tr>
+                <Th className="w-14">
+                  <span className="sr-only">Imagem</span>
+                </Th>
+                <Th className="hidden md:table-cell">Ref.</Th>
+                <Th className="sm:w-full">Nome</Th>
+                <Th className="hidden sm:table-cell">Marca</Th>
+                <Th className="hidden lg:table-cell">Família</Th>
+                <Th num className="hidden lg:table-cell" title="Imagens">
+                  <Images aria-hidden className="ml-auto size-3.5" />
+                  <span className="sr-only">Imagens</span>
+                </Th>
+                <Th num className="hidden sm:table-cell">
+                  PVP
+                </Th>
+                <Th className="hidden sm:table-cell">Estado</Th>
+                <Th className="w-0">
+                  <span className="sr-only">Ações</span>
+                </Th>
+              </tr>
+            </thead>
             {resultado.entradas.map((entrada) => (
-              <EntradaRow
-                key={entrada.grupoModelo ?? entrada.ref}
+              <EntradaLinhas
+                key={entrada.grupoModelo}
                 entrada={entrada}
                 onGerir={onGerir}
                 onEditar={onEditar}
@@ -384,13 +450,16 @@ function Lista({
                 onRemover={onRemover}
               />
             ))}
-          </ul>
-          <Paginacao
-            pagina={resultado.pagina}
-            numPaginas={resultado.numPaginas}
-            onPagina={setPagina}
-          />
-        </>
+          </Tabela>
+        )}
+      </Seccao>
+
+      {resultado && (
+        <Paginacao
+          pagina={resultado.pagina}
+          numPaginas={resultado.numPaginas}
+          onPagina={setPagina}
+        />
       )}
     </div>
   )
@@ -401,30 +470,148 @@ type RowCallbacks = Pick<
   "onGerir" | "onEditar" | "onEstado" | "onRemover"
 >
 
-function EstadoResumo({ variantes }: { variantes: Array<AdminVariante> }) {
-  const contagem = ESTADOS.map((e) => ({
-    estado: e,
-    n: variantes.filter((v) => v.estado === e).length,
-  })).filter((c) => c.n > 0)
-
+/** Secondary facts under a name; pieces shown here only while their own
+ *  column is hidden at the current width. */
+function SubLinha({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {contagem.map((c) => (
-        <span
-          key={c.estado}
-          className={cn(
-            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-            ESTADO_CLASSES[c.estado],
-          )}
-        >
-          {c.n} {ESTADO_LABELS[c.estado]}
+    <span className="mt-0.5 flex flex-wrap gap-x-2.5 text-xs text-muted-foreground empty:hidden sm:flex-nowrap sm:overflow-hidden sm:whitespace-nowrap">
+      {children}
+    </span>
+  )
+}
+
+function ContagemImagens({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 tabular-nums">
+      <Images aria-hidden className="size-3" />
+      {children}
+    </span>
+  )
+}
+
+/** Ref. column: one line, never cut — the reference is how staff find a SKU. */
+const refCls = "hidden whitespace-nowrap md:table-cell"
+/** Nome takes the spare width; from sm up it truncates instead of wrapping. */
+const nomeCls = "sm:w-full sm:max-w-0 sm:min-w-48"
+
+const accaoCls = "text-muted-foreground hover:text-foreground"
+
+/** Edit / images / delete, in fixed slots so the icons line up down the
+ *  table (a family row leaves the edit slot empty). */
+function Accoes({
+  onEditar,
+  onImagens,
+  onEliminar,
+  rotuloEliminar = "Eliminar",
+}: {
+  onEditar?: () => void
+  onImagens: () => void
+  onEliminar: () => void
+  rotuloEliminar?: string
+}) {
+  return (
+    <div className="flex items-center justify-end gap-0.5">
+      {onEditar ? (
+        <span className="flex size-8 shrink-0 items-center justify-center">
+          <button
+            type="button"
+            aria-label="Editar"
+            title="Editar"
+            className={BOTAO_EDITAR}
+            onClick={onEditar}
+          >
+            <Pencil className="size-3" />
+          </button>
         </span>
-      ))}
+      ) : (
+        <span aria-hidden className="size-8 shrink-0" />
+      )}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Gerir imagens"
+        title="Imagens"
+        className={accaoCls}
+        onClick={onImagens}
+      >
+        <Images />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={rotuloEliminar}
+        title={rotuloEliminar}
+        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        onClick={onEliminar}
+      >
+        <Trash2 />
+      </Button>
     </div>
   )
 }
 
-function EntradaRow({
+function EstadoGrupo({
+  entrada,
+  onEstado,
+}: {
+  entrada: AdminEntry
+  onEstado: RowCallbacks["onEstado"]
+}) {
+  const contagem = ESTADOS.map((e) => ({
+    estado: e,
+    n: entrada.variantes.filter((v) => v.estado === e).length,
+  })).filter((c) => c.n > 0)
+
+  return (
+    <span className="flex flex-col items-start gap-0.5">
+      {contagem.map((c) => (
+        <Marcador key={c.estado} tom={ESTADO_TOM[c.estado]}>
+          <span className="tabular-nums">{c.n}</span> {ESTADO_LABELS[c.estado]}
+        </Marcador>
+      ))}
+      <SeletorSobreposto
+        aria-label="Definir estado de todas as variantes"
+        value=""
+        onChange={(e) => {
+          const estado = e.target.value as Estado | ""
+          if (estado) onEstado(entrada.ref, estado, true)
+          e.currentTarget.value = ""
+        }}
+        rosto={
+          <span className="text-xs font-medium text-primary">
+            Definir todas
+          </span>
+        }
+      >
+        <option value="" disabled>
+          Estado do grupo…
+        </option>
+        {ESTADOS.map((e) => (
+          <option key={e} value={e}>
+            {ESTADO_LABELS[e]} (todas)
+          </option>
+        ))}
+      </SeletorSobreposto>
+    </span>
+  )
+}
+
+function Pvp({ variantes }: { variantes: Array<AdminVariante> }) {
+  const precos = variantes.map((v) => v.pvpCents)
+  const min = Math.min(...precos)
+  const max = Math.max(...precos)
+  if (min === max) return <>{eurosDeCents(min)}</>
+  return (
+    <>
+      <span className="text-xs text-muted-foreground">desde </span>
+      {eurosDeCents(min)}
+    </>
+  )
+}
+
+// One family: its row, then (when open) one row per variant, in a `<tbody>`
+// of its own so the group stays together.
+function EntradaLinhas({
   entrada,
   onGerir,
   onEditar,
@@ -437,193 +624,167 @@ function EntradaRow({
   const temGrupo = entrada.numVariantes > 1
   const variante0 = entrada.variantes[0]
 
-  // Standalone product: the family row *is* the product; show inline actions.
-  if (!temGrupo) {
-    return (
-      <li className="rounded-xl border bg-card">
-        <div className="flex flex-wrap items-center gap-4 p-3">
+  const estadoNode = temGrupo ? (
+    <EstadoGrupo entrada={entrada} onEstado={onEstado} />
+  ) : (
+    <EstadoSelect
+      value={variante0.estado}
+      ariaLabel={`Estado de ${entrada.nome}`}
+      onChange={(estado) => onEstado(entrada.ref, estado)}
+    />
+  )
+
+  const imagens = temGrupo
+    ? `${entrada.numComImagens}/${entrada.numVariantes}`
+    : String(variante0.numImagens)
+
+  return (
+    <tbody>
+      <tr className={linhaCls}>
+        <Td className="hidden py-2 sm:table-cell">
           <Thumb url={entrada.capaUrl} />
-          {/* A width floor (not `min-w-0`) so on phones the action cluster
-              wraps under the text instead of squeezing the name to nothing. */}
-          <div className="min-w-44 flex-1">
-            <p className="truncate font-medium">{entrada.nome}</p>
-            <p className="mt-0.5 text-xs break-words text-muted-foreground">
-              {rotuloMarca(entrada.marca)}
-              {entrada.gama ? ` · ${entrada.gama}` : ""} ·{" "}
-              {rotuloFamilia(entrada.familia)} ·{" "}
-              <span className="break-all">{entrada.ref}</span>
-            </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium">
-                {eur.format(variante0.pvpCents / 100)}
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Images className="size-3.5" />
-                {variante0.numImagens}
-              </span>
+        </Td>
+        <Td
+          className={cn(refCls, "font-medium")}
+          title={temGrupo ? undefined : entrada.ref}
+        >
+          {temGrupo ? (
+            <span className="font-normal text-muted-foreground tabular-nums">
+              {entrada.numVariantes} variantes
+            </span>
+          ) : (
+            entrada.ref
+          )}
+        </Td>
+        <Td className={cn(nomeCls, "min-w-52 py-3 sm:py-2.5")}>
+          <div className="flex items-start gap-3">
+            <Thumb url={entrada.capaUrl} className="sm:hidden" />
+            <div className="min-w-0 flex-1">
+              {temGrupo ? (
+                <button
+                  type="button"
+                  onClick={() => setAberto((v) => !v)}
+                  aria-expanded={aberto}
+                  aria-label={aberto ? "Fechar variantes" : "Abrir variantes"}
+                  title={entrada.nome}
+                  className="group/abrir -ml-1 flex max-w-full items-start gap-0.5 rounded-lg px-1 text-left"
+                >
+                  <ChevronRight
+                    aria-hidden
+                    className={cn(
+                      "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-150 ease-out",
+                      aberto && "rotate-90"
+                    )}
+                  />
+                  <span className="min-w-0 font-medium group-hover/abrir:underline sm:truncate">
+                    {entrada.nome}
+                  </span>
+                </button>
+              ) : (
+                <span
+                  title={entrada.nome}
+                  className="block font-medium sm:truncate"
+                >
+                  {entrada.nome}
+                </span>
+              )}
+              <SubLinha>
+                {temGrupo && (
+                  <span className="tabular-nums md:hidden">
+                    {entrada.numVariantes} variantes
+                  </span>
+                )}
+                {!temGrupo && (
+                  <span className="break-all md:hidden">{entrada.ref}</span>
+                )}
+                {entrada.gama && <span>{entrada.gama}</span>}
+                <span className="sm:hidden">{rotuloMarca(entrada.marca)}</span>
+                <span className="lg:hidden">
+                  {rotuloFamilia(entrada.familia)}
+                </span>
+                <span className="text-foreground tabular-nums sm:hidden">
+                  <Pvp variantes={entrada.variantes} />
+                </span>
+                <span className="lg:hidden">
+                  <ContagemImagens>
+                    {temGrupo ? `${imagens} com imagens` : imagens}
+                  </ContagemImagens>
+                </span>
+              </SubLinha>
+              <div className="mt-1.5 sm:hidden">{estadoNode}</div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <EstadoSelect
-              value={variante0.estado}
-              ariaLabel={`Estado de ${entrada.nome}`}
-              onChange={(estado) => onEstado(entrada.ref, estado)}
-            />
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Editar"
-              onClick={() => onEditar(entrada.ref)}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                onGerir({
-                  ref: entrada.ref,
-                  nome: entrada.nome,
-                  temGrupo: false,
-                  aplicarAoGrupo: false,
-                })
-              }
-            >
-              <Images data-icon="inline-start" />
-              Imagens
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Eliminar"
-              className="text-destructive hover:bg-destructive/10"
-              onClick={() =>
-                onRemover({ ref: entrada.ref, nome: entrada.nome })
-              }
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        </div>
-      </li>
-    )
-  }
-
-  // Grouped family: same action cluster as a standalone row (estado, imagens,
-  // eliminar) plus an expand toggle to reach the per-variant actions.
-  return (
-    <li className="rounded-xl border bg-card">
-      <div className="flex flex-wrap items-center gap-4 p-3">
-        <button
-          type="button"
-          onClick={() => setAberto((v) => !v)}
-          className="flex min-w-44 flex-1 items-center gap-4 text-left"
-          aria-expanded={aberto}
-          aria-label={aberto ? "Fechar variantes" : "Abrir variantes"}
-        >
-          <Thumb url={entrada.capaUrl} />
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
-              {aberto ? (
-                <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className="truncate font-medium">{entrada.nome}</span>
-              <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                {entrada.numVariantes} variantes
-              </span>
-            </span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              {rotuloMarca(entrada.marca)}
-              {entrada.gama ? ` · ${entrada.gama}` : ""} ·{" "}
-              {rotuloFamilia(entrada.familia)}
-            </span>
-            <span className="mt-1.5 flex flex-wrap items-center gap-2">
-              <EstadoResumo variantes={entrada.variantes} />
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Images className="size-3.5" />
-                {entrada.numComImagens}/{entrada.numVariantes} com imagens
-              </span>
-            </span>
+        </Td>
+        <Td className="hidden whitespace-nowrap sm:table-cell">
+          {rotuloMarca(entrada.marca)}
+        </Td>
+        <Td className="hidden max-w-40 truncate text-muted-foreground lg:table-cell">
+          <span title={rotuloFamilia(entrada.familia)}>
+            {rotuloFamilia(entrada.familia)}
           </span>
-        </button>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            aria-label="Definir estado de todas as variantes"
-            value=""
-            onChange={(e) => {
-              const estado = e.target.value as Estado | ""
-              if (estado) onEstado(entrada.ref, estado, true)
-              e.currentTarget.value = ""
-            }}
-            className="h-8 rounded-full border bg-background px-2.5 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <option value="" disabled>
-              Estado do grupo…
-            </option>
-            {ESTADOS.map((e) => (
-              <option key={e} value={e}>
-                {ESTADO_LABELS[e]} (todas)
-              </option>
-            ))}
-          </select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
+        </Td>
+        <Td
+          num
+          className="hidden text-muted-foreground lg:table-cell"
+          title={
+            temGrupo
+              ? `${entrada.numComImagens} de ${entrada.numVariantes} variantes com imagens`
+              : undefined
+          }
+        >
+          {imagens}
+        </Td>
+        <Td num className="hidden sm:table-cell">
+          <Pvp variantes={entrada.variantes} />
+        </Td>
+        <Td className="hidden sm:table-cell">{estadoNode}</Td>
+        <Td>
+          <Accoes
+            onEditar={temGrupo ? undefined : () => onEditar(entrada.ref)}
+            onImagens={() =>
               onGerir({
                 ref: entrada.ref,
                 nome: entrada.nome,
-                temGrupo: true,
-                aplicarAoGrupo: true,
+                temGrupo,
+                aplicarAoGrupo: temGrupo,
               })
             }
-          >
-            <Images data-icon="inline-start" />
-            Imagens
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Eliminar família"
-            className="text-destructive hover:bg-destructive/10"
-            onClick={() =>
-              onRemover({
-                ref: entrada.ref,
-                nome: entrada.nome,
-                removerGrupo: true,
-                numVariantes: entrada.numVariantes,
-              })
+            rotuloEliminar={temGrupo ? "Eliminar família" : "Eliminar"}
+            onEliminar={() =>
+              onRemover(
+                temGrupo
+                  ? {
+                      ref: entrada.ref,
+                      nome: entrada.nome,
+                      removerGrupo: true,
+                      numVariantes: entrada.numVariantes,
+                    }
+                  : { ref: entrada.ref, nome: entrada.nome }
+              )
             }
-          >
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
+          />
+        </Td>
+      </tr>
 
-      {aberto && (
-        <ul className="flex flex-col divide-y border-t">
-          {entrada.variantes.map((variante) => (
-            <VarianteRow
-              key={variante._id}
-              variante={variante}
-              grupo={entrada.variantes}
-              nomeFamilia={entrada.nome}
-              onGerir={onGerir}
-              onEditar={onEditar}
-              onEstado={onEstado}
-              onRemover={onRemover}
-            />
-          ))}
-        </ul>
-      )}
-    </li>
+      {temGrupo &&
+        aberto &&
+        entrada.variantes.map((variante) => (
+          <VarianteLinha
+            key={variante._id}
+            variante={variante}
+            grupo={entrada.variantes}
+            nomeFamilia={entrada.nome}
+            onGerir={onGerir}
+            onEditar={onEditar}
+            onEstado={onEstado}
+            onRemover={onRemover}
+          />
+        ))}
+    </tbody>
   )
 }
 
-function VarianteRow({
+function VarianteLinha({
   variante,
   grupo,
   nomeFamilia,
@@ -637,42 +798,49 @@ function VarianteRow({
   nomeFamilia: string
 } & RowCallbacks) {
   const nome = rotuloVariante(variante, grupo)
+  const estado = (
+    <EstadoSelect
+      value={variante.estado}
+      ariaLabel={`Estado de ${nome}`}
+      onChange={(e) => onEstado(variante.ref, e)}
+    />
+  )
   return (
-    <li className="flex flex-wrap items-center gap-3 py-2 pl-6 pr-3">
-      <div className="min-w-40 flex-1">
-        <p className="truncate text-sm">{nome}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2">
-          <span className="text-xs break-all text-muted-foreground">
-            {variante.ref}
+    <tr className="bg-secondary/25 text-[0.8125rem] transition-colors hover:bg-secondary/60">
+      <Td className="hidden sm:table-cell" />
+      <Td className={refCls} title={variante.ref}>
+        {variante.ref}
+      </Td>
+      <Td className={cn(nomeCls, "min-w-44")}>
+        <span className="block pl-[3.25rem] sm:pl-5">
+          <span title={nome} className="block sm:truncate">
+            {nome}
           </span>
-          <span className="text-xs font-medium">
-            {eur.format(variante.pvpCents / 100)}
-          </span>
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Images className="size-3.5" />
-            {variante.numImagens}
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <EstadoSelect
-          value={variante.estado}
-          ariaLabel={`Estado de ${nome}`}
-          onChange={(estado) => onEstado(variante.ref, estado)}
-        />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Editar"
-          onClick={() => onEditar(variante.ref)}
-        >
-          <Pencil />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Gerir imagens"
-          onClick={() =>
+          <SubLinha>
+            <span className="break-all md:hidden">{variante.ref}</span>
+            <span className="text-foreground tabular-nums sm:hidden">
+              {eurosDeCents(variante.pvpCents)}
+            </span>
+            <span className="lg:hidden">
+              <ContagemImagens>{variante.numImagens}</ContagemImagens>
+            </span>
+          </SubLinha>
+          <span className="mt-1 block sm:hidden">{estado}</span>
+        </span>
+      </Td>
+      <Td className="hidden sm:table-cell" />
+      <Td className="hidden lg:table-cell" />
+      <Td num className="hidden text-muted-foreground lg:table-cell">
+        {variante.numImagens}
+      </Td>
+      <Td num className="hidden sm:table-cell">
+        {eurosDeCents(variante.pvpCents)}
+      </Td>
+      <Td className="hidden sm:table-cell">{estado}</Td>
+      <Td>
+        <Accoes
+          onEditar={() => onEditar(variante.ref)}
+          onImagens={() =>
             onGerir({
               ref: variante.ref,
               nome: `${nomeFamilia} — ${nome}`,
@@ -680,32 +848,33 @@ function VarianteRow({
               aplicarAoGrupo: false,
             })
           }
-        >
-          <Images />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Eliminar"
-          className="text-destructive hover:bg-destructive/10"
-          onClick={() =>
+          onEliminar={() =>
             onRemover({ ref: variante.ref, nome: `${nomeFamilia} — ${nome}` })
           }
-        >
-          <Trash2 />
-        </Button>
-      </div>
-    </li>
+        />
+      </Td>
+    </tr>
   )
 }
 
-function Thumb({ url }: { url: string | null }) {
+function Thumb({ url, className }: { url: string | null; className?: string }) {
   return (
-    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+    <span
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background",
+        !url && "bg-secondary/40",
+        className
+      )}
+    >
       {url ? (
-        <img src={url} alt="" className="size-full object-cover" />
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          className="size-full object-contain"
+        />
       ) : (
-        <ImageOff className="size-6 text-muted-foreground" />
+        <ImageOff aria-hidden className="size-4 text-muted-foreground/60" />
       )}
     </span>
   )

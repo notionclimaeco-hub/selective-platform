@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { useMutation, useQuery } from "convex/react"
-import { ExternalLink, FileText, Loader2, Plus, Trash2, X } from "lucide-react"
+import { ExternalLink, FileText, Loader2, Plus, Trash2 } from "lucide-react"
 
 import { api } from "@convex/_generated/api"
+import { Janela, JanelaMeta } from "@/components/produtos/janela"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Banda, campoCls, fichaRotuloCls } from "@/components/ui/tabela"
+import { cn } from "@/lib/utils"
+import { Seletor } from "@/components/ui/seletor"
 import { FAMILIAS, rotuloFamilia, rotuloMarca } from "@/lib/labels"
 import type { Familia } from "@/lib/labels"
 
@@ -67,7 +73,7 @@ export function ProductEditor({
 
   function set<TCampo extends keyof FormState>(
     campo: TCampo,
-    valor: FormState[TCampo],
+    valor: FormState[TCampo]
   ) {
     setForm((prev) => (prev ? { ...prev, [campo]: valor } : prev))
   }
@@ -78,10 +84,10 @@ export function ProductEditor({
         ? {
             ...prev,
             atributos: prev.atributos.map((a, i) =>
-              i === idx ? { ...a, ...patch } : a,
+              i === idx ? { ...a, ...patch } : a
             ),
           }
-        : prev,
+        : prev
     )
   }
 
@@ -89,7 +95,7 @@ export function ProductEditor({
     setForm((prev) =>
       prev
         ? { ...prev, atributos: [...prev.atributos, { chave: "", valor: "" }] }
-        : prev,
+        : prev
     )
   }
 
@@ -97,7 +103,7 @@ export function ProductEditor({
     setForm((prev) =>
       prev
         ? { ...prev, atributos: prev.atributos.filter((_, i) => i !== idx) }
-        : prev,
+        : prev
     )
   }
 
@@ -141,181 +147,12 @@ export function ProductEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={aGuardar ? undefined : onClose}
-      />
-
-      <div className="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border bg-background shadow-xl">
-        <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
-          <div className="min-w-0 flex-1">
-            <h2 className="font-medium">Editar produto</h2>
-            <p className="text-sm break-words text-muted-foreground">
-              {produto ? rotuloMarca(produto.marca) : ""}
-              {produto?.grupoModelo ? ` · ${produto.grupoModelo}` : ""}
-            </p>
-            <p className="text-xs break-all text-muted-foreground">
-              Ref.: {refProduto}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            disabled={aGuardar}
-            aria-label="Fechar"
-          >
-            <X />
-          </Button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {produto === undefined ? (
-            <p className="text-sm text-muted-foreground">A carregar…</p>
-          ) : produto === null || form === null ? (
-            <p className="text-sm text-destructive">Produto não encontrado.</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <Campo label="Nome">
-                <input
-                  className={inputCls}
-                  value={form.nome}
-                  onChange={(e) => set("nome", e.target.value)}
-                />
-              </Campo>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Campo label="Família">
-                  <select
-                    className={inputCls}
-                    value={form.familia}
-                    onChange={(e) =>
-                      set("familia", e.target.value as Familia)
-                    }
-                  >
-                    {FAMILIAS.map((f) => (
-                      <option key={f} value={f}>
-                        {rotuloFamilia(f)}
-                      </option>
-                    ))}
-                  </select>
-                </Campo>
-
-                <Campo label="Preço PVP s/IVA (€)">
-                  <input
-                    className={inputCls}
-                    inputMode="decimal"
-                    value={form.precoEuros}
-                    onChange={(e) => set("precoEuros", e.target.value)}
-                  />
-                </Campo>
-
-                <Campo label="Gama">
-                  <input
-                    className={inputCls}
-                    value={form.gama}
-                    onChange={(e) => set("gama", e.target.value)}
-                    placeholder="opcional"
-                  />
-                </Campo>
-
-                <Campo label="Páginas do catálogo (PDF)">
-                  <input
-                    className={inputCls}
-                    value={form.pdfPaginas}
-                    onChange={(e) => set("pdfPaginas", e.target.value)}
-                    placeholder="ex.: 15, 54, 55"
-                  />
-                  {produto.fichasCatalogo.length > 0 && (
-                    <span className="flex flex-wrap gap-1.5">
-                      {produto.fichasCatalogo.map((ficha) => (
-                        <a
-                          key={ficha.pagina}
-                          href={ficha.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-full border bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/70"
-                        >
-                          <FileText className="size-3.5" />
-                          Página {ficha.pagina}
-                          <ExternalLink className="size-3" />
-                        </a>
-                      ))}
-                    </span>
-                  )}
-                </Campo>
-              </div>
-
-              <Campo label="Atributos">
-                <span className="text-xs text-muted-foreground">
-                  Um par chave/valor por linha (ex.: frio-kw = 3.5). Chaves que
-                  variam entre os modelos do grupo aparecem como colunas da
-                  tabela de modelos; chaves iguais em todos aparecem como
-                  especificações. A ordem define a ordem de apresentação.
-                </span>
-                <div className="flex flex-col gap-2">
-                  {form.atributos.map((atributo, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      {/* `min-w-0` lets inputs shrink below their intrinsic
-                          width so the row fits a phone-sized dialog. */}
-                      <input
-                        className={`${inputCls} min-w-0 flex-1`}
-                        value={atributo.chave}
-                        onChange={(e) =>
-                          setAtributo(idx, { chave: e.target.value })
-                        }
-                        placeholder="chave"
-                        aria-label={`Chave do atributo ${idx + 1}`}
-                      />
-                      <span className="shrink-0 text-muted-foreground">=</span>
-                      <input
-                        className={`${inputCls} min-w-0 flex-1`}
-                        value={atributo.valor}
-                        onChange={(e) =>
-                          setAtributo(idx, { valor: e.target.value })
-                        }
-                        placeholder="valor"
-                        aria-label={`Valor do atributo ${idx + 1}`}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removerAtributo(idx)}
-                        aria-label={`Remover atributo ${idx + 1}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  ))}
-                  <div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={adicionarAtributo}
-                    >
-                      <Plus />
-                      Adicionar atributo
-                    </Button>
-                  </div>
-                </div>
-              </Campo>
-
-              <Campo label="Descrição (Markdown)">
-                <textarea
-                  className={`${inputCls} min-h-32 resize-y font-mono text-xs`}
-                  value={form.descricao}
-                  onChange={(e) => set("descricao", e.target.value)}
-                  placeholder="opcional"
-                />
-              </Campo>
-
-              {erro && <p className="text-sm text-destructive">{erro}</p>}
-            </div>
-          )}
-        </div>
-
-        <footer className="flex items-center justify-end gap-2 border-t px-5 py-4">
+    <Janela
+      titulo="Editar produto"
+      onFechar={onClose}
+      bloqueada={aGuardar}
+      rodape={
+        <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={aGuardar}>
             Cancelar
           </Button>
@@ -326,25 +163,195 @@ export function ProductEditor({
             {aGuardar && <Loader2 className="animate-spin" />}
             {aGuardar ? "A guardar…" : "Guardar"}
           </Button>
-        </footer>
+        </div>
+      }
+    >
+      <JanelaMeta>
+        {produto && (
+          <span className="font-medium">{rotuloMarca(produto.marca)}</span>
+        )}
+        {produto?.grupoModelo && (
+          <span className="break-words text-muted-foreground">
+            {produto.grupoModelo}
+          </span>
+        )}
+        <span className="break-all text-muted-foreground">
+          Ref. {refProduto}
+        </span>
+      </JanelaMeta>
+
+      <div className="flex-1 overflow-y-auto">
+        {produto === undefined ? (
+          // The form's label / field rows (`Linha`), as bars.
+          <div role="status">
+            <span className="sr-only">A carregar…</span>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                aria-hidden
+                className="grid min-h-14 items-center gap-x-4 gap-y-1.5 border-b px-5 py-2.5 sm:grid-cols-[10rem_minmax(0,1fr)]"
+              >
+                <Skeleton className="h-4 w-20 rounded-md" />
+                <Skeleton className="h-9 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : produto === null || form === null ? (
+          <p className="px-5 py-6 text-sm text-destructive">
+            Produto não encontrado.
+          </p>
+        ) : (
+          <div className="flex flex-col">
+            <Linha rotulo="Nome">
+              <input
+                className={cn(campoCls, "w-full")}
+                value={form.nome}
+                onChange={(e) => set("nome", e.target.value)}
+              />
+            </Linha>
+            <Linha rotulo="Família">
+              <Seletor
+                className="flex"
+                value={form.familia}
+                onChange={(e) => set("familia", e.target.value as Familia)}
+              >
+                {FAMILIAS.map((f) => (
+                  <option key={f} value={f}>
+                    {rotuloFamilia(f)}
+                  </option>
+                ))}
+              </Seletor>
+            </Linha>
+            <Linha rotulo="PVP s/IVA (€)">
+              <input
+                className={cn(
+                  campoCls,
+                  "w-full text-right tabular-nums sm:w-40"
+                )}
+                inputMode="decimal"
+                value={form.precoEuros}
+                onChange={(e) => set("precoEuros", e.target.value)}
+              />
+            </Linha>
+            <Linha rotulo="Gama">
+              <input
+                className={cn(campoCls, "w-full")}
+                value={form.gama}
+                onChange={(e) => set("gama", e.target.value)}
+                placeholder="opcional"
+              />
+            </Linha>
+            <Linha rotulo="Páginas do catálogo">
+              <span className="flex flex-col gap-1.5">
+                <input
+                  className={cn(campoCls, "w-full tabular-nums")}
+                  value={form.pdfPaginas}
+                  onChange={(e) => set("pdfPaginas", e.target.value)}
+                  placeholder="ex.: 15, 54, 55"
+                />
+                {produto.fichasCatalogo.length > 0 && (
+                  <span className="flex flex-wrap gap-1.5">
+                    {produto.fichasCatalogo.map((ficha) => (
+                      <a
+                        key={ficha.pagina}
+                        href={ficha.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-7 items-center gap-1.5 rounded-full border bg-background px-2.5 text-xs font-medium tabular-nums transition-colors outline-none hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25"
+                      >
+                        <FileText className="size-3.5 text-muted-foreground" />
+                        Página {ficha.pagina}
+                        <ExternalLink className="size-3 text-muted-foreground" />
+                      </a>
+                    ))}
+                  </span>
+                )}
+              </span>
+            </Linha>
+
+            <Banda titulo="Atributos" contagem={form.atributos.length} />
+            {form.atributos.map((atributo, idx) => (
+              <div
+                key={idx}
+                className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 border-b py-2 pr-3 pl-4"
+              >
+                <span className="text-right text-xs text-muted-foreground tabular-nums">
+                  {idx + 1}
+                </span>
+                {/* `minmax(0,1fr)` lets inputs shrink below their intrinsic
+                    width so the row fits a phone-sized dialog. */}
+                <input
+                  className={cn(campoCls, "w-full min-w-0")}
+                  value={atributo.chave}
+                  onChange={(e) => setAtributo(idx, { chave: e.target.value })}
+                  placeholder="chave"
+                  aria-label={`Chave do atributo ${idx + 1}`}
+                />
+                <span className="text-muted-foreground">=</span>
+                <input
+                  className={cn(campoCls, "w-full min-w-0")}
+                  value={atributo.valor}
+                  onChange={(e) => setAtributo(idx, { valor: e.target.value })}
+                  placeholder="valor"
+                  aria-label={`Valor do atributo ${idx + 1}`}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => removerAtributo(idx)}
+                  aria-label={`Remover atributo ${idx + 1}`}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b px-5 py-4">
+              <span className="text-xs text-muted-foreground">
+                Chave = valor, ex.: frio-kw = 3.5. Chaves que variam no grupo
+                são colunas da tabela de modelos; iguais em todos, são
+                especificações. A ordem é a de apresentação.
+              </span>
+              <Button variant="outline" size="sm" onClick={adicionarAtributo}>
+                <Plus />
+                Adicionar atributo
+              </Button>
+            </div>
+
+            <Banda titulo="Descrição" contagem="Markdown" />
+            <div className="px-5 py-4">
+              <textarea
+                aria-label="Descrição (Markdown)"
+                className={cn(
+                  campoCls,
+                  "h-auto min-h-32 w-full resize-y py-2 font-mono text-xs"
+                )}
+                value={form.descricao}
+                onChange={(e) => set("descricao", e.target.value)}
+                placeholder="opcional"
+              />
+            </div>
+
+            {erro && (
+              <p
+                role="alert"
+                className="border-t px-5 py-3 text-sm text-destructive"
+              >
+                {erro}
+              </p>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </Janela>
   )
 }
 
-const inputCls =
-  "w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-
-function Campo({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
+/** One form row laid out like a `Ficha` row: label column, control column. */
+function Linha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">{label}</span>
+    <label className="grid min-h-14 items-center gap-x-4 gap-y-1.5 border-b px-5 py-2.5 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
+      <span className={fichaRotuloCls}>{rotulo}</span>
       {children}
     </label>
   )

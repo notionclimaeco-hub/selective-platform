@@ -7,7 +7,7 @@ import {
   Plus,
 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   ZOOM_MAX,
   ZOOM_MIN,
@@ -27,8 +27,8 @@ export type PaginaRevisao = {
  * The price-table pages a staged group was read from, shown inside the open
  * group next to its images and table: one page at a time with previous/next,
  * the page number, zoom and a link to the one-page PDF. On wide screens the
- * page scrolls inside the viewer, which fits between the app header and the
- * decision bar. Zoom (buttons, ctrl/⌘ + wheel or pinch) keeps the point under
+ * page scrolls inside the viewer, which fits between the top of the viewport
+ * and the decision bar. Zoom (buttons, ctrl/⌘ + wheel or pinch) keeps the point under
  * the cursor still; a zoomed page pans by dragging. It is kept across pages.
  */
 export function VisorPagina({
@@ -134,9 +134,9 @@ export function VisorPagina({
   return (
     <section
       aria-label="Páginas da tabela de preços"
-      className="flex min-w-0 flex-col gap-2 rounded-lg border bg-background p-2 lg:max-h-[calc(100svh-10rem)]"
+      className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card lg:max-h-[calc(100svh-7.5rem)]"
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 border-b bg-secondary/40 p-1.5">
         <Button
           variant="outline"
           size="icon-sm"
@@ -146,9 +146,10 @@ export function VisorPagina({
         >
           <ChevronLeft />
         </Button>
-        <span className="min-w-0 flex-1 truncate text-center text-xs font-medium">
-          Página {atual.pagina}
-          <span className="text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate text-center text-sm font-medium tabular-nums">
+          <span className="hidden sm:inline">Página </span>
+          {atual.pagina}
+          <span className="font-normal text-muted-foreground">
             {" "}
             · {idx + 1}/{paginas.length}
           </span>
@@ -176,7 +177,7 @@ export function VisorPagina({
             type="button"
             aria-label="Repor zoom"
             onClick={() => aplicarZoom(1)}
-            className="h-7 w-11 rounded-md text-xs font-medium text-muted-foreground tabular-nums hover:bg-muted hover:text-foreground"
+            className="h-8 w-11 rounded-lg text-xs font-medium text-muted-foreground tabular-nums transition-colors duration-150 hover:bg-muted hover:text-foreground"
           >
             {Math.round(zoom * 100)}%
           </button>
@@ -196,10 +197,13 @@ export function VisorPagina({
             target="_blank"
             rel="noreferrer"
             aria-label="Abrir PDF da página"
-            className="ml-1 inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "ml-1"
+            )}
           >
-            <ExternalLink className="size-3" />
-            PDF
+            <ExternalLink data-icon="inline-start" />
+            <span className="hidden sm:inline">PDF</span>
           </a>
         )}
       </div>
@@ -226,7 +230,7 @@ export function VisorPagina({
           onPointerUp={() => (arrasto.current = null)}
           onPointerCancel={() => (arrasto.current = null)}
           className={cn(
-            "min-h-0 flex-1 overflow-auto rounded border bg-white",
+            "min-h-0 flex-1 overflow-auto bg-white",
             zoom > 1 && "cursor-grab active:cursor-grabbing"
           )}
         >
