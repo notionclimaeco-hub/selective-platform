@@ -1,0 +1,130 @@
+{
+  "title": "Choose the visual world for the Admin app",
+  "question": "The roll assigned Duplicate Forms. Keep it, take an alternate, or re-roll. Logo and the forest-green + lime palette stay in every option.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Duplicate Forms",
+      "kicker": "THE ROLL",
+      "lineage": "Portuguese pre-printed duplicate pads: guias, faturas, talões",
+      "thesis": "Every record is a numbered form: boxed fields, its number top-right, its state stamped on it.",
+      "palette": ["#fbfcfa", "#2d6a3a", "#1c2620", "#93c440", "#b3261e"],
+      "materials": ["green pre-printed hairline boxes", "crisp rubber-stamp states", "carbon-copy tint panels"],
+      "viewport": "Left index like a pad's tab dividers; orders ledger of form stubs, ENC number in mono, boxed columns, state as a stamp.",
+      "risk": "Becomes costume if stamps get rotated or grungy; must stay crisp, flat and 1px.",
+      "raised": [
+        { "from": "challenger-split-flap", "raise": "State restyles a row in place; columns never move or reflow." },
+        { "from": "challenger-centre-rail", "raise": "Every rule is one device pixel; states are printed marks: outline at rest, filled when done, struck when cancelled." },
+        { "from": "challenger-doujin", "raise": "Every code (ENC-1048, ref, NIF) is itself the link to its record." },
+        { "from": "challenger-star-atlas", "raise": "'Precisa de ti' weight follows one fixed ramp, never ad-hoc colour." },
+        { "from": "challenger-j-card", "raise": "Quantity buckets always visibly sum to the line qty, like tape time to a side." }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Tabela de Preços",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "manufacturers' yearly HVAC price-table PDFs",
+      "thesis": "The admin set like the price tables staff read all year: brand section bands, dense ruled tables, page folios.",
+      "palette": ["#ffffff", "#2d6a3a", "#93c440", "#1c2620", "#e9efe8"],
+      "materials": ["full-width section bands", "dense ruled spec tables", "folio numbers"],
+      "viewport": "Green band header per section, a dense ruled table under it, totals right-aligned like PVP columns.",
+      "risk": "Familiar: close to what a well-made data-table admin already is."
+    },
+    {
+      "id": "challenger-japanese-dense",
+      "label": "High-density Modules",
+      "verdict": "competitive",
+      "lineage": "Japanese contemporary high-density web",
+      "thesis": "A whole order desk on one screen: hairline modules, each with a small header tab.",
+      "palette": ["#ffffff", "#1c2620", "#2d6a3a", "#93c440", "#d9ded9"],
+      "materials": ["hairline module mosaic", "small header tabs", "tight gothic sans"],
+      "viewport": "Order page as a packed CSS-grid mosaic: lines, payment, documents, log as tabbed modules edge to edge.",
+      "case": "Wins on density for all-day desk work; loses on audience identification (nothing in Climaeco's world).",
+      "risk": "Tiring and cramped if type drops below 12px.",
+      "hero": "https://impeccable.style/worlds/cards/japanese-high-density-web-hero.webp"
+    },
+    {
+      "id": "challenger-split-flap",
+      "label": "Split-flap Board",
+      "verdict": "declined",
+      "lineage": "rail concourse departure boards",
+      "thesis": "Orders as departures ranked by time.",
+      "palette": ["#111111", "#ffffff", "#f2a900"],
+      "materials": ["matte flaps", "steel frame"],
+      "viewport": "Orders as a departures board.",
+      "case": "Fuses poorly: dark board fights the green brand and reads as novelty.",
+      "kept": "Rows never reflow on state change.",
+      "risk": "Novelty.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+    },
+    {
+      "id": "challenger-star-atlas",
+      "label": "Star Atlas",
+      "verdict": "declined",
+      "lineage": "celestial charts",
+      "thesis": "Importance as dot magnitude.",
+      "palette": ["#0e1a33", "#f4f4f0", "#d9553b"],
+      "materials": ["navy chart ground", "magnitude dots"],
+      "viewport": "Orders plotted as stars.",
+      "case": "Fuses poorly: no spatial data to chart.",
+      "kept": "One fixed ramp for importance.",
+      "risk": "Decorative.",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-star-atlas-hero.webp"
+    },
+    {
+      "id": "challenger-doujin",
+      "label": "Event Catalog",
+      "verdict": "declined",
+      "lineage": "doujin convention catalogs",
+      "thesis": "Codes and positions as one space.",
+      "palette": ["#1a1a1a", "#e8e4da", "#d23c5a"],
+      "materials": ["newsprint", "stamp thumbnails"],
+      "viewport": "Products as thumbnail cells.",
+      "case": "Fuses poorly: staff work in records, not thumbnails.",
+      "kept": "Every code is a link.",
+      "risk": "Cluttered.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-doujin-event-catalog-hero.webp"
+    },
+    {
+      "id": "challenger-j-card",
+      "label": "Cassette J-card",
+      "verdict": "declined",
+      "lineage": "mixtape inlays",
+      "thesis": "Sides that must not overflow.",
+      "palette": ["#f7f7f2", "#1f3c88", "#c8102e"],
+      "materials": ["lined inlay stock", "ballpoint"],
+      "viewport": "Order as a folded card.",
+      "case": "Fuses poorly: handwriting undermines trust in money figures.",
+      "kept": "Visible capacity sums.",
+      "risk": "Whimsy.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-cassette-j-card-hero.webp"
+    },
+    {
+      "id": "challenger-centre-rail",
+      "label": "Centre-rail Setting",
+      "verdict": "declined",
+      "lineage": "reference-book typesetting",
+      "thesis": "Hairline ruling engine and printed state marks.",
+      "palette": ["#efe8da", "#151515", "#c23b22"],
+      "materials": ["one-pixel rules", "rubric marks"],
+      "viewport": "Two columns around a key rail.",
+      "case": "Fuses poorly: book measure is too slow for a desk.",
+      "kept": "One-device-pixel rules; states as printed marks.",
+      "risk": "Literary.",
+      "hero": "https://impeccable.style/worlds/cards/rw-centre-rail-reference-setting-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code" },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A Linear/Stripe-grade admin: left sidebar, neutral surfaces, the green as the one accent.",
+    "palette": ["#ffffff", "#f6f8f6", "#1c2620", "#2d6a3a"],
+    "materials": ["clean sidebar shell", "neutral tables"],
+    "viewport": "Sidebar nav, page title row, filter bar, crisp table.",
+    "risk": "Indistinguishable from any other well-made admin by design."
+  },
+  "steer": true
+}

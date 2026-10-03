@@ -1,9 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import { useState } from "react"
+import { ExternalLink } from "lucide-react"
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { LinhasEsqueleto } from "@/components/ui/skeleton"
+import {
+  Cabecalho,
+  Marcador,
+  Seccao,
+  Tabela,
+  Td,
+  Th,
+  Vazio,
+  linhaCls,
+} from "@/components/ui/tabela"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/paginas-catalogo")({
@@ -85,118 +98,176 @@ function PaginasCatalogo() {
     setAEnviar(false)
   }
 
+  const okCount = resultados.filter((r) => r.estado === "ok").length
+
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-10 text-sm sm:px-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-foreground">
-          Catálogo
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Páginas do catálogo
-        </h1>
-        <p className="text-muted-foreground">
-          Carregue os PDFs de uma página. Nomeie cada ficheiro como{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
-            &lt;nome&gt;-p&lt;N&gt;.pdf
-          </code>{" "}
-          (ex.: <code className="rounded bg-muted px-1 py-0.5 text-xs">nipon-p54.pdf</code>).
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
+      <Cabecalho titulo="Páginas do catálogo" />
 
-      <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm">
-        <label className="flex flex-col gap-1.5">
-          <span className="font-medium">Tabela de origem</span>
-          <input
-            className="rounded-lg border bg-background px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            value={tabelaOrigem}
-            onChange={(e) => setTabelaOrigem(e.target.value.trim())}
-            placeholder="nipon-2025"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="font-medium">Ficheiros PDF</span>
-          <input
-            type="file"
-            accept="application/pdf"
-            multiple
-            className="text-muted-foreground file:mr-3 file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted"
-            onChange={(e) => setFicheiros(Array.from(e.target.files ?? []))}
-          />
-        </label>
-
-        <Button
-          className="self-start"
-          disabled={aEnviar || ficheiros.length === 0 || tabelaOrigem === ""}
-          onClick={() => void enviar()}
-        >
-          {aEnviar ? "A enviar…" : "Enviar"}
-        </Button>
-      </div>
-
-      {resultados.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="font-medium">Resultado</h2>
-          <ul className="flex flex-col gap-1">
-            {resultados.map((r, i) => (
-              <li key={i} className="flex min-w-0 gap-2">
-                <span
-                  className={cn(
-                    "shrink-0",
-                    r.estado === "ok" ? "text-green-600" : "text-red-600",
-                  )}
-                >
-                  {r.estado === "ok" ? "OK" : "ERRO"}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-6">
+          <Seccao titulo="Carregar">
+            <div className="flex flex-col gap-4 px-5 py-4">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">Tabela de origem</span>
+                <Input
+                  value={tabelaOrigem}
+                  onChange={(e) => setTabelaOrigem(e.target.value.trim())}
+                  placeholder="nipon-2025"
+                />
+              </label>
+              {/* pt-PT file control: the native input is visually hidden and
+                  keyboard-reachable; the row shows what was picked. */}
+              <label className="flex flex-col gap-1.5">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-medium">Ficheiros PDF</span>
+                  <span className="text-xs text-muted-foreground">
+                    &lt;nome&gt;-p&lt;N&gt;.pdf
+                  </span>
                 </span>
-                <span className="min-w-0 break-words text-muted-foreground">
-                  <span className="break-all">{r.ficheiro}</span>
-                  {r.pagina !== undefined ? ` · página ${r.pagina}` : ""} —{" "}
-                  {r.mensagem}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section className="flex flex-col gap-2">
-        <h2 className="font-medium">Páginas carregadas ({tabelaOrigem})</h2>
-        {existentes === undefined ? (
-          <p className="text-muted-foreground">A carregar…</p>
-        ) : existentes.length === 0 ? (
-          <p className="text-muted-foreground">Nenhuma página carregada.</p>
-        ) : (
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b">
-                <th className="py-1 pr-4 font-medium">Página</th>
-                <th className="py-1 font-medium">Ficheiro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {existentes.map((linha) => (
-                <tr key={linha._id} className="border-b">
-                  <td className="py-1 pr-4">{linha.pagina}</td>
-                  <td className="py-1">
-                    {linha.url ? (
-                      <a
-                        className="text-blue-600 underline"
-                        href={linha.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        abrir PDF
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">sem ficheiro</span>
+                <span className="flex h-10 min-w-0 items-center justify-between gap-3 rounded-lg border border-input bg-background pr-1 pl-3 transition-[color,box-shadow,border-color] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/25">
+                  <span
+                    className={cn(
+                      "min-w-0 truncate text-sm",
+                      ficheiros.length === 0 && "text-muted-foreground"
                     )}
-                  </td>
+                  >
+                    {ficheiros.length === 0
+                      ? "Nenhum ficheiro"
+                      : ficheiros.length === 1
+                        ? ficheiros[0].name
+                        : `${ficheiros.length} ficheiros`}
+                  </span>
+                  <span
+                    className={cn(
+                      buttonVariants({ variant: "secondary", size: "sm" }),
+                      "cursor-pointer"
+                    )}
+                  >
+                    Escolher PDFs
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      multiple
+                      className="sr-only"
+                      onChange={(e) =>
+                        setFicheiros(Array.from(e.target.files ?? []))
+                      }
+                    />
+                  </span>
+                </span>
+              </label>
+              <div className="flex justify-end">
+                <Button
+                  disabled={
+                    aEnviar || ficheiros.length === 0 || tabelaOrigem === ""
+                  }
+                  onClick={() => void enviar()}
+                >
+                  {aEnviar
+                    ? "A enviar…"
+                    : ficheiros.length > 0
+                      ? `Enviar ${ficheiros.length} PDF${ficheiros.length === 1 ? "" : "s"}`
+                      : "Enviar"}
+                </Button>
+              </div>
+            </div>
+          </Seccao>
+
+          {resultados.length > 0 && (
+            <Seccao
+              titulo="Resultado"
+              contagem={`${okCount}/${resultados.length}`}
+            >
+              <Tabela>
+                <thead>
+                  <tr>
+                    <Th>Ficheiro</Th>
+                    <Th num className="hidden sm:table-cell">
+                      Página
+                    </Th>
+                    <Th>Estado</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resultados.map((r, i) => (
+                    <tr key={i} className={linhaCls}>
+                      <Td className="max-w-0 min-w-40">
+                        <span className="block break-all">{r.ficheiro}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {r.pagina !== undefined && (
+                            <span className="sm:hidden">
+                              página {r.pagina} ·{" "}
+                            </span>
+                          )}
+                          {r.mensagem}
+                        </span>
+                      </Td>
+                      <Td num className="hidden sm:table-cell">
+                        {r.pagina ?? "—"}
+                      </Td>
+                      <Td>
+                        <Marcador tom={r.estado === "ok" ? "feito" : "perigo"}>
+                          {r.estado === "ok" ? "OK" : "Erro"}
+                        </Marcador>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Tabela>
+            </Seccao>
+          )}
+        </div>
+
+        <Seccao
+          titulo="Páginas carregadas"
+          contagem={existentes?.length ?? "…"}
+          accoes={
+            tabelaOrigem !== "" && (
+              <span className="truncate">{tabelaOrigem}</span>
+            )
+          }
+        >
+          {existentes === undefined ? (
+            <LinhasEsqueleto colunas={["w-8", "ml-16 w-24"]} />
+          ) : existentes.length === 0 ? (
+            <Vazio>Nenhuma página carregada.</Vazio>
+          ) : (
+            <Tabela>
+              <thead>
+                <tr>
+                  <Th className="w-28">Página</Th>
+                  <Th>Ficheiro</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+              </thead>
+              <tbody>
+                {existentes.map((linha) => (
+                  <tr key={linha._id} className={linhaCls}>
+                    <Td className="font-medium">{linha.pagina}</Td>
+                    <Td>
+                      {linha.url ? (
+                        <a
+                          className="inline-flex items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline"
+                          href={linha.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir PDF
+                          <ExternalLink className="size-3.5" />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          sem ficheiro
+                        </span>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Tabela>
+          )}
+        </Seccao>
+      </div>
     </main>
   )
 }

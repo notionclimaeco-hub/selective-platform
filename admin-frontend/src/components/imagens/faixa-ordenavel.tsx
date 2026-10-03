@@ -64,7 +64,7 @@ export function FaixaOrdenavel({
         items={itens.map((i) => i.ficheiro)}
         strategy={rectSortingStrategy}
       >
-        <div className="flex gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-4 sm:overflow-visible sm:pb-0">
+        <div className="sem-scrollbar flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-4 sm:overflow-visible sm:pb-0">
           {itens.map((item, i) => (
             <div key={item.ficheiro} className="w-32 shrink-0 sm:w-auto">
               <SortableImage

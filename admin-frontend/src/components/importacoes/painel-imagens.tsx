@@ -17,6 +17,8 @@ import { FaixaOrdenavel } from "@/components/imagens/faixa-ordenavel"
 import { useObjectUrls } from "@/components/imagens/use-object-urls"
 import { ZonaUpload } from "@/components/imagens/zona-upload"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Marcador } from "@/components/ui/tabela"
 import {
   ESTADO_INICIAL,
   apenasRefs,
@@ -38,6 +40,8 @@ import { recortarFundo } from "@/lib/recorte"
 import type { EtapaRecorte } from "@/lib/recorte"
 import { rotuloValor } from "@/lib/revisao"
 import { cn } from "@/lib/utils"
+import { Seletor } from "@/components/ui/seletor"
+import { Subtitulo } from "./subtitulo"
 
 type Dados = FunctionReturnType<typeof api.imagens.obterGrupoImagens>
 type ImagemServidor = { ficheiro: string; url: string | null }
@@ -392,55 +396,69 @@ export function PainelImagens({
   })).filter((g) => g.itens.length > 0)
 
   return (
-    <section
-      aria-label="Imagens"
-      className="flex min-w-0 flex-col gap-3 rounded-lg border bg-background p-3"
-    >
-      <header className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-medium">Imagens</h3>
-        {refs.length > 1 && (
-          <select
-            aria-label="Lista de imagens"
-            value={estado.refAtiva ?? GRUPO}
-            onChange={(e) =>
-              despachar({
-                tipo: "ativar-ref",
-                ref: e.target.value === GRUPO ? null : e.target.value,
-              })
-            }
-            className="h-8 max-w-full min-w-0 rounded-lg border bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <option value={GRUPO}>Grupo (todas as variantes)</option>
-            {refs.map((ref) => (
-              <option key={ref} value={ref}>
-                {ref}
-              </option>
-            ))}
-          </select>
-        )}
-        {cores.length > 1 && semOverrides && (
-          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800">
-            {cores.length} cores, 1 lista
-          </span>
-        )}
-      </header>
+    <section aria-label="Imagens" className="flex min-w-0 flex-col gap-3">
+      <Subtitulo
+        className="mb-0"
+        contagem={lista.length > 0 ? lista.length : undefined}
+        accoes={
+          <>
+            {cores.length > 1 && semOverrides && (
+              <Marcador tom="aviso">{cores.length} cores, 1 lista</Marcador>
+            )}
+            {refs.length > 1 && (
+              <Seletor
+                aria-label="Lista de imagens"
+                value={estado.refAtiva ?? GRUPO}
+                onChange={(e) =>
+                  despachar({
+                    tipo: "ativar-ref",
+                    ref: e.target.value === GRUPO ? null : e.target.value,
+                  })
+                }
+                tamanho="sm"
+                className="max-w-full"
+              >
+                <option value={GRUPO}>Grupo (todas as variantes)</option>
+                {refs.map((ref) => (
+                  <option key={ref} value={ref}>
+                    {ref}
+                  </option>
+                ))}
+              </Seletor>
+            )}
+          </>
+        }
+      >
+        Imagens
+      </Subtitulo>
 
       {dados === undefined ? (
-        <p className="text-sm text-muted-foreground">A carregar…</p>
+        <div role="status" className="flex flex-col gap-2">
+          <span className="sr-only">A carregar…</span>
+          <Skeleton aria-hidden className="h-3 w-64 max-w-full rounded-md" />
+          <div aria-hidden className="flex gap-3 sm:grid sm:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton
+                key={i}
+                className="aspect-square w-32 shrink-0 rounded-xl sm:w-auto"
+              />
+            ))}
+          </div>
+        </div>
       ) : (
         <>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {dados.escolhidas?.porAgente && (
-              <span className="flex items-center gap-1 text-xs font-medium text-sky-800">
-                <Sparkles className="size-3" />
+              <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Sparkles className="size-3 shrink-0" />
                 Escolha do agente: já conta na aprovação. Guarde para a
                 confirmar ou altere.
-              </span>
+              </p>
             )}
-            <span className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               A primeira imagem é a capa. Arraste para reordenar; clique numa
               candidata para a juntar ou tirar.
-            </span>
+            </p>
             <div className={XADREZ_IMGS}>
               <FaixaOrdenavel
                 itens={itens}
@@ -479,7 +497,7 @@ export function PainelImagens({
                   )
                 }}
                 vazio={
-                  <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                  <p className="rounded-lg border border-dashed border-input px-3 py-6 text-center text-sm text-muted-foreground">
                     Escolha candidatas abaixo ou adicione imagens.
                   </p>
                 }
@@ -488,14 +506,16 @@ export function PainelImagens({
             {recorte && (
               <div
                 role="status"
-                className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm"
+                className="flex flex-wrap items-center gap-2 rounded-lg border bg-secondary/40 px-3 py-2 text-sm"
               >
                 {recorte.fase === "a-processar" ? (
                   <>
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                    {recorte.etapa === "modelo"
-                      ? `A descarregar o modelo… ${recorte.pct} %`
-                      : "A recortar…"}
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                    <span className="tabular-nums">
+                      {recorte.etapa === "modelo"
+                        ? `A descarregar o modelo… ${recorte.pct} %`
+                        : "A recortar…"}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -542,9 +562,9 @@ export function PainelImagens({
               ) : (
                 porFonte.map((g) => (
                   <div key={g.fonte} className="flex flex-col gap-1.5">
-                    <h4 className="text-xs font-medium text-muted-foreground">
-                      {rotuloFonte(g.fonte)}{" "}
-                      <span className="font-normal">({g.itens.length})</span>
+                    <h4 className="flex items-baseline gap-2 text-xs font-medium text-muted-foreground">
+                      Candidatas · {rotuloFonte(g.fonte)}
+                      <span className="tabular-nums">{g.itens.length}</span>
                     </h4>
                     <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                       {g.itens.map((c) => (
@@ -578,6 +598,7 @@ export function PainelImagens({
           </span>
         )}
         <Button
+          variant="outline"
           size="sm"
           onClick={() => void guardar()}
           disabled={!podeEditar || ocupado || dados === undefined}
@@ -609,9 +630,12 @@ function MiniaturaCandidata({
         title={candidata.aviso}
         onClick={onEscolher}
         className={cn(
-          "block aspect-square w-full overflow-hidden rounded-lg border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-          escolhida && "ring-2 ring-primary",
-          candidata.aviso && "border-amber-300"
+          "block aspect-square w-full overflow-hidden rounded-lg border bg-muted transition-[border-color,box-shadow] duration-150 ease-out outline-none hover:border-foreground/40 focus-visible:ring-2 focus-visible:ring-primary/40",
+          escolhida
+            ? "border-primary ring-2 ring-primary"
+            : candidata.aviso
+              ? "border-warning-foreground/50"
+              : "border-border"
         )}
       >
         <img
@@ -627,27 +651,27 @@ function MiniaturaCandidata({
         />
         {escolhida && (
           <span className="absolute inset-0 flex items-center justify-center">
-            <span className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Check className="size-4" strokeWidth={3} />
             </span>
           </span>
         )}
       </button>
       {candidata.cor && (
-        <span className="pointer-events-none absolute bottom-1 left-1 max-w-[calc(100%-0.5rem)] truncate rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-medium">
+        <span className="pointer-events-none absolute bottom-1 left-1 max-w-[calc(100%-0.5rem)] truncate rounded-md bg-background/90 px-1 py-px text-[10px] font-medium">
           {rotuloValor(candidata.cor)}
         </span>
       )}
       {candidata.aviso && (
         <span
-          className="pointer-events-none absolute top-1 left-1 flex size-5 items-center justify-center rounded-full bg-amber-100 text-amber-800"
+          className="pointer-events-none absolute top-1 left-1 flex size-5 items-center justify-center rounded-md bg-warning text-warning-foreground"
           aria-hidden="true"
         >
           <TriangleAlert className="size-3" />
         </span>
       )}
       {candidata.aviso && (
-        <span className="mt-1 line-clamp-2 block text-[10px] leading-tight text-amber-800">
+        <span className="mt-1 line-clamp-2 block text-[10px] leading-tight text-warning-foreground">
           {candidata.aviso}
         </span>
       )}
@@ -657,13 +681,13 @@ function MiniaturaCandidata({
           target="_blank"
           rel="noreferrer"
           aria-label="Abrir origem"
-          className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-md bg-background/85 text-foreground hover:bg-background"
+          className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-lg border border-input bg-background/90 text-foreground transition-colors duration-150 hover:bg-background"
         >
           <ExternalLink className="size-3.5" />
         </a>
       )}
       {origem?.tipo === "texto" && (
-        <span className="pointer-events-none absolute top-1 right-1 rounded-md bg-background/85 px-1.5 py-0.5 text-[10px] font-medium">
+        <span className="pointer-events-none absolute top-1 right-1 rounded-md bg-background/90 px-1 py-px text-[10px] font-medium">
           {origem.texto}
         </span>
       )}

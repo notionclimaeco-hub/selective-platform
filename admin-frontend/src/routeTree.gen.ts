@@ -18,6 +18,8 @@ import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as EmpresasEmpresaIdRouteImport } from './routes/empresas_.$empresaId'
 import { Route as ImportacoesImportacaoIdRouteImport } from './routes/importacoes_.$importacaoId'
+import { Route as PrototypeEncomendasRouteImport } from './routes/prototype.encomendas'
+import { Route as PrototypeEncomendasNumeroRouteImport } from './routes/prototype.encomendas_.$numero'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +66,17 @@ const ImportacoesImportacaoIdRoute = ImportacoesImportacaoIdRouteImport.update({
   path: '/importacoes/$importacaoId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypeEncomendasRoute = PrototypeEncomendasRouteImport.update({
+  id: '/prototype/encomendas',
+  path: '/prototype/encomendas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrototypeEncomendasNumeroRoute =
+  PrototypeEncomendasNumeroRouteImport.update({
+    id: '/prototype/encomendas_/$numero',
+    path: '/prototype/encomendas/$numero',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +88,8 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/empresas/$empresaId': typeof EmpresasEmpresaIdRoute
   '/importacoes/$importacaoId': typeof ImportacoesImportacaoIdRoute
+  '/prototype/encomendas': typeof PrototypeEncomendasRoute
+  '/prototype/encomendas/$numero': typeof PrototypeEncomendasNumeroRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +101,8 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/empresas/$empresaId': typeof EmpresasEmpresaIdRoute
   '/importacoes/$importacaoId': typeof ImportacoesImportacaoIdRoute
+  '/prototype/encomendas': typeof PrototypeEncomendasRoute
+  '/prototype/encomendas/$numero': typeof PrototypeEncomendasNumeroRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +115,8 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/empresas_/$empresaId': typeof EmpresasEmpresaIdRoute
   '/importacoes_/$importacaoId': typeof ImportacoesImportacaoIdRoute
+  '/prototype/encomendas': typeof PrototypeEncomendasRoute
+  '/prototype/encomendas_/$numero': typeof PrototypeEncomendasNumeroRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +130,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/empresas/$empresaId'
     | '/importacoes/$importacaoId'
+    | '/prototype/encomendas'
+    | '/prototype/encomendas/$numero'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +143,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/empresas/$empresaId'
     | '/importacoes/$importacaoId'
+    | '/prototype/encomendas'
+    | '/prototype/encomendas/$numero'
   id:
     | '__root__'
     | '/'
@@ -133,6 +156,8 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/empresas_/$empresaId'
     | '/importacoes_/$importacaoId'
+    | '/prototype/encomendas'
+    | '/prototype/encomendas_/$numero'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +170,8 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   EmpresasEmpresaIdRoute: typeof EmpresasEmpresaIdRoute
   ImportacoesImportacaoIdRoute: typeof ImportacoesImportacaoIdRoute
+  PrototypeEncomendasRoute: typeof PrototypeEncomendasRoute
+  PrototypeEncomendasNumeroRoute: typeof PrototypeEncomendasNumeroRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +239,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImportacoesImportacaoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototype/encomendas': {
+      id: '/prototype/encomendas'
+      path: '/prototype/encomendas'
+      fullPath: '/prototype/encomendas'
+      preLoaderRoute: typeof PrototypeEncomendasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prototype/encomendas_/$numero': {
+      id: '/prototype/encomendas_/$numero'
+      path: '/prototype/encomendas/$numero'
+      fullPath: '/prototype/encomendas/$numero'
+      preLoaderRoute: typeof PrototypeEncomendasNumeroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,6 +266,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   EmpresasEmpresaIdRoute: EmpresasEmpresaIdRoute,
   ImportacoesImportacaoIdRoute: ImportacoesImportacaoIdRoute,
+  PrototypeEncomendasRoute: PrototypeEncomendasRoute,
+  PrototypeEncomendasNumeroRoute: PrototypeEncomendasNumeroRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

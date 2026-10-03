@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useState } from "react"
+import type { FormEvent } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   Authenticated,
@@ -7,30 +8,47 @@ import {
   useMutation,
   useQuery,
 } from "convex/react"
+import { toast } from "sonner"
 
 import { api } from "@convex/_generated/api"
 import type { Id } from "@convex/_generated/dataModel"
+import { CelulaEditavel } from "@/components/comercial/celula-editavel"
 import { Button } from "@/components/ui/button"
+import { LinhasEsqueleto } from "@/components/ui/skeleton"
+import {
+  Cabecalho,
+  Seccao,
+  Tabela,
+  Td,
+  Th,
+  Vazio,
+  campoCls,
+  linhaCls,
+} from "@/components/ui/tabela"
+import { eurosDeCents } from "@/lib/labels"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/comercial")({ component: ComercialPage })
 
-const inputCls =
-  "h-9 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+const PERCENT = new Intl.NumberFormat("pt-PT", { maximumFractionDigits: 2 })
+
+/** The table header tint, opaque, for the sticky Marca column. */
+const FUNDO_CABECALHO =
+  "bg-[color-mix(in_oklch,var(--secondary)_40%,var(--card))]"
+
+function mensagemErro(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback
+}
+
+/** "12,5" / "12.5" / "" (= 0) → number, the way the old inputs parsed. */
+function numero(texto: string) {
+  return Number(texto.replace(",", "."))
+}
 
 function ComercialPage() {
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-foreground">
-          Contas
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight">Comercial</h1>
-        <p className="text-sm text-muted-foreground">
-          Tiers e grelha de desconto marca × tier. Célula vazia = 0% (revenda =
-          PVP). Independente do desconto de fornecedor em Marcas.
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
+      <Cabecalho titulo="Comercial" />
 
       <AuthLoading>
         <p className="text-sm text-muted-foreground">A verificar sessão…</p>
@@ -59,7 +77,7 @@ function Tiers() {
   async function adicionar(e: FormEvent) {
     e.preventDefault()
     setErro(null)
-    const euros = Number(limiarEuros.replace(",", "."))
+    const euros = numero(limiarEuros)
     if (!Number.isFinite(euros) || euros < 0) {
       setErro("Limiar inválido.")
       return
@@ -71,111 +89,144 @@ function Tiers() {
       })
       setNome("")
       setLimiarEuros("")
+      toast("Tier criado.")
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao criar tier.")
+      setErro(mensagemErro(err, "Erro ao criar tier."))
     }
   }
 
-  async function gravar(
+  async function alternarAtiva(
     tierId: Id<"tiers">,
-    patch: { nome?: string; limiarCents?: number; ativa?: boolean },
+    nomeTier: string,
+    ativa: boolean
   ) {
-    setErro(null)
     try {
-      await atualizar({ tierId, ...patch })
+      await atualizar({ tierId, ativa })
+      toast(`${nomeTier} ${ativa ? "activado" : "desactivado"}.`, {
+        action: {
+          label: "Reverter",
+          onClick: () => {
+            atualizar({ tierId, ativa: !ativa }).catch((err: unknown) =>
+              toast.error(mensagemErro(err, "Não foi possível reverter."))
+            )
+          },
+        },
+      })
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao actualizar tier.")
+      toast.error(mensagemErro(err, "Erro ao actualizar tier."))
     }
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="font-medium">Tiers</h2>
-      {erro && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {erro}
-        </p>
-      )}
-      <div className="overflow-x-auto rounded-2xl border bg-card">
-        {/* Three narrow columns: no min-width so it fits a 320px phone. */}
-        <table className="w-full text-left text-sm">
-          <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+    <Seccao titulo="Tiers" contagem={tiers?.length ?? "…"}>
+      {tiers === undefined ? (
+        <LinhasEsqueleto
+          colunas={["w-24", "ml-auto w-20", "h-5 w-9 rounded-full"]}
+        />
+      ) : (
+        <Tabela>
+          <thead>
             <tr>
-              <th className="px-3 py-2.5 font-medium sm:px-4">Nome</th>
-              <th className="px-3 py-2.5 font-medium sm:px-4">Limiar</th>
-              <th className="px-3 py-2.5 font-medium sm:px-4">Activo</th>
+              <Th>Nome</Th>
+              <Th num className="pr-12">
+                Limiar
+              </Th>
+              <Th className="w-px text-center">Activo</Th>
             </tr>
           </thead>
           <tbody>
-            {(tiers ?? []).map((tier) => (
-              <tr key={tier._id} className="border-b last:border-0">
-                <td className="px-3 py-2 sm:px-4">
-                  <input
-                    className={cn(inputCls, "w-full min-w-24")}
-                    defaultValue={tier.nome}
-                    onBlur={(e) => {
-                      const next = e.target.value.trim()
-                      if (next !== "" && next !== tier.nome) {
-                        void gravar(tier._id, { nome: next })
-                      }
-                    }}
+            {tiers.map((tier) => (
+              <tr
+                key={tier._id}
+                className={cn(linhaCls, !tier.ativa && "text-muted-foreground")}
+              >
+                <Td className="py-1.5">
+                  <CelulaEditavel
+                    alinhar="esquerda"
+                    inputMode="text"
+                    larguraEditor="w-full min-w-28 sm:w-56"
+                    rotulo={`nome do tier ${tier.nome}`}
+                    valor={tier.nome}
+                    mostrar={<span className="font-medium">{tier.nome}</span>}
+                    paraRascunho={(v) => v}
+                    ler={(t) =>
+                      t.trim() === ""
+                        ? { erro: "O nome não pode ficar vazio." }
+                        : { valor: t.trim() }
+                    }
+                    mensagem={(v) => `Tier renomeado para ${v}.`}
+                    onGuardar={(v) => atualizar({ tierId: tier._id, nome: v })}
                   />
-                </td>
-                <td className="px-3 py-2 sm:px-4">
-                  <input
-                    className={cn(inputCls, "w-20 sm:w-36")}
-                    inputMode="decimal"
-                    defaultValue={(tier.limiarCents / 100).toString()}
-                    disabled={tier.slug === "base"}
-                    title={
+                </Td>
+                <Td num className="py-1.5">
+                  <CelulaEditavel
+                    sufixo="€"
+                    larguraEditor="w-24"
+                    rotulo={`limiar do tier ${tier.nome}`}
+                    valor={tier.limiarCents}
+                    mostrar={eurosDeCents(tier.limiarCents)}
+                    bloqueado={
                       tier.slug === "base"
                         ? "O tier Base fica sempre com limiar 0"
                         : undefined
                     }
-                    onBlur={(e) => {
-                      const euros = Number(e.target.value.replace(",", "."))
-                      if (!Number.isFinite(euros) || euros < 0) return
-                      const cents = Math.round(euros * 100)
-                      if (cents !== tier.limiarCents) {
-                        void gravar(tier._id, { limiarCents: cents })
-                      }
+                    paraRascunho={(c) => (c / 100).toString().replace(".", ",")}
+                    ler={(t) => {
+                      const euros = numero(t)
+                      return !Number.isFinite(euros) || euros < 0
+                        ? { erro: "Limiar inválido." }
+                        : { valor: Math.round(euros * 100) }
                     }}
-                  />
-                </td>
-                <td className="px-3 py-2 sm:px-4">
-                  <input
-                    type="checkbox"
-                    checked={tier.ativa}
-                    disabled={tier.slug === "base"}
-                    onChange={(e) =>
-                      void gravar(tier._id, { ativa: e.target.checked })
+                    mensagem={(c) =>
+                      `Limiar de ${tier.nome}: ${eurosDeCents(c)}.`
+                    }
+                    onGuardar={(c) =>
+                      atualizar({ tierId: tier._id, limiarCents: c })
                     }
                   />
-                </td>
+                </Td>
+                <Td className="py-1.5 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label={`${tier.nome} activo`}
+                    className="size-4 align-middle accent-primary disabled:opacity-50"
+                    checked={tier.ativa}
+                    disabled={tier.slug === "base"}
+                    title={
+                      tier.slug === "base"
+                        ? "O tier Base está sempre activo"
+                        : undefined
+                    }
+                    onChange={(e) =>
+                      void alternarAtiva(tier._id, tier.nome, e.target.checked)
+                    }
+                  />
+                </Td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </Tabela>
+      )}
 
       <form
         onSubmit={(e) => void adicionar(e)}
-        className="flex flex-wrap items-end gap-2"
+        className="flex flex-wrap items-end gap-x-3 gap-y-3 border-t px-5 py-4"
       >
-        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:flex-none">
-          <span className="text-muted-foreground">Novo tier</span>
+        <label className="flex min-w-0 basis-full flex-col gap-1.5 sm:basis-auto">
+          <span className="text-sm font-medium">Novo tier</span>
           <input
-            className={cn(inputCls, "w-full min-w-0 sm:w-48")}
+            className={cn(campoCls, "w-full min-w-0 sm:w-56")}
             placeholder="Nome"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             required
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Limiar (€)</span>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">Limiar (€)</span>
           <input
-            className={cn(inputCls, "w-32")}
+            className={cn(campoCls, "w-32 text-right tabular-nums")}
+            inputMode="decimal"
             placeholder="10000"
             value={limiarEuros}
             onChange={(e) => setLimiarEuros(e.target.value)}
@@ -185,130 +236,123 @@ function Tiers() {
         <Button type="submit" variant="outline">
           Adicionar
         </Button>
+        {erro && (
+          <p role="alert" className="basis-full text-sm text-destructive">
+            {erro}
+          </p>
+        )}
       </form>
-    </section>
+    </Seccao>
   )
 }
 
 function Matriz() {
   const data = useQuery(api.comercial.listarMatriz, {})
   const definir = useMutation(api.comercial.definirDesconto)
-  const [rascunho, setRascunho] = useState<Record<string, string>>({})
-  const [erro, setErro] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!data) return
-    const next: Record<string, string> = {}
-    for (const c of data.celulas) {
-      next[`${c.marca}:${c.tierId}`] = String(c.descontoPercent)
-    }
-    setRascunho(next)
-  }, [data])
-
-  if (data === undefined) {
-    return <p className="text-sm text-muted-foreground">A carregar matriz…</p>
-  }
-
-  if (data.marcas.length === 0) {
-    return (
-      <p className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">
-        Não há marcas activas. Importa o catálogo para preencher a grelha.
-      </p>
-    )
-  }
-
-  async function gravarCelula(
-    marca: string,
-    tierId: Id<"tiers">,
-    valor: string,
-  ) {
-    setErro(null)
-    const n = Number(valor.replace(",", "."))
-    if (!Number.isFinite(n) || n < 0 || n > 100) {
-      setErro("O desconto tem de estar entre 0 e 100.")
-      return
-    }
-    try {
-      await definir({ marca, tierId, descontoPercent: n })
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao gravar desconto.")
-    }
+  const porPar = new Map<string, number>()
+  for (const c of data?.celulas ?? []) {
+    porPar.set(`${c.marca}:${c.tierId}`, c.descontoPercent)
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="font-medium">Grelha de desconto (marca × tier)</h2>
-      {erro && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {erro}
-        </p>
-      )}
-      {/* One column per tier: this grid is legitimately wider than a phone,
-          so it scrolls inside this wrapper rather than stretching the page. */}
-      <div className="overflow-x-auto rounded-2xl border bg-card">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+    <Seccao
+      titulo="Desconto marca × tier"
+      contagem={data ? `${data.marcas.length} × ${data.tiers.length}` : "…"}
+      accoes={<span className="tabular-nums">0 % = PVP</span>}
+    >
+      {data === undefined ? (
+        <LinhasEsqueleto colunas={["w-24", "ml-auto w-14", "w-14", "w-14"]} />
+      ) : data.marcas.length === 0 ? (
+        <Vazio>
+          Não há marcas activas. Importa o catálogo para preencher a grelha.
+        </Vazio>
+      ) : (
+        <Tabela>
+          <thead>
             <tr>
-              <th className="px-4 py-2.5 font-medium whitespace-nowrap">
+              <Th
+                className={cn("sticky left-0 z-10 border-r", FUNDO_CABECALHO)}
+              >
                 Marca
-              </th>
+              </Th>
               {data.tiers.map((tier) => (
-                <th
+                <Th
                   key={tier._id}
-                  className="px-4 py-2.5 font-medium whitespace-nowrap"
+                  num
+                  className={cn(
+                    "w-36 pr-12",
+                    !tier.ativa && "text-muted-foreground/70"
+                  )}
                 >
                   {tier.nome}
-                  {!tier.ativa && (
-                    <span className="ml-1 font-normal normal-case">
-                      (inactivo)
-                    </span>
-                  )}
-                </th>
+                  <span className="block font-normal">
+                    ≥ {eurosDeCents(tier.limiarCents)}
+                    {!tier.ativa && " · inactivo"}
+                  </span>
+                </Th>
               ))}
             </tr>
           </thead>
           <tbody>
             {data.marcas.map((marca) => (
-              <tr key={marca.slug} className="border-b last:border-0">
-                <td className="px-4 py-2 font-medium whitespace-nowrap">
+              <tr key={marca.slug} className={linhaCls}>
+                <Td className="sticky left-0 z-10 border-r bg-card font-medium whitespace-nowrap transition-colors [tr:hover>&]:bg-[color-mix(in_oklch,var(--secondary)_40%,var(--card))]">
                   {marca.nome}
-                </td>
+                </Td>
                 {data.tiers.map((tier) => {
-                  const key = `${marca.slug}:${tier._id}`
+                  const desconto = porPar.get(`${marca.slug}:${tier._id}`) ?? 0
                   return (
-                    <td key={tier._id} className="px-4 py-2">
-                      <div className="flex items-center gap-1">
-                        <input
-                          className={cn(inputCls, "w-20")}
-                          value={rascunho[key] ?? "0"}
-                          onChange={(e) =>
-                            setRascunho((prev) => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
-                          onBlur={(e) =>
-                            void gravarCelula(
-                              marca.slug,
-                              tier._id,
-                              e.target.value,
-                            )
-                          }
-                        />
-                        <span className="text-xs text-muted-foreground">%</span>
-                      </div>
-                    </td>
+                    <Td
+                      key={tier._id}
+                      num
+                      className={cn(
+                        "py-1.5",
+                        !tier.ativa && "text-muted-foreground"
+                      )}
+                    >
+                      <CelulaEditavel
+                        discreto
+                        sufixo="%"
+                        rotulo={`desconto ${marca.nome}, ${tier.nome}`}
+                        valor={desconto}
+                        mostrar={
+                          <span
+                            className={cn(
+                              desconto === 0
+                                ? "text-muted-foreground"
+                                : "font-medium"
+                            )}
+                          >
+                            {PERCENT.format(desconto)} %
+                          </span>
+                        }
+                        paraRascunho={(n) => String(n).replace(".", ",")}
+                        ler={(t) => {
+                          const n = numero(t)
+                          return !Number.isFinite(n) || n < 0 || n > 100
+                            ? { erro: "O desconto tem de estar entre 0 e 100." }
+                            : { valor: n }
+                        }}
+                        mensagem={(n) =>
+                          `${marca.nome} · ${tier.nome}: ${PERCENT.format(n)} %.`
+                        }
+                        onGuardar={(n) =>
+                          definir({
+                            marca: marca.slug,
+                            tierId: tier._id,
+                            descontoPercent: n,
+                          })
+                        }
+                      />
+                    </Td>
                   )
                 })}
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Os valores gravam-se ao sair da célula. Célula a 0% = revenda igual ao
-        PVP.
-      </p>
-    </section>
+        </Tabela>
+      )}
+    </Seccao>
   )
 }

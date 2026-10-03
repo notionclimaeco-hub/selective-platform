@@ -1,10 +1,19 @@
 import { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
-// Minimal confirm dialog for destructive actions. `onConfirmar` may be async;
-// the dialog shows a spinner until it resolves, then closes.
+// Minimal confirm dialog for destructive actions, on the client app's dialog
+// (client-frontend `ui/dialog.tsx`). `onConfirmar` may be async; the
+// dialog shows a spinner until it resolves, then closes. While it runs,
+// neither Escape, the backdrop nor the X close it.
 export function ConfirmDialog({
   titulo,
   descricao,
@@ -36,20 +45,27 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={aProcessar ? undefined : onCancelar}
-      />
-      <div className="relative w-full max-w-sm rounded-xl border bg-background p-5 shadow-xl">
-        <h2 className="font-medium break-words">{titulo}</h2>
-        <p className="mt-1.5 text-sm break-words text-muted-foreground">
-          {descricao}
-        </p>
-        {erro && (
-          <p className="mt-3 text-sm break-words text-destructive">{erro}</p>
-        )}
-        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+    <Dialog
+      open
+      onOpenChange={(aberto) => {
+        if (!aberto && !aProcessar) onCancelar()
+      }}
+    >
+      <DialogContent role="alertdialog" showCloseButton={false}>
+        <div className="flex flex-col gap-1.5 pr-8">
+          <DialogTitle className="text-lg font-semibold break-words">
+            {titulo}
+          </DialogTitle>
+          <DialogDescription className="break-words">
+            {descricao}
+          </DialogDescription>
+          {erro && (
+            <p role="alert" className="mt-1.5 break-words text-destructive">
+              {erro}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onCancelar} disabled={aProcessar}>
             Cancelar
           </Button>
@@ -62,7 +78,21 @@ export function ConfirmDialog({
             {aProcessar ? "A processar…" : confirmarLabel}
           </Button>
         </div>
-      </div>
-    </div>
+        <DialogClose
+          disabled={aProcessar}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-4 right-4 bg-secondary"
+            />
+          }
+        >
+          <X />
+          <span className="sr-only">Fechar</span>
+        </DialogClose>
+      </DialogContent>
+    </Dialog>
   )
 }
